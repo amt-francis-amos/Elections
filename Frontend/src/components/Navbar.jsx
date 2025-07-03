@@ -56,7 +56,7 @@ const Navbar = () => {
               onClick={closeDropdown}
             >
               Home
-              <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 transform transition-transform duration-300 ${
+              <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 transform transition-transform duration-300 ${
                 isActive('/') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
               }`}></span>
             </Link>
@@ -72,7 +72,7 @@ const Navbar = () => {
               >
                 <span>Vote</span>
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 transform transition-transform duration-300 ${
+                <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 transform transition-transform duration-300 ${
                   location.pathname.includes('/vote') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
                 }`}></span>
               </button>
@@ -114,7 +114,7 @@ const Navbar = () => {
               onClick={closeDropdown}
             >
               Admin
-              <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 transform transition-transform duration-300 ${
+              <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 transform transition-transform duration-300 ${
                 isActive('/admin') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
               }`}></span>
             </Link>
