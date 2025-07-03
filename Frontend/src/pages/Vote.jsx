@@ -1,5 +1,5 @@
 import React from 'react'
-import { assets } from '../assets/assets'
+import { candidates } from '../assets/assets'
 
 
 const Vote = () => {
