@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X, ChevronDown } from 'lucide-react';
+import { assets } from '../assets/assets';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,22 +36,9 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
          
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center">
-              <div className="text-white font-bold text-sm">NB</div>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                NUDOM SCHOOL
-              </h1>
-              <p className="text-xs text-gray-600 -mt-1">
-                OF BUSINESS & TECHNOLOGY
-              </p>
-            </div>
-            <div className="sm:hidden">
-              <h1 className="text-sm font-bold text-gray-900">NSBT</h1>
-            </div>
-          </div>
+        <div>
+          <img src={assets.logo} alt="NSBT LOGO" className='w-[150px]' />
+        </div>
 
           <div className="hidden md:flex items-center space-x-8">
             <a 
