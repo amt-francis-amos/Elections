@@ -25,9 +25,7 @@ const Elections = () => {
           <p className="text-lg md:text-xl mb-6">
             Make your voice count. Vote for a better tomorrow.
           </p>
-          <button className="px-6 py-3 bg-orange-500 hover:bg-orange-600 rounded-full text-white font-semibold transition">
-            View Candidates
-          </button>
+        
         </div>
       </section>
 
