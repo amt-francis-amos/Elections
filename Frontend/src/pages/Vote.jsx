@@ -1,31 +1,6 @@
 import React from 'react'
 
-const candidates = [
-  {
-    id: 1,
-    name: 'Kwame Mensah',
-    position: 'President',
-    image: 'https://via.placeholder.com/400x250?text=Kwame+Mensah',
-  },
-  {
-    id: 2,
-    name: 'Akua Owusu',
-    position: 'President',
-    image: 'https://via.placeholder.com/400x250?text=Akua+Owusu',
-  },
-  {
-    id: 3,
-    name: 'Yaw Boateng',
-    position: 'Vice President',
-    image: 'https://via.placeholder.com/400x250?text=Yaw+Boateng',
-  },
-  {
-    id: 4,
-    name: 'Esi Asare',
-    position: 'General Secretary',
-    image: 'https://via.placeholder.com/400x250?text=Esi+Asare',
-  },
-]
+
 
 const Vote = () => {
   const handleVote = (candidate) => {
