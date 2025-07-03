@@ -21,7 +21,7 @@ const Elections = () => {
 
    
         <div className="relative z-10 flex flex-col items-center justify-center h-full text-white text-center px-4">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">2025 Elections</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">NSBT Elections Portal</h1>
           <p className="text-lg md:text-xl mb-6">
             Make your voice count. Vote for a better tomorrow.
           </p>
