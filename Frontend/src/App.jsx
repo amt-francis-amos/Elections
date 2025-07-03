@@ -6,6 +6,7 @@ import Vote from './pages/Vote';
 import Elections from './pages/Elections';
 import Candidates from './pages/Candidates';
 import Results from './pages/Results';
+import Footer from './components/Footer';
 
 const App = () => {
   return (
@@ -20,6 +21,7 @@ const App = () => {
           <Route path="/vote/results" element={<Results />} />
         </Routes>
       </div>
+      <Footer />
     </div>
   );
 };
