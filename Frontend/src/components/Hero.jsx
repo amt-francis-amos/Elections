@@ -40,9 +40,13 @@ const Hero = () => {
               </button>
              </Link>
 
-              <button className="px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 backdrop-blur-sm">
+             <Link to='/vote/candidates'>
+             <button className="px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 backdrop-blur-sm">
                 View Candidates
               </button>
+             </Link>
+
+              
             </div>
 
             <div className="grid grid-cols-3 gap-4 text-center">
