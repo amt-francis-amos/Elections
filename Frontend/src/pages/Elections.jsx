@@ -1,5 +1,5 @@
 import React from 'react';
-import { candidates } from '../assets/assets'
+import {assets, candidates } from '../assets/assets'
 
 
 const Elections = () => {
@@ -12,7 +12,7 @@ const Elections = () => {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "url('https://images.unsplash.com/photo-1556761175-4b46a572b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80')",
+              `url(${assets.elect})`,
           }}
         ></div>
 
