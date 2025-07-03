@@ -37,7 +37,9 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
          
         <div>
-          <img src={assets.logo} alt="NSBT LOGO" className='w-[150px]' />
+          <a href="#home" onClick={closeDropdown}>
+            <img src={assets.logo} alt="NSBT LOGO" className='w-[150px]' />
+          </a>
         </div>
 
           <div className="hidden md:flex items-center space-x-8">
