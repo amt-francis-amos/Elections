@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { assets } from '../assets/assets';
 
 const Navbar = () => {
@@ -37,9 +38,9 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
          
         <div>
-          <a href="#home" onClick={closeDropdown}>
+          <Link to="/" onClick={closeDropdown}>
             <img src={assets.logo} alt="NSBT LOGO" className='w-[150px]' />
-          </a>
+          </Link>
         </div>
 
           <div className="hidden md:flex items-center space-x-8">
