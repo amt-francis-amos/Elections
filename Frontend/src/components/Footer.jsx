@@ -10,7 +10,7 @@ const Footer = () => {
         
        
         <div>
-          <img src={assets.logo} alt="NSBT Logo" className="w-[140px] mb-4" />
+          <img src={assets.footerlogo} alt="NSBT Logo" className="w-[140px] mb-4" />
           <p className="text-sm text-gray-300">
             Empowering your vote with transparency, integrity, and real-time results.
           </p>
