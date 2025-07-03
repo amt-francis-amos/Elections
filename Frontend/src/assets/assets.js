@@ -23,7 +23,7 @@ export const candidates = [
   {
     id: 2,
     name: 'Akua Owusu',
-    position: 'President',
+    position: 'Entertainment Officer',
     image: assets.image2,
   },
   {
