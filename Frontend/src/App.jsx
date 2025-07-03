@@ -1,8 +1,11 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import Home from './pages/Home'
-import Vote from './pages/Vote'
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Home from './pages/Home';
+import Vote from './pages/Vote';
+import Elections from './pages/Elections';
+import Candidates from './pages/Candidates';
+import Results from './pages/Results';
 
 const App = () => {
   return (
@@ -12,10 +15,13 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/vote" element={<Vote />} />
+          <Route path="/vote/elections" element={<Elections />} />
+          <Route path="/vote/candidates" element={<Candidates />} />
+          <Route path="/vote/results" element={<Results />} />
         </Routes>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
