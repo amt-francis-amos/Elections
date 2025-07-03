@@ -31,8 +31,8 @@ const Footer = () => {
       
         <div>
           <h4 className="text-lg font-semibold mb-4 text-white">Contact</h4>
-          <p className="text-sm text-gray-300">123 Democracy Lane<br />Accra, Ghana</p>
-          <p className="text-sm text-gray-300 mt-2">Email: info@nsbt.org</p>
+          <p className="text-sm text-gray-300">Ayensudo - Aboabo<br />Elmina, Ghana</p>
+          <p className="text-sm text-gray-300 mt-2">Email: nsbt.edu.gh</p>
           <p className="text-sm text-gray-300">Phone: +233 20 000 0000</p>
         </div>
 
