@@ -121,7 +121,7 @@ const Navbar = () => {
 
             <Link 
               to="/vote" 
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+              className="bg-[#03073d] hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
             >
               Vote Now
             </Link>
@@ -207,7 +207,7 @@ const Navbar = () => {
               <div className="pt-2">
                 <Link 
                   to="/vote" 
-                  className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-md transition-colors duration-200 shadow-sm text-center"
+                  className="block w-full bg-[#03073d] hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-md transition-colors duration-200 shadow-sm text-center"
                   onClick={closeMenu}
                 >
                   Vote Now
