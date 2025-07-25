@@ -15,14 +15,16 @@ const App = () => (
   <div className="flex flex-col min-h-screen bg-white text-gray-900">
     <Navbar />
     <main className="flex-grow">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/vote" element={<Vote />} />
-        <Route path="/vote/elections" element={<Elections />} />
-        <Route path="/vote/candidates" element={<Candidates />} />
-        <Route path="/vote/results" element={<Results />} />
-        <Route path="/profile" element={<Profile />} />
-      </Routes>
+   <Routes>
+  <Route path="/" element={<Home />} />
+  <Route path="/login" element={<Login />} />
+  <Route path="/vote" element={<Vote />} />
+  <Route path="/vote/elections" element={<Elections />} />
+  <Route path="/vote/candidates" element={<Candidates />} />
+  <Route path="/vote/results" element={<Results />} />
+  <Route path="/profile" element={<Profile />} />
+</Routes>
+
     </main>
     <Footer />
     <ToastContainer
