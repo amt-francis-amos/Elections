@@ -34,7 +34,7 @@ const Vote = () => {
       const res = await axios.post(
         'https://elections-backend-j8m8.onrender.com/api/votes',
         {
-          electionId: '64f3be4dbb2cfad76c12e281',
+          electionId: election_id,
           candidateId: candidate._id
         },
         {
