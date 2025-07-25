@@ -14,7 +14,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm transition-opacity duration-300">
       <div className="relative bg-white shadow-xl rounded-xl p-8 w-full max-w-md animate-fade-in">
-        {/* Close Icon inside form box */}
+   
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
