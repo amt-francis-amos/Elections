@@ -33,7 +33,6 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
       const payload = isLogin
         ? {
             id: formData.id,
-            email: formData.email,
             password: formData.password,
           }
         : {
@@ -45,17 +44,12 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
       const response = await axios.post(url, payload);
       const data = response.data;
 
-  
       if (isLogin) {
         const { token, user } = data;
+        if (!token || !user) throw new Error("Invalid login response");
 
-        if (!token || !user) {
-          throw new Error("Invalid login response format");
-        }
-
-       
         localStorage.setItem("token", token);
-        localStorage.setItem("userData", JSON.stringify(user)); 
+        localStorage.setItem("userData", JSON.stringify(user));
 
         toast.success("Login successful!");
         if (user.role === "admin") {
@@ -66,19 +60,13 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
-      }
-
-     
-      else {
+      } else {
         const { user, token } = data;
-
         if (!user || !user.userId || !token) {
           throw new Error("Invalid registration response format");
         }
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
-
-       
         setFormData({
           id: user.userId,
           email: user.email,
@@ -86,9 +74,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           name: "",
         });
 
-        setTimeout(() => {
-          setIsLogin(true); 
-        }, 1000);
+        setTimeout(() => setIsLogin(true), 1000);
       }
     } catch (error) {
       console.error("Request error:", error);
@@ -151,35 +137,19 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             )}
 
             {isLogin && (
-              <>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="id"
-                    value={formData.id}
-                    required
-                    onChange={handleChange}
-                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                    User ID
-                  </label>
-                </div>
-
-                <div className="relative">
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    required
-                    onChange={handleChange}
-                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                    Email Address
-                  </label>
-                </div>
-              </>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="id"
+                  value={formData.id}
+                  required
+                  onChange={handleChange}
+                  className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                  User ID
+                </label>
+              </div>
             )}
 
             <div className="relative">
