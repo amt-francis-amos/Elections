@@ -112,7 +112,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     
     if (!validateForm()) return
     
-    // Check rate limit
+  
     if (isRateLimited) {
       showToast('Too many attempts. Please wait before trying again.')
       return
@@ -122,7 +122,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     
     try {
       if (isLogin) {
-        // Login request
+     
         const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/users/login', {
           email: formData.email.trim(),
           password: formData.password
@@ -132,7 +132,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         
         showToast('Login successful!', 'success')
         
-        // Prepare user data
+     
         const userData = {
           id: response.data.user.id,
           fullName: response.data.user.fullName || formData.email.split('@')[0],
@@ -141,13 +141,13 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           token: response.data.user.token
         }
         
-        // Store token (Note: localStorage won't work in Claude artifacts)
+       
         if (response.data.user.token) {
           localStorage.setItem('authToken', response.data.user.token)
           localStorage.setItem('user', JSON.stringify(userData))
         }
         
-        // Call success callback
+    
         if (onLoginSuccess && typeof onLoginSuccess === 'function') {
           onLoginSuccess(userData)
         }
@@ -155,7 +155,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         handleClose()
         
       } else {
-        // Registration request
+ 
         const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/users/signup', {
           fullName: formData.fullName.trim(),
           email: formData.email.trim(),
@@ -166,7 +166,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         
         showToast('Registration successful! Please sign in with your credentials.', 'success')
         
-        // Switch to login mode and keep email
+   
         setIsLogin(true)
         setFormData(prev => ({
           fullName: '',
@@ -181,18 +181,18 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     } catch (error) {
       console.error('Authentication error:', error)
       
-      // Handle different types of errors
+
       if (error.code === 'ECONNABORTED') {
         showToast('Request timeout. Please check your connection and try again.')
       } else if (error.response?.status === 429) {
-        // Handle rate limiting
+       
         setIsRateLimited(true)
-        const rateLimitExpiry = Date.now() + (15 * 60 * 1000) // 15 minutes
+        const rateLimitExpiry = Date.now() + (15 * 60 * 1000)
         localStorage.setItem('rateLimitExpiry', rateLimitExpiry.toString())
         
         showToast('Too many login attempts. Please wait 15 minutes before trying again.')
         
-        // Reset rate limit after 15 minutes
+     
         setTimeout(() => {
           setIsRateLimited(false)
           localStorage.removeItem('rateLimitExpiry')
@@ -250,16 +250,16 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 min-h-screen">
-      {/* Backdrop */}
+   
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300" 
         onClick={handleClose}
         aria-label="Close modal"
       />
       
-      {/* Modal */}
+    
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto">
-        {/* Close button */}
+    
         <button 
           onClick={handleClose} 
           className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200 z-10"
@@ -268,7 +268,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           <X size={18} />
         </button>
         
-        {/* Header */}
+    
         <div className="px-6 pt-6 pb-2">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-[#042028] mb-1">
@@ -280,7 +280,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           </div>
         </div>
         
-        {/* Rate limit warning */}
+      
         {isRateLimited && (
           <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-700">
@@ -289,9 +289,9 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           </div>
         )}
         
-        {/* Form */}
+    
         <div className="px-6 pb-8">
-          {/* Full Name Field (Registration only) */}
+     
           {!isLogin && (
             <div className="mb-4">
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -317,7 +317,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             </div>
           )}
           
-          {/* Email Field */}
+       
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
@@ -341,7 +341,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             {errors.email && <p className="mt-1 text-sm text-red-500" role="alert">{errors.email}</p>}
           </div>
           
-          {/* Password Field */}
+        
           <div className="mb-4">
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Password
@@ -373,7 +373,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             {errors.password && <p className="mt-1 text-sm text-red-500" role="alert">{errors.password}</p>}
           </div>
           
-          {/* Confirm Password Field (Registration only) */}
+         
           {!isLogin && (
             <div className="mb-4">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
@@ -407,7 +407,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             </div>
           )}
           
-          {/* Submit Button */}
+      
           <button 
             onClick={handleSubmit}
             disabled={isLoading || isRateLimited}
@@ -425,7 +425,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             )}
           </button>
           
-          {/* Switch Mode */}
+      
           <div className="text-center mb-3">
             <p className="text-gray-600 text-sm">
               {isLogin ? "Don't have an account?" : 'Already have an account?'}
@@ -440,7 +440,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             </p>
           </div>
           
-          {/* Forgot Password (Login only) */}
+
           {isLogin && (
             <div className="text-center">
               <button 
