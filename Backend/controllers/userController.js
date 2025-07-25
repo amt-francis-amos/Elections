@@ -8,13 +8,6 @@ const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
-const generateUserId = () => {
-  const prefix = "USR";
-  const random = Math.random().toString(36).substring(2, 10).toUpperCase();
-  return `${prefix}-${random}`;
-};
-
-
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -53,16 +46,19 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
- 
+
+    const adminEmails = ['admin@example.com', 'superadmin@elections.com'];
+    const normalizedEmail = email.toLowerCase().trim();
+    const role = adminEmails.includes(normalizedEmail) ? 'admin' : 'voter';
+
     const user = await User.create({
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       password: hashed,
       userId,
-      role: 'voter', 
+      role,
     });
 
-    
     const token = generateToken({
       id: user._id,
       name: user.name,
@@ -80,6 +76,7 @@ export const registerUser = async (req, res) => {
           <h2>Hello ${user.name},</h2>
           <p>Welcome to our platform! Your account has been successfully created.</p>
           <p><strong>Your User ID is:</strong> <code>${user.userId}</code></p>
+          <p><strong>Your Role is:</strong> <code>${user.role}</code></p>
           <p>Please keep this ID safe. You may need it for login or support.</p>
           <br/>
           <p>Best regards,<br/>The Team</p>
@@ -114,71 +111,6 @@ export const registerUser = async (req, res) => {
       success: false,
       message: "Server error during registration",
       error: error.message,
-    });
-  }
-};
-
-
-export const loginUser = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Incorrect password" });
-    }
-
-    // ✅ Include role in token
-    const token = generateToken({
-      id: user._id,
-      name: user.name,
-      role: user.role,
-      email: user.email,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        userId: user.userId,
-        role: user.role,
-      },
-      token,
-    });
-
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ success: false, message: "Server error during login" });
-  }
-};
-
-
-export const getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      users,
-    });
-
-  } catch (error) {
-    console.error("Get all users error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while fetching users",
     });
   }
 };
