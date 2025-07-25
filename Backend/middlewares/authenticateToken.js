@@ -5,7 +5,6 @@ export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
- 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ 
         success: false, 
@@ -22,29 +21,38 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
- 
+  
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+
+    console.log("Decoded token:", decoded);
+
   
+    if (!decoded.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. Invalid token payload.",
+      });
+    }
+
+
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
+      console.warn("Token is valid but user not found:", decoded.userId);
       return res.status(401).json({ 
         success: false, 
         message: "Access denied. User not found." 
       });
     }
 
-   
+    
     req.user = user;
-
-  
     next();
 
   } catch (err) {
     console.error("Authentication error:", err.message);
 
-    
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
@@ -59,7 +67,6 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-   
     return res.status(401).json({
       success: false,
       message: "Access denied. Authentication failed."
