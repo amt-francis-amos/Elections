@@ -35,34 +35,48 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
       if (isLogin) {
         const { token, user } = response.data;
+        
+     
         localStorage.setItem("token", token);
+        
         toast.success("Login successful!");
 
-      
+        
         if (user.role === "admin") {
           toast.success("Welcome, Admin!");
-         
         } else {
           toast.info("Welcome, Voter!");
         }
 
+      
         if (onLoginSuccess) onLoginSuccess(user);
+        
+        
+        onClose();
       } else {
-        const { userId } = response.data;
+        
+        const { user, token } = response.data;
+        
+        
+        const userId = user.userId;
+        
         toast.success(`Registration successful! Your ID: ${userId}`);
 
+      
         setFormData({
           id: userId,
-          email: payload.email,
-          password: payload.password,
+          email: user.email,
+          password: formData.password, 
           name: "",
         });
 
+       
         setTimeout(() => {
           setIsLogin(true);
         }, 1000);
       }
     } catch (error) {
+      console.error("Request error:", error);
       toast.error(error.response?.data?.message || "Request failed");
     } finally {
       setLoading(false);
@@ -73,7 +87,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm px-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
         <div className="bg-white p-6 sm:p-8 rounded-2xl w-full max-w-md shadow-2xl relative">
           <button
             onClick={onClose}
@@ -86,13 +100,14 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
             {!isLogin && (
               <>
                 <div className="relative">
                   <input
                     type="text"
                     name="name"
+                    value={formData.name}
                     required
                     onChange={handleChange}
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -106,6 +121,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                   <input
                     type="email"
                     name="email"
+                    value={formData.email}
                     required
                     onChange={handleChange}
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -123,6 +139,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                   <input
                     type="text"
                     name="id"
+                    value={formData.id}
                     required
                     onChange={handleChange}
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -136,6 +153,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                   <input
                     type="email"
                     name="email"
+                    value={formData.email}
                     required
                     onChange={handleChange}
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -151,6 +169,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
+                value={formData.password}
                 required
                 onChange={handleChange}
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -167,8 +186,8 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             </div>
 
             <button
-              type="submit"
-              className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
+              onClick={handleSubmit}
+              className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading
@@ -179,11 +198,11 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                 ? "Login"
                 : "Register"}
             </button>
-          </form>
+          </div>
 
           <p
             onClick={() => setIsLogin(!isLogin)}
-            className="text-center text-sm text-indigo-600 mt-6 cursor-pointer"
+            className="text-center text-sm text-indigo-600 mt-6 cursor-pointer hover:text-indigo-800"
           >
             {isLogin
               ? "Don't have an account? Sign up"
