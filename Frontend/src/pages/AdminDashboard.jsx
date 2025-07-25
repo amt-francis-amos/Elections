@@ -4,7 +4,7 @@ import UserTable from "../components/UserTable";
 
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://elections-backend-j8m8.onrender.com/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
