@@ -41,7 +41,7 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
-    // Default role is voter - admin assignment would need to be done manually or through different logic
+    
     const role = 'voter';
 
     console.log("✅ Creating user with role:", role); 
