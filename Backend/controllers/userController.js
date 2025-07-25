@@ -146,3 +146,24 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error during login" });
   }
 };
+
+
+// Add this to your controller file
+export const getAllUsers = async (req, res) => {
+  try {
+    // Fetch all users but exclude passwords
+    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      users: users
+    });
+    
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching users"
+    });
+  }
+};
