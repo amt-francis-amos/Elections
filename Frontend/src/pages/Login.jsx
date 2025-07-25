@@ -4,7 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 
 const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ id: "", email: "", name: "", password: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -20,10 +20,14 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
     try {
       const url = isLogin
-        ? "https://elections-backend-j8m8.onrender.com/api/login"
-        : "https://elections-backend-j8m8.onrender.com/api/register";
+        ? "https://elections-backend-j8m8.onrender.com/api/users/login"
+        : "https://elections-backend-j8m8.onrender.com/api/users/register";
 
-      const response = await axios.post(url, formData);
+      const payload = isLogin
+        ? { id: formData.id, email: formData.email }
+        : { name: formData.name, password: formData.password };
+
+      const response = await axios.post(url, payload);
       const { token, user } = response.data;
 
       setMessage(`${isLogin ? "Login" : "Registration"} successful!`);
@@ -53,18 +57,50 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="relative">
-            <input
-              type="email"
-              name="email"
-              required
-              onChange={handleChange}
-              className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-              Email Address
-            </label>
-          </div>
+          {!isLogin && (
+            <div className="relative">
+              <input
+                type="text"
+                name="name"
+                required
+                onChange={handleChange}
+                className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                Name
+              </label>
+            </div>
+          )}
+
+          {isLogin && (
+            <div className="relative">
+              <input
+                type="text"
+                name="id"
+                required
+                onChange={handleChange}
+                className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                User ID
+              </label>
+            </div>
+          )}
+
+          {isLogin && (
+            <div className="relative">
+              <input
+                type="email"
+                name="email"
+                required
+                onChange={handleChange}
+                className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                Email Address
+              </label>
+            </div>
+          )}
 
           <div className="relative">
             <input
