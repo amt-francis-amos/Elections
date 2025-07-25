@@ -124,33 +124,24 @@ export const loginUser = async (req, res) => {
   try {
     const { id, password } = req.body;
 
-    console.log("Login attempt:", { id, email }); 
-
-  
-    if (!id ||  !password) {
+    if (!id || !password) {
       return res.status(400).json({ 
         success: false, 
         message: "User ID and password are required" 
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-
-    
-    const user = await User.findOne({ 
-      userId: id, 
-      email: normalizedEmail 
-    });
+    // Find user by userId only
+    const user = await User.findOne({ userId: id });
 
     if (!user) {
-      console.log("User not found with ID:", id, "and email:", normalizedEmail);
+      console.log("User not found with ID:", id);
       return res.status(400).json({ 
         success: false, 
         message: "Invalid credentials" 
       });
     }
 
-    
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("Password mismatch for user:", id);
@@ -160,7 +151,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-  
     const token = generateToken({
       id: user._id,
       name: user.name,
@@ -170,7 +160,6 @@ export const loginUser = async (req, res) => {
 
     console.log("✅ Login successful for user:", user.name, "Role:", user.role);
 
-   
     res.status(200).json({
       success: true,
       message: "Login successful",
