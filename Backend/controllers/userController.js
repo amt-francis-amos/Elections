@@ -14,6 +14,8 @@ function generateUserId() {
 export const registerUser = async (req, res) => {
   try {
     const { name, password } = req.body;
+    
+    console.log("Registration request body:", req.body);
 
     if (!name || !password) {
       return res.status(400).json({ success: false, message: "Name and password are required" });
