@@ -1,4 +1,4 @@
-// Enhanced uploadProfilePicture function with better error handling
+
 export const uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
@@ -8,7 +8,6 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Validate file type - more comprehensive check
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(req.file.mimetype)) {
       return res.status(400).json({ 
@@ -17,8 +16,7 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024; 
     if (req.file.size > maxSize) {
       return res.status(400).json({ 
         success: false, 
@@ -26,7 +24,7 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Get current user to check for existing profile picture
+  
     const currentUser = await User.findById(req.user._id);
     if (!currentUser) {
       return res.status(404).json({ 
@@ -41,23 +39,23 @@ export const uploadProfilePicture = async (req, res) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { 
-            folder: "profile_pictures", // More descriptive folder name
+            folder: "profile_pictures", 
             resource_type: "image",
-            public_id: `user_${req.user._id}_${Date.now()}`, // Unique public_id
+            public_id: `user_${req.user._id}_${Date.now()}`, 
             transformation: [
               { 
                 width: 400, 
                 height: 400, 
                 crop: "fill", 
-                gravity: "face", // Focus on face if detected
-                quality: "auto:good" // Optimize quality
+                gravity: "face", 
+                quality: "auto:good" 
               },
-              { format: "auto" } // Auto-format selection
+              { format: "auto" } 
             ],
-            // Add additional options
-            invalidate: true, // Invalidate CDN cache
+          
+            invalidate: true,
             overwrite: true,
-            notification_url: null // Disable notifications
+            notification_url: null
           }, 
           (error, result) => {
             if (error) {
@@ -69,7 +67,7 @@ export const uploadProfilePicture = async (req, res) => {
           }
         );
         
-        // Handle stream errors
+        
         bufferStream.on('error', (error) => {
           console.error("Stream error:", error);
           reject(new Error('File processing failed'));
@@ -79,13 +77,13 @@ export const uploadProfilePicture = async (req, res) => {
       });
     };
 
-    // Upload new image
+ 
     const uploadResult = await streamUpload();
     
-    // Delete old profile picture from cloudinary if it exists
+ 
     if (currentUser.profilePicture) {
       try {
-        // Extract public_id from the Cloudinary URL
+        
         const urlParts = currentUser.profilePicture.split('/');
         const filename = urlParts[urlParts.length - 1];
         const publicId = `profile_pictures/${filename.split('.')[0]}`;
@@ -94,23 +92,23 @@ export const uploadProfilePicture = async (req, res) => {
         console.log(`Old profile picture deleted: ${publicId}`);
       } catch (deleteError) {
         console.warn("Could not delete old profile picture:", deleteError.message);
-        // Continue with the update even if old image deletion fails
+      
       }
     }
     
-    // Update user with new profile picture URL
+    
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id, 
       { 
         profilePicture: uploadResult.secure_url,
-        // Optional: store additional metadata
+      
         profilePicturePublicId: uploadResult.public_id
       }, 
       { new: true, runValidators: true }
     );
     
     if (!updatedUser) {
-      // If user update fails, clean up the uploaded image
+     
       try {
         await cloudinary.uploader.destroy(uploadResult.public_id);
       } catch (cleanupError) {
@@ -122,7 +120,7 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
     
-    // Return success response
+
     res.json({
       success: true,
       message: "Profile picture uploaded successfully",
@@ -139,7 +137,7 @@ export const uploadProfilePicture = async (req, res) => {
   } catch (error) {
     console.error("Profile picture upload error:", error);
     
-    // Provide more specific error messages
+    
     let errorMessage = "Server error while uploading profile picture";
     
     if (error.message.includes('Invalid image')) {
