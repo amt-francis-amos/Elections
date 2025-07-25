@@ -9,6 +9,7 @@ const loginAttempts = new Map();
 const generateToken = (userId) => {
   const secret = process.env.JWT_SECRET;
   return jwt.sign({ userId }, secret, { expiresIn: "7d" });
+  
 };
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
