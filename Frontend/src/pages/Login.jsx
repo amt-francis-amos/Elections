@@ -25,7 +25,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     setError('')
 
     try {
-      const endpoint = isLogin ? '/api/users/login' : '/api/users/signup'
+      const endpoint = isLogin ? 'https://elections-backend-j8m8.onrender.com/api/users/login' : 'https://elections-backend-j8m8.onrender.com/api/users/signup'
       const payload = isLogin
         ? {
             email: formData.email,
