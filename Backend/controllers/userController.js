@@ -122,15 +122,15 @@ export const registerUser = async (req, res) => {
 
 export const loginUser = async (req, res) => {
   try {
-    const { id, email, password } = req.body;
+    const { id, password } = req.body;
 
     console.log("Login attempt:", { id, email }); 
 
   
-    if (!id || !email || !password) {
+    if (!id ||  !password) {
       return res.status(400).json({ 
         success: false, 
-        message: "User ID, email, and password are required" 
+        message: "User ID and password are required" 
       });
     }
 
