@@ -18,13 +18,17 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const url = isLogin
-        ? "https://elections-backend-j8m8.onrender.com/api/users/login"
-        : "https://elections-backend-j8m8.onrender.com/api/users/register";
+    const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
+    const registerUrl = "https://elections-backend-j8m8.onrender.com/api/users/register";
 
+    try {
+      const url = isLogin ? loginUrl : registerUrl;
       const payload = isLogin
-        ? { id: formData.id, email: formData.email, password: formData.password }
+        ? {
+            id: formData.id,
+            email: formData.email,
+            password: formData.password,
+          }
         : {
             name: formData.name,
             email: formData.email,
@@ -32,16 +36,20 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           };
 
       const response = await axios.post(url, payload);
+      const data = response.data;
 
       if (isLogin) {
-        const { token, user } = response.data;
+        const { token, user } = data;
 
-        
+        if (!token || !user) {
+          throw new Error("Invalid login response format");
+        }
+
+        // Save token and user
         localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user)); 
+        localStorage.setItem("user", JSON.stringify(user));
 
         toast.success("Login successful!");
-
         if (user.role === "admin") {
           toast.success("Welcome, Admin!");
         } else {
@@ -51,25 +59,29 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
       } else {
-        const { user, token } = response.data;
+        const { user, token } = data;
 
-        const userId = user.userId;
-        toast.success(`Registration successful! Your ID: ${userId}`);
+        if (!user || !user.userId || !token) {
+          throw new Error("Invalid registration response format");
+        }
 
+        // Auto-fill login fields after registration
         setFormData({
-          id: userId,
+          id: user.userId,
           email: user.email,
           password: formData.password,
           name: "",
         });
 
+        toast.success(`Registration successful! Your ID is: ${user.userId}`);
+
         setTimeout(() => {
-          setIsLogin(true);
+          setIsLogin(true); // Switch to login form
         }, 1000);
       }
     } catch (error) {
       console.error("Request error:", error);
-      toast.error(error.response?.data?.message || "Request failed");
+      toast.error(error.response?.data?.message || error.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -92,7 +104,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
 
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <>
                 <div className="relative">
@@ -178,7 +190,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             </div>
 
             <button
-              onClick={handleSubmit}
+              type="submit"
               className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
@@ -190,7 +202,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                 ? "Login"
                 : "Register"}
             </button>
-          </div>
+          </form>
 
           <p
             onClick={() => setIsLogin(!isLogin)}
