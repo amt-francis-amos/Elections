@@ -409,3 +409,12 @@ export const uploadProfilePicture = async (req, res) => {
     });
   }
 };
+
+
+export const logoutUser = (req, res) => {
+ 
+  return res.status(200).json({
+    success: true,
+    message: "User logged out successfully"
+  });
+};
