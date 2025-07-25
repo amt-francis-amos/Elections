@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const Login = ({ isOpen, onClose, onLoginSuccess }) => {
-  const navigate = useNavigate(); // Add navigation
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ id: "", email: "", name: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -40,12 +38,12 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         localStorage.setItem("token", token);
         toast.success("Login successful!");
 
+      
         if (user.role === "admin") {
           toast.success("Welcome, Admin!");
-          navigate("/admin"); // Redirect to admin dashboard
+         
         } else {
           toast.info("Welcome, Voter!");
-          navigate("/"); // Redirect to homepage
         }
 
         if (onLoginSuccess) onLoginSuccess(user);
