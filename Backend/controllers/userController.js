@@ -53,11 +53,11 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
-    // ✅ Assign role based on normalized email
+    
     const adminEmails = ['admin@example.com', 'superadmin@elections.com'];
     const role = adminEmails.includes(normalizedEmail) ? 'admin' : 'voter';
 
-    console.log("✅ Creating user with role:", role); // Useful for debugging
+    console.log("✅ Creating user with role:", role); 
 
     const user = await User.create({
       name: name.trim(),
