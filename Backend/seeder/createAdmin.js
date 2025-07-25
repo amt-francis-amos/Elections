@@ -30,7 +30,7 @@ const createAdmin = async () => {
     console.log("✅ Admin created successfully.");
     process.exit();
   } catch (error) {
-    console.error("❌ Failed to create admin:", error.message);
+    console.error("Failed to create admin:", error.message);
     process.exit(1);
   }
 };
