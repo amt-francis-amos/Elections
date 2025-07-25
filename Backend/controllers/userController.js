@@ -7,10 +7,10 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
-// Generate a custom alphanumeric User ID
+
 const generateUserId = () => {
   const prefix = "USR";
-  const random = Math.random().toString(36).substring(2, 10).toUpperCase(); // 8-char code
+  const random = Math.random().toString(36).substring(2, 10).toUpperCase();
   return `${prefix}-${random}`;
 };
 
@@ -47,10 +47,10 @@ export const registerUser = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 12);
 
-    // Generate unique userId
+   
     let userId = generateUserId();
     while (await User.findOne({ userId })) {
-      userId = generateUserId(); // regenerate if not unique
+      userId = generateUserId();
     }
 
     const user = await User.create({
@@ -63,7 +63,7 @@ export const registerUser = async (req, res) => {
     const token = generateToken(user._id);
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || '"Your App" <no-reply@yourapp.com>',
+      from: process.env.EMAIL_FROM || '"Your App" <nsbt@Elections.com>',
       to: user.email,
       subject: "Welcome to Our Platform!",
       html: `
