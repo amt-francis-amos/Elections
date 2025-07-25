@@ -24,3 +24,26 @@ export const promoteToAdmin = async (req, res) => {
 };
 
 
+// Delete user controller
+export const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // Prevent deleting self
+    if (req.user._id.toString() === userId) {
+      return res.status(403).json({ success: false, message: 'You cannot delete yourself.' });
+    }
+
+    await user.deleteOne();
+
+    res.status(200).json({ success: true, message: 'User deleted successfully.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: 'Server error while deleting user.' });
+  }
+};
