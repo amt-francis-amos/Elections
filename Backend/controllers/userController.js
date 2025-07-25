@@ -93,7 +93,7 @@ export const registerUser = async (req, res) => {
       await nodemailer.sendMail(mailOptions);
       console.log("✅ Welcome email sent successfully");
     } catch (emailErr) {
-      console.error("❌ Failed to send welcome email:", emailErr.message);
+      console.error("Failed to send welcome email:", emailErr.message);
     }
 
     res.status(201).json({
