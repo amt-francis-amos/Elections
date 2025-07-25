@@ -3,9 +3,9 @@ import { registerUser, loginUser } from '../controllers/userController.js';
 import { authenticateToken } from '../middlewares/authenticateToken.js';
 import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
+
 const router = express.Router();
 
-// Public routes
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 
