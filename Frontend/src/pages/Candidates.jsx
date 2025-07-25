@@ -25,9 +25,17 @@ const Candidates = () => {
 
         setCandidates(res.data);
       } catch (err) {
-        console.error('Error loading candidates:', err);
-        toast.error('Failed to load candidates. Please try again later.');
-      }
+  console.error("Error loading candidates:", err);
+  
+  if (err.response?.data?.message === 'Access denied. User not found.') {
+    localStorage.removeItem('token');
+    toast.error('Session expired. Please log in again.');
+   
+  } else {
+    toast.error('Failed to load candidates. Please try again later.');
+  }
+}
+
     };
 
     fetchCandidates();
