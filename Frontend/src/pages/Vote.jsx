@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { candidates } from '../assets/assets';
 import { motion } from 'framer-motion';
 
 const cardVariant = {
@@ -17,8 +16,23 @@ const cardVariant = {
 };
 
 const Vote = () => {
-  const [votedCandidateId, setVotedCandidateId] = useState(null);
+  const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [votedCandidateId, setVotedCandidateId] = useState(null);
+
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/candidates');
+        setCandidates(res.data);
+      } catch (err) {
+        console.error('Error fetching candidates:', err);
+        alert('Failed to fetch candidates. Please try again later.');
+      }
+    };
+
+    fetchCandidates();
+  }, []);
 
   const handleVote = async (candidate) => {
     const token = localStorage.getItem('token');
@@ -31,10 +45,10 @@ const Vote = () => {
     try {
       setLoading(true);
 
-      const res = await axios.post(
+      await axios.post(
         'https://elections-backend-j8m8.onrender.com/api/votes',
         {
-          electionId: election_id,
+          electionId: election_id, 
           candidateId: candidate._id
         },
         {
