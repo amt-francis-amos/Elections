@@ -16,7 +16,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [isRateLimited, setIsRateLimited] = useState(false)
 
-  // Check rate limit on component mount
+
   useEffect(() => {
     const rateLimitExpiry = localStorage.getItem('rateLimitExpiry')
     if (rateLimitExpiry && Date.now() > parseInt(rateLimitExpiry)) {
@@ -27,7 +27,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     }
   }, [])
 
-  // Handle escape key and body scroll
+  
   useEffect(() => {
     const handleEscapeKey = (event) => {
       if (event.key === 'Escape' && isOpen) {
@@ -50,7 +50,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     
-    // Clear error when user starts typing
+   
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -59,21 +59,21 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const validateForm = () => {
     const newErrors = {}
     
-    // Email validation
+
     if (!formData.email?.trim()) {
       newErrors.email = 'Email is required'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Please enter a valid email address'
     }
     
-    // Password validation
+
     if (!formData.password) {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
     }
     
-    // Registration-specific validation
+
     if (!isLogin) {
       if (!formData.fullName?.trim()) {
         newErrors.fullName = 'Full name is required'
@@ -93,7 +93,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   }
 
   const showToast = (message, type = 'error') => {
-    // Simple toast notification (you can replace with your preferred toast library)
+  
     const toast = document.createElement('div')
     toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 transition-all duration-300 ${
       type === 'success' ? 'bg-green-500' : 'bg-red-500'
