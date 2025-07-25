@@ -2,11 +2,12 @@ import express from 'express'
 import cors from 'cors'
 import 'dotenv/config'
 import userRoutes from './routes/userRoutes.js'
-import connectDB from './config/mongoDB.js';
+import connectDb from './config/mongoDB.js';
 const app = express();
 
 const PORT = process.env.PORT || 5000;
-connectDB
+
+connectDb();
 
 app.use('/api/users', userRoutes)
 
