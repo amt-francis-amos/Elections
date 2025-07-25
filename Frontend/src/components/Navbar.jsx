@@ -166,12 +166,7 @@ const handleLoginSuccess = ({ user, token }) => {
                 />
               </Link>
 
-              <Link
-                to="/vote"
-                className="bg-[#03073d] hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
-              >
-                Vote Now
-              </Link>
+             
 
               {user ? (
                 <div className="relative" ref={profileMenuRef}>
@@ -358,13 +353,6 @@ const handleLoginSuccess = ({ user, token }) => {
                   Admin
                 </Link>
 
-                <Link
-                  to="/vote"
-                  onClick={closeMenu}
-                  className="block w-full bg-[#03073d] hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-md transition-colors duration-200 shadow-sm text-center"
-                >
-                  Vote Now
-                </Link>
 
                 {user ? (
                   <div className="pt-4 border-t border-gray-100 mt-4">
