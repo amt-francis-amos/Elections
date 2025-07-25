@@ -6,6 +6,10 @@ import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 import userRoutes from './routes/userRoutes.js';
 import connectDb from './config/mongoDB.js';
+import electionRoutes from './routes/electionRoutes.js';
+import candidateRoutes from './routes/candidateRoutes.js';
+import voteRoutes from './routes/voteRoutes.js';
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,6 +31,10 @@ app.use('/api/', apiLimiter);
 
 
 app.use('/api/users', userRoutes);
+
+app.use('/api/elections', electionRoutes);
+app.use('/api/candidates', candidateRoutes);
+app.use('/api/votes', voteRoutes);
 
 app.get('/', (req, res) => {
   res.send('🎉 Voting System API is running!');
