@@ -5,6 +5,7 @@ export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
+ 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ 
         success: false, 
@@ -21,10 +22,10 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-   
+ 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    
+
+  
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
@@ -34,26 +35,31 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
+   
     req.user = user;
+
+  
     next();
+
   } catch (err) {
     console.error("Authentication error:", err.message);
-    
 
+    
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: "Access denied. Token has expired."
       });
     }
-    
+
     if (err.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
         message: "Access denied. Invalid token."
       });
     }
-    
+
+   
     return res.status(401).json({
       success: false,
       message: "Access denied. Authentication failed."
