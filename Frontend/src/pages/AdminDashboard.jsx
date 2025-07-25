@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { toast } from "react-toastify";
 import UserTable from "../components/UserTable";
 
 const api = axios.create({
@@ -27,20 +26,25 @@ const AdminDashboard = () => {
   const promoteHandler = async (userId) => {
     try {
       const res = await api.post("/admin/promote", { userId });
-      toast.success(res.data.message);
-      fetchUsers();
+      setMessage(res.data.message);
+      fetchUsers(); // Refresh users
     } catch (err) {
-      toast.error(err.response?.data?.message || "Promotion failed.");
+      console.error(err.response?.data?.message);
+      setMessage(err.response?.data?.message || "Promotion failed.");
     }
   };
 
   const deleteHandler = async (userId) => {
+    const confirm = window.confirm("Are you sure you want to delete this user?");
+    if (!confirm) return;
+
     try {
       const res = await api.delete(`/admin/users/${userId}`);
-      toast.success(res.data.message);
-      fetchUsers();
+      setMessage(res.data.message);
+      fetchUsers(); // Refresh users
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete user.");
+      console.error(err.response?.data?.message);
+      setMessage(err.response?.data?.message || "Delete failed.");
     }
   };
 
