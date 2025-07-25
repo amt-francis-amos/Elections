@@ -48,7 +48,7 @@ const Profile = ({ onLogout }) => {
       if (!token) return;
       try {
         const { data } = await axios.get(
-          "https://stylebyyavbackend.onrender.com/api/users/profile",
+          "https://elections-backend-j8m8.onrender.com/api/users/profile",
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setUser(data.user);
