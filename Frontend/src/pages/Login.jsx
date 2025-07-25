@@ -42,7 +42,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     setErrors({});
     setIsLoading(true);
 
-    // Basic client-side validation
+  
     const newErrors = {};
     if (!formData.email.trim()) newErrors.email = "Email is required";
     if (!formData.password) newErrors.password = "Password is required";
@@ -79,11 +79,11 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           token: res.data.token
         };
 
-        // ✅ Save token and user
+        
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(userData));
 
-        // ✅ Remove any old/dummy userToken
+      
         localStorage.removeItem('userToken');
 
         if (onLoginSuccess && typeof onLoginSuccess === 'function') {
@@ -110,7 +110,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
       if (err.response?.status === 429) {
         toast.error("Too many attempts. Try again in 10 minutes.");
         setIsRateLimited(true);
-        localStorage.setItem('rateLimitExpiry', Date.now() + 10 * 60 * 1000); // 10 minutes
+        localStorage.setItem('rateLimitExpiry', Date.now() + 10 * 60 * 1000); 
       } else {
         toast.error(err.response?.data?.message || "Something went wrong!");
       }
