@@ -1,13 +1,11 @@
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import UserTable from "../components/UserTable";
-
+import { toast } from "react-toastify";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: import.meta.env.VITE_API_BASE_URL || "https://elections-backend-j8m8.onrender.com/api",
 });
 
 
@@ -25,11 +23,12 @@ const AdminDashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get("/users");
+      const res = await api.get("/admin/users");
       setUsers(res.data.users);
     } catch (err) {
-      console.error("Fetch users error:", err);
+      console.error(err);
       setMessage("Failed to load users.");
+      toast.error("Failed to load users.");
     }
   };
 
@@ -37,10 +36,13 @@ const AdminDashboard = () => {
     try {
       const res = await api.post("/admin/promote", { userId });
       setMessage(res.data.message);
+      toast.success(res.data.message);
       fetchUsers(); // Refresh users
     } catch (err) {
-      console.error("Promotion error:", err);
-      setMessage(err.response?.data?.message || "Promotion failed.");
+      console.error(err.response?.data?.message || err.message);
+      const errorMsg = err.response?.data?.message || "Promotion failed.";
+      setMessage(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
