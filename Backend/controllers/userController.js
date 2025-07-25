@@ -2,7 +2,7 @@ import User from '../models/userModel.js';
 import bcrypt from 'bcrypt';
 import nodemailer from '../config/nodemailer.js';
 import jwt from 'jsonwebtoken';
-
+import { v4 as uuidv4 } from 'uuid'; 
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -10,17 +10,16 @@ const generateToken = (id) => {
   });
 };
 
-
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check if all fields are provided
+   
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "Name, email, and password are required" });
     }
 
-    // Basic validations
+   
     if (name.length < 2) {
       return res.status(400).json({ success: false, message: "Name must be at least 2 characters long" });
     }
@@ -34,7 +33,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
     }
 
-    // Check for existing user with same email or name
+    
     const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingEmail) {
       return res.status(400).json({ success: false, message: "Email already registered" });
@@ -45,19 +44,23 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Name already taken" });
     }
 
-    // Hash password
+
     const hashed = await bcrypt.hash(password, 12);
 
-    // Create user
+   
+    const userId = uuidv4();
+
+ 
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashed,
+      userId,
     });
 
     const token = generateToken(user._id);
 
-    // Send welcome email
+    
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"Your App" <no-reply@yourapp.com>',
       to: user.email,
@@ -73,15 +76,15 @@ export const registerUser = async (req, res) => {
       `,
     };
 
-    nodemailer.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error("❌ Failed to send welcome email:", err);
-      } else {
-        console.log("✅ Welcome email sent:", info.response);
-      }
-    });
+    try {
+      await nodemailer.sendMail(mailOptions);
+      console.log("✅ Welcome email sent successfully");
+    } catch (emailErr) {
+      console.error("❌ Failed to send welcome email:", emailErr.message);
 
-    // Return success response
+    }
+
+
     res.status(201).json({
       success: true,
       message: "User registered successfully",
@@ -89,6 +92,7 @@ export const registerUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        userId: user.userId,
         createdAt: user.createdAt,
       },
       token,
@@ -96,7 +100,11 @@ export const registerUser = async (req, res) => {
 
   } catch (error) {
     console.error("Register error:", error);
-    res.status(500).json({ success: false, message: "Server error during registration" });
+    res.status(500).json({
+      success: false,
+      message: "Server error during registration",
+      error: error.message,
+    });
   }
 };
 
