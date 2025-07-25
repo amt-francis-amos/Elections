@@ -1,11 +1,14 @@
-export const authorizeRoles = (...roles) => {
+export const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    const userRole = req.user?.role;
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Forbidden: You do not have access to this resource.",
+        message: "Access denied. You do not have the required permissions.",
       });
     }
+
     next();
   };
 };
