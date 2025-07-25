@@ -6,33 +6,47 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [message, setMessage] = useState("");
 
-  // Create axios instance with dynamic token
-  const createApiInstance = () => {
-    return axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || "https://elections-backend-j8m8.onrender.com/api",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-  };
+
+ const createApiInstance = () => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    console.error("No token found in localStorage!");
+  }
+
+  return axios.create({
+    baseURL:
+      import.meta.env.VITE_API_BASE_URL ||
+      "https://elections-backend-j8m8.onrender.com/api",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+};
+
 
   const fetchUsers = async () => {
-    try {
-      const api = createApiInstance();
-      const res = await api.get("/users");
-      setUsers(res.data.users);
-    } catch (err) {
-      console.error(err);
+  try {
+    const api = createApiInstance();
+    const res = await api.get("/users");
+    setUsers(res.data.users);
+  } catch (err) {
+    console.error("Fetch users error:", err.response?.data || err.message);
+    if (err.response?.status === 403) {
+      setMessage("Access denied. You must be an admin.");
+    } else {
       setMessage("Failed to load users.");
     }
-  };
+  }
+};
+
 
   const promoteHandler = async (userId) => {
     try {
       const api = createApiInstance();
       const res = await api.post("/admin/promote", { userId });
       setMessage(res.data.message);
-      fetchUsers(); // Refresh users
+      fetchUsers();
     } catch (err) {
       console.error(err.response?.data?.message);
       setMessage(err.response?.data?.message || "Promotion failed.");
@@ -47,7 +61,7 @@ const AdminDashboard = () => {
       const api = createApiInstance();
       const res = await api.delete(`/admin/users/${userId}`);
       setMessage(res.data.message);
-      fetchUsers(); // Refresh users
+      fetchUsers();
     } catch (err) {
       console.error(err.response?.data?.message);
       setMessage(err.response?.data?.message || "Delete failed.");
