@@ -9,6 +9,7 @@ import connectDb from './config/mongoDB.js';
 import electionRoutes from './routes/electionRoutes.js';
 import candidateRoutes from './routes/candidateRoutes.js';
 import voteRoutes from './routes/voteRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/elections', electionRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/votes', voteRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.send('🎉 Voting System API is running!');

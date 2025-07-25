@@ -1,0 +1,24 @@
+import User from '../models/userModel.js';
+
+export const promoteToAdmin = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(400).json({ success: false, message: "User is already an admin." });
+    }
+
+    user.role = 'admin';
+    await user.save();
+
+    res.status(200).json({ success: true, message: `${user.name} has been promoted to admin.` });
+  } catch (error) {
+    console.error("Promote to admin error:", error.message);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+};
