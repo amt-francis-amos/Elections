@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -12,7 +13,7 @@ import Vote from './pages/Vote';
 import Elections from './pages/Elections';
 import Candidates from './pages/Candidates';
 import Results from './pages/Results';
-import AdminDashboard from './pages/AdminDashboard'; 
+import AdminDashboard from './pages/AdminDashboard';
 
 const App = () => (
   <div className="flex flex-col min-h-screen bg-white text-gray-900">
@@ -25,7 +26,14 @@ const App = () => (
         <Route path="/vote/elections" element={<Elections />} />
         <Route path="/vote/candidates" element={<Candidates />} />
         <Route path="/vote/results" element={<Results />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </main>
     <Footer />
