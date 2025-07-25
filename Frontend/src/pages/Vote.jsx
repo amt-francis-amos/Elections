@@ -1,6 +1,7 @@
-import React from 'react'
-import { candidates } from '../assets/assets'
-import { motion } from 'framer-motion'
+import React, { useState } from 'react';
+import axios from 'axios';
+import { candidates } from '../assets/assets';
+import { motion } from 'framer-motion';
 
 const cardVariant = {
   hidden: { opacity: 0, y: 30 },
@@ -13,12 +14,46 @@ const cardVariant = {
       ease: 'easeOut'
     }
   })
-}
+};
 
 const Vote = () => {
-  const handleVote = (candidate) => {
-    alert(`You voted for ${candidate.name}`)
-  }
+  const [votedCandidateId, setVotedCandidateId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleVote = async (candidate) => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      alert('Please log in first to vote.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await axios.post(
+        'https://elections-backend-j8m8.onrender.com/api/votes',
+        {
+          electionId: '64f3be4dbb2cfad76c12e281',
+          candidateId: candidate._id
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      alert(`✅ Vote submitted for ${candidate.name}`);
+      setVotedCandidateId(candidate._id);
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.message || 'Something went wrong while voting.';
+      alert(`❌ ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 py-12 px-6">
@@ -35,7 +70,7 @@ const Vote = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {candidates.map((candidate, index) => (
             <motion.div
-              key={candidate.id}
+              key={candidate._id}
               className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow"
               custom={index}
               initial="hidden"
@@ -54,9 +89,14 @@ const Vote = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleVote(candidate)}
-                  className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
+                  className={`w-full py-2 rounded-md text-white transition ${
+                    votedCandidateId === candidate._id
+                      ? 'bg-green-600 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  disabled={loading || votedCandidateId === candidate._id}
                 >
-                  Vote
+                  {votedCandidateId === candidate._id ? 'Voted' : 'Vote'}
                 </motion.button>
               </div>
             </motion.div>
@@ -64,7 +104,7 @@ const Vote = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Vote
+export default Vote;
