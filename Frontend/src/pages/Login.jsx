@@ -104,10 +104,12 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           token: res.data.token
         };
 
-        // ✅ Save token and user
+        // ✅ Store userData and remove redundant keys
         if (res.data.token) {
-          localStorage.setItem('token', res.data.token);
-          localStorage.setItem('user', JSON.stringify(userData));
+          localStorage.setItem('userData', JSON.stringify(userData));
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          localStorage.removeItem('userToken');
         }
 
         if (onLoginSuccess) onLoginSuccess(userData);
