@@ -32,7 +32,7 @@ export const registerUser = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // === ✅ Send Welcome Email ===
+  
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"Your App" <no-reply@yourapp.com>',
       to: user.email,
