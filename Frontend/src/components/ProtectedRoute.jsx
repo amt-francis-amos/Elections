@@ -1,10 +1,11 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-
 const isAuthenticated = () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  return user && user.role === 'admin';
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('userData'));
+
+  return token && user && user.role === 'admin'; 
 };
 
 const ProtectedRoute = ({ children }) => {
