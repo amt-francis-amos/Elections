@@ -1,361 +1,414 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  User,
-  Mail,
-  Lock,
-  Edit3,
-  Save,
-  X,
-  Eye,
-  EyeOff,
-  Camera,
-} from "lucide-react";
-import axios from "axios";
-import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import { 
+  FiUser, 
+  FiMail, 
+  FiCalendar, 
+  FiEdit3, 
+  FiCamera, 
+  FiSave, 
+  FiX,
+  FiLock
+} from 'react-icons/fi';
 
-const Profile = ({ onLogout }) => {
+const Profile = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: "", email: "" });
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+  const [formData, setFormData] = useState({
+    name: '',
+    email: ''
   });
-  const [errors, setErrors] = useState({});
-  const fileInputRef = useRef(null);
-  const navigate = useNavigate();
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  const token = localStorage.getItem("userToken");
-
+  // Check authentication on component mount
   useEffect(() => {
-    if (!token) {
-      toast.error("Please login first.");
-      navigate("/login");
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (!token || !userData) {
+      toast.error('Please login to access your profile');
+      navigate('/');
       return;
     }
 
-    const fetchUser = async () => {
-      try {
-        const { data } = await axios.get(
-          "https://elections-backend-j8m8.onrender.com/api/users/profile",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setUser(data.user);
-        setProfileForm({
-          name: data.user.name,
-          email: data.user.email,
-        });
-      } catch (error) {
-        if (error.response?.status === 401) {
-          toast.error("Session expired. Please login again.");
-          localStorage.removeItem("userToken");
-          localStorage.removeItem("userData");
-          navigate("/login");
-        } else {
-          toast.error("Failed to load profile.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [token, navigate]);
-
-  const handleProfileUpdate = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    const { name, email } = profileForm;
-
-    if (!name.trim() || !email.trim()) {
-      return setErrors({
-        name: !name.trim() ? "Name is required" : "",
-        email: !email.trim() ? "Email is required" : "",
+    // Parse stored user data
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      setFormData({
+        name: parsedUser.name || '',
+        email: parsedUser.email || ''
       });
+    } catch (err) {
+      console.error('Error parsing user data:', err);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/');
+      return;
     }
 
+    // Fetch fresh profile data from API
+    fetchProfile();
+  }, [navigate]);
+
+  const fetchProfile = async () => {
     try {
-      const { data } = await axios.put(
-        "https://elections-backend-j8m8.onrender.com/api/users/profile",
-        { name, email },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setUser(data.user);
-      toast.success("Profile updated successfully.");
-      setIsEditing(false);
-    } catch (error) {
-      toast.error("Failed to update profile.");
-    }
-  };
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    setErrors({});
-
-    const { currentPassword, newPassword, confirmPassword } = passwordForm;
-    const newErrors = {};
-    if (!currentPassword) newErrors.currentPassword = "Current password required";
-    if (!newPassword || newPassword.length < 6)
-      newErrors.newPassword = "New password must be at least 6 characters";
-    if (newPassword !== confirmPassword)
-      newErrors.confirmPassword = "Passwords do not match";
-
-    if (Object.keys(newErrors).length) {
-      return setErrors(newErrors);
-    }
-
-    try {
-      await axios.put(
-        "https://elections-backend-j8m8.onrender.com/api/users/change-password",
-        { currentPassword, newPassword },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      toast.success("Password changed successfully.");
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setIsChangingPassword(false);
-    } catch (error) {
-      if (error.response?.status === 401) {
-        setErrors({ currentPassword: "Incorrect current password" });
-        toast.error("Incorrect current password");
-      } else {
-        toast.error("Failed to change password.");
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
       }
+
+      const response = await axios.get(
+        'https://elections-backend-j8m8.onrender.com/api/users/profile',
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        }
+      );
+
+      if (response.data.success) {
+        const userData = response.data.user;
+        setUser(userData);
+        setFormData({
+          name: userData.name || '',
+          email: userData.email || ''
+        });
+        
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(userData));
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch profile');
+      }
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+      
+      if (err.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/');
+      } else if (err.response?.status === 404) {
+        toast.error('Profile not found.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to load profile');
+        toast.error('Failed to load profile data');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleImageUpload = async (e) => {
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim() || !formData.email.trim()) {
+      toast.error('Name and email are required');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.put(
+        'https://elections-backend-j8m8.onrender.com/api/users/profile',
+        {
+          name: formData.name.trim(),
+          email: formData.email.trim()
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        }
+      );
+
+      if (response.data.success) {
+        const updatedUser = response.data.user;
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setIsEditing(false);
+        toast.success('Profile updated successfully!');
+      }
+    } catch (err) {
+      console.error('Update profile error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update profile');
+    }
+  };
+
+  const handleProfilePictureUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const form = new FormData();
-    form.append("image", file);
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploading(true);
 
     try {
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/users/profile/picture",
-        form,
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.post(
+        'https://elections-backend-j8m8.onrender.com/api/users/profile/picture',
+        formData,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 30000 // Longer timeout for file upload
         }
       );
-      setUser(data.user);
-      toast.success("Profile picture updated!");
-    } catch {
-      toast.error("Image upload failed.");
+
+      if (response.data.success) {
+        const updatedUser = response.data.user;
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        toast.success('Profile picture updated successfully!');
+      }
+    } catch (err) {
+      console.error('Profile picture upload error:', err);
+      toast.error(err.response?.data?.message || 'Failed to upload profile picture');
+    } finally {
+      setUploading(false);
     }
   };
 
-  const triggerFileSelect = () => fileInputRef.current?.click();
+  const getInitials = (name) => {
+    return name ? name.split(' ').map(word => word[0]).join('').toUpperCase() : 'U';
+  };
 
-  if (loading) return <div className="p-10 text-center">Loading...</div>;
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
-  if (!user) return <div className="p-10 text-center">No user found.</div>;
-
-  return (
-    <div className="max-w-3xl mx-auto mt-20 p-4 bg-white shadow rounded-xl">
-      <div className="flex items-center gap-4 mb-6">
-        <div className="relative w-24 h-24">
-          {user.profilePicture ? (
-            <img
-              src={user.profilePicture}
-              alt={user.name}
-              className="w-24 h-24 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-gray-300 flex items-center justify-center text-2xl font-bold text-white">
-              {user.name.charAt(0)}
-            </div>
-          )}
-          <button
-            onClick={triggerFileSelect}
-            className="absolute bottom-0 right-0 bg-blue-500 text-white p-1 rounded-full"
-            title="Upload"
-          >
-            <Camera size={18} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold">{user.name}</h2>
-          <p className="text-gray-600">{user.email}</p>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading profile...</p>
         </div>
       </div>
+    );
+  }
 
-      {isEditing ? (
-        <form onSubmit={handleProfileUpdate} className="space-y-4">
-          <div>
-            <label className="block">Name</label>
-            <div className="flex items-center border px-3 rounded">
-              <User className="w-4 h-4 text-gray-500" />
-              <input
-                type="text"
-                value={profileForm.name}
-                onChange={(e) =>
-                  setProfileForm({ ...profileForm, name: e.target.value })
-                }
-                className="w-full py-2 px-2 outline-none"
-              />
-            </div>
-            {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
           </div>
-          <div>
-            <label className="block">Email</label>
-            <div className="flex items-center border px-3 rounded">
-              <Mail className="w-4 h-4 text-gray-500" />
-              <input
-                type="email"
-                value={profileForm.email}
-                onChange={(e) =>
-                  setProfileForm({ ...profileForm, email: e.target.value })
-                }
-                className="w-full py-2 px-2 outline-none"
-              />
-            </div>
-            {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-          </div>
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-1"
-            >
-              <Save size={16} /> Save
-            </button>
-            <button
-              onClick={() => setIsEditing(false)}
-              type="button"
-              className="bg-gray-300 px-4 py-2 rounded flex items-center gap-1"
-            >
-              <X size={16} /> Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          onClick={() => setIsEditing(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded flex items-center gap-1"
-        >
-          <Edit3 size={16} /> Edit Profile
-        </button>
-      )}
-
-      <hr className="my-6" />
-
-      <div>
-        <h3 className="text-lg font-semibold mb-2">Change Password</h3>
-        {isChangingPassword ? (
-          <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div>
-              <label>Current Password</label>
-              <div className="flex items-center border px-3 rounded">
-                <Lock size={16} />
-                <input
-                  type={showCurrentPassword ? "text" : "password"}
-                  value={passwordForm.currentPassword}
-                  onChange={(e) =>
-                    setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
-                  }
-                  className="w-full py-2 px-2 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.currentPassword && (
-                <p className="text-red-500 text-sm">{errors.currentPassword}</p>
-              )}
-            </div>
-            <div>
-              <label>New Password</label>
-              <div className="flex items-center border px-3 rounded">
-                <Lock size={16} />
-                <input
-                  type={showNewPassword ? "text" : "password"}
-                  value={passwordForm.newPassword}
-                  onChange={(e) =>
-                    setPasswordForm({ ...passwordForm, newPassword: e.target.value })
-                  }
-                  className="w-full py-2 px-2 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
-                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.newPassword && (
-                <p className="text-red-500 text-sm">{errors.newPassword}</p>
-              )}
-            </div>
-            <div>
-              <label>Confirm New Password</label>
-              <div className="flex items-center border px-3 rounded">
-                <Lock size={16} />
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) =>
-                    setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
-                  }
-                  className="w-full py-2 px-2 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
-              )}
-            </div>
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Save Password
-              </button>
-              <button
-                type="button"
-                className="bg-gray-300 px-4 py-2 rounded"
-                onClick={() => setIsChangingPassword(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <button
-            onClick={() => setIsChangingPassword(true)}
-            className="bg-yellow-600 text-white px-4 py-2 rounded"
+          <button 
+            onClick={fetchProfile}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
-            Change Password
+            Try Again
           </button>
-        )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No profile data available</p>
+          <button 
+            onClick={() => navigate('/')}
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Go Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-32"></div>
+          
+          {/* Profile Content */}
+          <div className="relative px-6 pb-6">
+            {/* Profile Picture */}
+            <div className="relative -mt-16 mb-4">
+              <div className="relative inline-block">
+                {user.profilePicture ? (
+                  <img 
+                    src={user.profilePicture} 
+                    alt={user.name}
+                    className="w-32 h-32 rounded-full border-4 border-white object-cover shadow-lg"
+                  />
+                ) : (
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full border-4 border-white flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+                    {getInitials(user.name)}
+                  </div>
+                )}
+                
+                {/* Upload Button */}
+                <label className="absolute bottom-2 right-2 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-lg">
+                  {uploading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <FiCamera size={16} />
+                  )}
+                  <input 
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Profile Info */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
+                  <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {isEditing ? <FiX size={16} /> : <FiEdit3 size={16} />}
+                    {isEditing ? 'Cancel' : 'Edit Profile'}
+                  </button>
+                </div>
+
+                {isEditing ? (
+                  <form onSubmit={handleUpdateProfile} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                      </label>
+                      <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2">
+                        <FiUser className="text-gray-400 mr-2" />
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                          className="w-full outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email Address
+                      </label>
+                      <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2">
+                        <FiMail className="text-gray-400 mr-2" />
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({...formData, email: e.target.value})}
+                          className="w-full outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <FiSave size={16} />
+                      Save Changes
+                    </button>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <FiUser className="text-gray-500" />
+                      <div>
+                        <p className="text-sm text-gray-500">Full Name</p>
+                        <p className="font-medium">{user.name}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <FiMail className="text-gray-500" />
+                      <div>
+                        <p className="text-sm text-gray-500">Email Address</p>
+                        <p className="font-medium">{user.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <FiCalendar className="text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Member Since</p>
+                    <p className="font-medium">{formatDate(user.createdAt)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <FiCalendar className="text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Last Login</p>
+                    <p className="font-medium">{formatDate(user.lastLogin)}</p>
+                  </div>
+                </div>
+
+                {/* Change Password Button */}
+                <button
+                  onClick={() => {
+                    // You can implement a change password modal here
+                    toast.info('Change password feature coming soon!');
+                  }}
+                  className="flex items-center gap-2 w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <FiLock size={16} />
+                  Change Password
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
