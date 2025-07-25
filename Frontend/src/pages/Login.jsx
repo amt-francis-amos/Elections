@@ -35,42 +35,34 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
       if (isLogin) {
         const { token, user } = response.data;
-        
-     
-        localStorage.setItem("token", token);
-        
-        toast.success("Login successful!");
 
         
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user)); 
+
+        toast.success("Login successful!");
+
         if (user.role === "admin") {
           toast.success("Welcome, Admin!");
         } else {
           toast.info("Welcome, Voter!");
         }
 
-      
         if (onLoginSuccess) onLoginSuccess(user);
-        
-        
         onClose();
       } else {
-        
         const { user, token } = response.data;
-        
-        
+
         const userId = user.userId;
-        
         toast.success(`Registration successful! Your ID: ${userId}`);
 
-      
         setFormData({
           id: userId,
           email: user.email,
-          password: formData.password, 
+          password: formData.password,
           name: "",
         });
 
-       
         setTimeout(() => {
           setIsLogin(true);
         }, 1000);
