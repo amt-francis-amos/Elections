@@ -3,14 +3,21 @@ import bcrypt from 'bcrypt';
 import nodemailer from '../config/nodemailer.js';
 import jwt from 'jsonwebtoken';
 
-
 const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+function generateUserId() {
+  const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `USR-${randomStr}`;
+}
+
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
+    // ✅ Normalize email early
+    const normalizedEmail = email.toLowerCase().trim();
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "Name, email, and password are required" });
@@ -21,7 +28,7 @@ export const registerUser = async (req, res) => {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({ success: false, message: "Invalid email format" });
     }
 
@@ -29,7 +36,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
     }
 
-    const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
+    const existingEmail = await User.findOne({ email: normalizedEmail });
     if (existingEmail) {
       return res.status(400).json({ success: false, message: "Email already registered" });
     }
@@ -46,10 +53,11 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
-
+    // ✅ Assign role based on normalized email
     const adminEmails = ['admin@example.com', 'superadmin@elections.com'];
-    const normalizedEmail = email.toLowerCase().trim();
     const role = adminEmails.includes(normalizedEmail) ? 'admin' : 'voter';
+
+    console.log("✅ Creating user with role:", role); // Useful for debugging
 
     const user = await User.create({
       name: name.trim(),
@@ -66,7 +74,6 @@ export const registerUser = async (req, res) => {
       email: user.email,
     });
 
-    
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"Your App" <nsbt@Elections.com>',
       to: user.email,
