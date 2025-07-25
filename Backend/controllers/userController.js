@@ -126,7 +126,7 @@ export const loginUser = async (req, res) => {
 
     console.log("Login attempt:", { id, email }); 
 
-    // Add validation for required fields
+  
     if (!id || !email || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -136,7 +136,7 @@ export const loginUser = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Find user by both userId and email
+    
     const user = await User.findOne({ 
       userId: id, 
       email: normalizedEmail 
@@ -150,7 +150,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Check password
+    
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("Password mismatch for user:", id);
@@ -160,7 +160,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Generate token
+  
     const token = generateToken({
       id: user._id,
       name: user.name,
@@ -170,7 +170,7 @@ export const loginUser = async (req, res) => {
 
     console.log("✅ Login successful for user:", user.name, "Role:", user.role);
 
-    // Return success response
+   
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -194,12 +194,12 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// GET ALL USERS FUNCTION (for admin)
+
 export const getAllUsers = async (req, res) => {
   try {
-    // Only return non-sensitive user data
+   
     const users = await User.find({}, {
-      password: 0 // Exclude password field
+      password: 0 
     }).sort({ createdAt: -1 });
 
     res.status(200).json({
