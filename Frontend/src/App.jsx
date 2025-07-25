@@ -9,6 +9,7 @@ import Elections from './pages/Elections'
 import Candidates from './pages/Candidates'
 import Results from './pages/Results'
 import Footer from './components/Footer'
+import Profile from './pages/Profile'
 
 const App = () => (
   <div className="flex flex-col min-h-screen bg-white text-gray-900">
@@ -20,6 +21,7 @@ const App = () => (
         <Route path="/vote/elections" element={<Elections />} />
         <Route path="/vote/candidates" element={<Candidates />} />
         <Route path="/vote/results" element={<Results />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </main>
     <Footer />
