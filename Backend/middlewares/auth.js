@@ -1,111 +1,48 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 
-
 export const authenticateToken = async (req, res, next) => {
   try {
-    let token;
+    const authHeader = req.headers.authorization;
 
- 
-    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-      token = req.headers.authorization.split(" ")[1];
-    }
-
-   
-    if (!token) {
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: "Access denied. No token provided."
+        message: "No token provided",
       });
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      console.error("JWT_SECRET not configured");
-      return res.status(500).json({
+ 
+    const token = authHeader.split(" ")[1];
+
+ 
+    if (!token || typeof token !== "string") {
+      return res.status(401).json({
         success: false,
-        message: "Server configuration error"
+        message: "Invalid token format",
       });
     }
 
-  
-    const decoded = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+   
     const user = await User.findById(decoded.id).select("-password");
-
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Token is valid but user not found"
+        message: "User not found",
       });
     }
 
-   
     req.user = user;
     next();
-  } catch (error) {
-    console.error("Auth middleware error:", error);
-
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid token"
-      });
-    }
-
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Token has expired"
-      });
-    }
-
-    return res.status(500).json({
+  } catch (err) {
+    console.error("Token authentication error:", err.message);
+    return res.status(401).json({
       success: false,
-      message: "Server error in authentication"
+      message: "Unauthorized - token error",
+      error: err.message,
     });
-  }
-};
-
-export const requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === "admin") {
-    next();
-  } else {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied. Admin privileges required."
-    });
-  }
-};
-
-
-export const optionalAuth = async (req, res, next) => {
-  try {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-      token = req.headers.authorization.split(" ")[1];
-    }
-
-    if (!token) {
-      req.user = null;
-      return next();
-    }
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      req.user = null;
-      return next();
-    }
-
-    const decoded = jwt.verify(token, secret);
-
-    const user = await User.findById(decoded.id).select("-password");
-
-    req.user = user || null;
-    next();
-  } catch (error) {
-    req.user = null;
-    next();
   }
 };

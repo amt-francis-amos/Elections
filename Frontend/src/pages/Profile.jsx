@@ -197,7 +197,7 @@ const Profile = ({ onLogout }) => {
     );
   }
 
-  // Show error state if user data couldn't be loaded
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
