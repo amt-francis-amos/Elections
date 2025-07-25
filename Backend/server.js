@@ -5,6 +5,8 @@ import userRoutes from './routes/userRoutes.js'
 import connectDb from './config/mongoDB.js';
 const app = express();
 
+
+
 const PORT = process.env.PORT || 5000;
 
 connectDb();
