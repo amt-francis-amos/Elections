@@ -1,7 +1,9 @@
-// src/pages/Candidates.jsx
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Candidates = () => {
   const [candidates, setCandidates] = useState([]);
@@ -10,7 +12,7 @@ const Candidates = () => {
     const fetchCandidates = async () => {
       try {
         const token = localStorage.getItem('token');
-        const electionId = '64ef1234abcd5678ef901234'; 
+        const electionId = '64ef1234abcd5678ef901234';
 
         const res = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`,
@@ -24,7 +26,7 @@ const Candidates = () => {
         setCandidates(res.data);
       } catch (err) {
         console.error('Error loading candidates:', err);
-        alert('Failed to load candidates.');
+        toast.error('Failed to load candidates. Please try again later.');
       }
     };
 
@@ -33,6 +35,7 @@ const Candidates = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer />
       <div className="bg-blue-900 text-white py-20 px-6 text-center">
         <motion.h1
           className="text-4xl md:text-5xl font-bold mb-4"
