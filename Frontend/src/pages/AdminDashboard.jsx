@@ -1,6 +1,23 @@
 import React, { useEffect, useState } from "react";
-import api from "../utils/api";
+import axios from "axios";
 import UserTable from "../components/UserTable";
+
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Attach token automatically to each request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -11,7 +28,7 @@ const AdminDashboard = () => {
       const res = await api.get("/users");
       setUsers(res.data.users);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch users error:", err);
       setMessage("Failed to load users.");
     }
   };
@@ -20,9 +37,9 @@ const AdminDashboard = () => {
     try {
       const res = await api.post("/admin/promote", { userId });
       setMessage(res.data.message);
-      fetchUsers(); // Refresh
+      fetchUsers(); // Refresh users
     } catch (err) {
-      console.error(err.response?.data?.message);
+      console.error("Promotion error:", err);
       setMessage(err.response?.data?.message || "Promotion failed.");
     }
   };

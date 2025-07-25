@@ -12,7 +12,7 @@ import Vote from './pages/Vote';
 import Elections from './pages/Elections';
 import Candidates from './pages/Candidates';
 import Results from './pages/Results';
-import AdminDashboard from './pages/AdminDashboard'; // ✅ NEW IMPORT
+import AdminDashboard from './pages/AdminDashboard'; 
 
 const App = () => (
   <div className="flex flex-col min-h-screen bg-white text-gray-900">
@@ -25,7 +25,7 @@ const App = () => (
         <Route path="/vote/elections" element={<Elections />} />
         <Route path="/vote/candidates" element={<Candidates />} />
         <Route path="/vote/results" element={<Results />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} /> {/* ✅ NEW ROUTE */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} /> 
       </Routes>
     </main>
     <Footer />
