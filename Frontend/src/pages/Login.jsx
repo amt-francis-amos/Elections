@@ -14,54 +14,60 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    const url = isLogin
-      ? "https://elections-backend-j8m8.onrender.com/api/users/login"
-      : "https://elections-backend-j8m8.onrender.com/api/users/register";
+    try {
+      const url = isLogin
+        ? "https://elections-backend-j8m8.onrender.com/api/users/login"
+        : "https://elections-backend-j8m8.onrender.com/api/users/register";
 
-    const payload = isLogin
-      ? { id: formData.id, email: formData.email, password: formData.password }
-      : {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        };
+      const payload = isLogin
+        ? { id: formData.id, email: formData.email, password: formData.password }
+        : {
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+          };
 
-    const response = await axios.post(url, payload);
+      const response = await axios.post(url, payload);
 
-    if (isLogin) {
-      const { token, user } = response.data;
-      toast.success("Login successful!");
-      localStorage.setItem("token", token);
-      if (onLoginSuccess) onLoginSuccess(user);
-    } else {
-      const { userId } = response.data;
-      toast.success(`Registration successful! Your ID: ${userId}`);
+      if (isLogin) {
+        const { token, user } = response.data;
+        localStorage.setItem("token", token);
+        toast.success("Login successful!");
 
-      
-      setFormData({
-        id: userId,
-        email: payload.email,
-        password: payload.password,
-        name: "",
-      });
+        // ✅ Handle user role
+        if (user.role === "admin") {
+          toast.success("Welcome, Admin!");
+          // Optional: navigate to admin dashboard
+        } else {
+          toast.info("Welcome, Voter!");
+        }
 
-      
-      setTimeout(() => {
-        setIsLogin(true);
-      }, 1000);
+        if (onLoginSuccess) onLoginSuccess(user);
+      } else {
+        const { userId } = response.data;
+        toast.success(`Registration successful! Your ID: ${userId}`);
+
+        setFormData({
+          id: userId,
+          email: payload.email,
+          password: payload.password,
+          name: "",
+        });
+
+        setTimeout(() => {
+          setIsLogin(true);
+        }, 1000);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Request failed");
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Request failed");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   if (!isOpen) return null;
 
