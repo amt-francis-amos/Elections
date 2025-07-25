@@ -16,11 +16,11 @@ router.get('/profile', auth, (req, res) => {
  });
 });
 
-router.get('/admin-dashboard', authenticateToken, authorizeRoles('admin'), (req, res) => {
+router.get('/admin-dashboard', auth, authorizeRoles('admin'), (req, res) => {
  res.json({ message: 'Welcome to the admin dashboard.' });
 });
 
-router.get('/voting-area', authenticateToken, authorizeRoles('admin', 'voter'), (req, res) => {
+router.get('/voting-area', auth, authorizeRoles('admin', 'voter'), (req, res) => {
  res.json({ message: 'Voting area accessible by admin and voter.' });
 });
 

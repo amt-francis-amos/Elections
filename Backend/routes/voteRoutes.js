@@ -1,14 +1,14 @@
 import express from 'express';
 import { castVote, getResults } from '../controllers/voteController.js';
-import { authenticateToken } from '../middlewares/authenticateToken.js';
+import { auth } from '../middlewares/auth.js';
 import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();
 
 
-router.post('/', authenticateToken, castVote);
+router.post('/', auth, castVote);
 
 
-router.get('/:electionId/results', authenticateToken, authorizeRoles('admin'), getResults);
+router.get('/:electionId/results', auth, authorizeRoles('admin'), getResults);
 
 export default router;
