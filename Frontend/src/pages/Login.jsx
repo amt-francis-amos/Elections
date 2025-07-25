@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { X } from 'lucide-react'
-import axios from 'axios'
 
 const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true)
@@ -19,13 +18,50 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const submit = async e => {
-    e.preventDefault()
-    setLoading(true)
+  const validateForm = () => {
+    if (!formData.email || !formData.password) {
+      setError('Email and password are required')
+      return false
+    }
+
+    if (!isLogin) {
+      if (!formData.fullName) {
+        setError('Full name is required')
+        return false
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match')
+        return false
+      }
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long')
+        return false
+      }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address')
+      return false
+    }
+
+    return true
+  }
+
+  const submit = async () => {
     setError('')
 
+    if (!validateForm()) {
+      return
+    }
+
+    setLoading(true)
+
     try {
-      const endpoint = isLogin ? 'https://elections-backend-j8m8.onrender.com/api/users/login' : 'https://elections-backend-j8m8.onrender.com/api/users/signup'
+      const endpoint = isLogin 
+        ? 'https://elections-backend-j8m8.onrender.com/api/users/login' 
+        : 'https://elections-backend-j8m8.onrender.com/api/users/signup'
+      
       const payload = isLogin
         ? {
             email: formData.email,
@@ -37,93 +73,177 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             password: formData.password
           }
 
-      const { data } = await axios.post(endpoint, payload)
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Something went wrong')
+      }
+
+      // Store token for future requests (Note: In Claude artifacts, this won't persist)
+      if (data.user && data.user.token) {
+        console.log('User authenticated:', data.user)
+        // In a real app, you would store this in localStorage:
+        // localStorage.setItem('authToken', data.user.token)
+        // localStorage.setItem('user', JSON.stringify(data.user))
+      }
+
       onLoginSuccess(data.user)
       onClose()
+      
+      // Reset form
+      setFormData({
+        fullName: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+      })
+
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Something went wrong. Please try again.'
-      )
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
+  const resetForm = () => {
+    setFormData({
+      fullName: '',
+      email: '',
+      password: '',
+      confirmPassword: ''
+    })
+    setError('')
+  }
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      submit()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm transition-opacity duration-300">
-      <div className="relative bg-white shadow-xl rounded-xl p-8 w-full max-w-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+      <div className="relative bg-white shadow-2xl rounded-xl p-8 w-full max-w-md mx-4 transform transition-all duration-300 scale-100">
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+          onClick={() => {
+            onClose()
+            resetForm()
+          }}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
           aria-label="Close"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" />
         </button>
 
-        <h2 className="text-3xl font-bold text-center mb-6 text-[#042028]">
-          {isLogin ? 'Login' : 'Sign Up'}
-        </h2>
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-[#042028] mb-2">
+            {isLogin ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p className="text-gray-600 text-sm">
+            {isLogin ? 'Sign in to your account' : 'Sign up to get started'}
+          </p>
+        </div>
 
-        {error && <p className="text-red-600 text-sm mb-3 text-center">{error}</p>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6 text-sm">
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={submit} className="space-y-5">
+        <div className="space-y-5">
           {!isLogin && (
-            <input
-              type="text"
-              name="fullName"
-              placeholder="Full Name"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#042028]"
-            />
+            <div>
+              <input
+                type="text"
+                name="fullName"
+                placeholder="Full Name"
+                value={formData.fullName}
+                onChange={handleChange}
+                onKeyPress={handleKeyPress}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#042028] focus:border-transparent transition-all"
+              />
+            </div>
           )}
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#042028]"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#042028]"
-          />
-          {!isLogin && (
+          
+          <div>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={handleChange}
+              onKeyPress={handleKeyPress}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#042028] focus:border-transparent transition-all"
+            />
+          </div>
+          
+          <div>
             <input
               type="password"
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
+              name="password"
+              placeholder="Password"
+              value={formData.password}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#042028]"
+              onKeyPress={handleKeyPress}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#042028] focus:border-transparent transition-all"
             />
+          </div>
+          
+          {!isLogin && (
+            <div>
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                onKeyPress={handleKeyPress}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#042028] focus:border-transparent transition-all"
+              />
+            </div>
           )}
+          
           <button
-            type="submit"
+            onClick={submit}
             disabled={loading}
-            className="w-full py-2 text-white bg-[#042028] rounded-md hover:bg-[#03181e] transition duration-300"
+            className="w-full py-3 text-white bg-[#042028] rounded-lg hover:bg-[#03181e] focus:outline-none focus:ring-2 focus:ring-[#042028] focus:ring-offset-2 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Please wait...' : isLogin ? 'Login' : 'Sign Up'}
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Please wait...
+              </span>
+            ) : (
+              isLogin ? 'Sign In' : 'Create Account'
+            )}
           </button>
-        </form>
+        </div>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin)
-              setError('')
-            }}
-            className="text-[#042028] font-semibold hover:underline"
-          >
-            {isLogin ? 'Sign Up' : 'Login'}
-          </button>
-        </p>
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-600">
+            {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin)
+                resetForm()
+              }}
+              className="text-[#042028] font-semibold hover:underline focus:outline-none focus:underline transition-all"
+            >
+              {isLogin ? 'Sign Up' : 'Sign In'}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   )
