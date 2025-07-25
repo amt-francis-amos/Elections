@@ -26,7 +26,7 @@ const Profile = () => {
   const [profilePicture, setProfilePicture] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Check authentication on component mount
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -37,7 +37,7 @@ const Profile = () => {
       return;
     }
 
-    // Parse stored user data
+ 
     try {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
@@ -53,7 +53,7 @@ const Profile = () => {
       return;
     }
 
-    // Fetch fresh profile data from API
+   
     fetchProfile();
   }, [navigate]);
 
@@ -84,7 +84,7 @@ const Profile = () => {
           email: userData.email || ''
         });
         
-        // Update localStorage with fresh data
+     
         localStorage.setItem('user', JSON.stringify(userData));
       } else {
         throw new Error(response.data.message || 'Failed to fetch profile');
@@ -151,14 +151,14 @@ const Profile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
+    
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
       return;
     }
 
-    // Validate file size (5MB max)
+  
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File size must be less than 5MB');
       return;
@@ -180,7 +180,7 @@ const Profile = () => {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           },
-          timeout: 30000 // Longer timeout for file upload
+          timeout: 30000 
         }
       );
 
@@ -260,12 +260,12 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {/* Header */}
+      
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-32"></div>
           
-          {/* Profile Content */}
+       
           <div className="relative px-6 pb-6">
-            {/* Profile Picture */}
+       
             <div className="relative -mt-16 mb-4">
               <div className="relative inline-block">
                 {user.profilePicture ? (
@@ -280,7 +280,7 @@ const Profile = () => {
                   </div>
                 )}
                 
-                {/* Upload Button */}
+              
                 <label className="absolute bottom-2 right-2 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-lg">
                   {uploading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -298,9 +298,9 @@ const Profile = () => {
               </div>
             </div>
 
-            {/* Profile Info */}
+           
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column */}
+              
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
@@ -376,7 +376,7 @@ const Profile = () => {
                 )}
               </div>
 
-              {/* Right Column */}
+       
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <FiCalendar className="text-gray-500" />
@@ -394,10 +394,10 @@ const Profile = () => {
                   </div>
                 </div>
 
-                {/* Change Password Button */}
+               
                 <button
                   onClick={() => {
-                    // You can implement a change password modal here
+                   
                     toast.info('Change password feature coming soon!');
                   }}
                   className="flex items-center gap-2 w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
