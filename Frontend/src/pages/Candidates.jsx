@@ -1,11 +1,26 @@
-import React from 'react'
-import { motion } from 'framer-motion'
-import { candidates } from '../assets/assets'
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import axios from 'axios';
 
 const Candidates = () => {
+  const [candidates, setCandidates] = useState([]);
+
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        const electionId = '64ef1234abcd5678ef901234'; 
+        const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`);
+        setCandidates(res.data);
+      } catch (err) {
+        console.error('Error loading candidates:', err);
+      }
+    };
+
+    fetchCandidates();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
       <div className="relative bg-blue-900 text-white py-20 px-6 text-center overflow-hidden">
         <motion.h1
           className="text-4xl md:text-5xl font-bold mb-4"
@@ -39,7 +54,7 @@ const Candidates = () => {
       >
         {candidates.map((candidate) => (
           <motion.div
-            key={candidate.id}
+            key={candidate._id}
             className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300"
             variants={{
               hidden: { opacity: 0, y: 30 },
@@ -62,7 +77,7 @@ const Candidates = () => {
         ))}
       </motion.div>
     </div>
-  )
-}
+  );
+};
 
-export default Candidates
+export default Candidates;

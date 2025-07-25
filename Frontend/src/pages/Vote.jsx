@@ -20,19 +20,22 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidateId, setVotedCandidateId] = useState(null);
 
-  useEffect(() => {
-    const fetchCandidates = async () => {
-      try {
-        const res = await axios.get('https://elections-backend-j8m8.onrender.com/api/candidates');
-        setCandidates(res.data);
-      } catch (err) {
-        console.error('Error fetching candidates:', err);
-        alert('Failed to fetch candidates. Please try again later.');
-      }
-    };
+  const electionId = '64ef1234abcd5678ef901234'; 
 
-    fetchCandidates();
-  }, []);
+useEffect(() => {
+  const fetchCandidates = async () => {
+    try {
+      const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`);
+      setCandidates(res.data);
+    } catch (err) {
+      console.error('Error fetching candidates:', err);
+      alert('Failed to fetch candidates. Please try again later.');
+    }
+  };
+
+  fetchCandidates();
+}, []);
+
 
   const handleVote = async (candidate) => {
     const token = localStorage.getItem('token');
