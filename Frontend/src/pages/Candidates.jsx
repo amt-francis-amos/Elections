@@ -10,7 +10,7 @@ const Candidates = () => {
     const fetchCandidates = async () => {
       try {
         const token = localStorage.getItem('token');
-        const electionId = '64ef1234abcd5678ef901234'; // Replace with actual ID
+        const electionId = '64ef1234abcd5678ef901234'; 
 
         const res = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`,
