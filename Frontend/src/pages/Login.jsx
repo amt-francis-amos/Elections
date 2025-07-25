@@ -1,8 +1,8 @@
-
 import { useState } from "react";
 import axios from "axios";
 
-const Login = () => {
+const Login = ({ isOpen, onClose, onLoginSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -11,30 +11,44 @@ const Login = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await axios.post("https://elections-backend-j8m8.onrender.com/api/register", formData); 
+      const url = isLogin
+        ? "https://elections-backend-j8m8.onrender.com/api/login"
+        : "https://elections-backend-j8m8.onrender.com/api/register";
+
+      const response = await axios.post(url, formData);
       const { token, user } = response.data;
-      setMessage("Login successful!");
+
+      setMessage(`${isLogin ? "Login" : "Registration"} successful!`);
       localStorage.setItem("token", token);
-      console.log("User:", user);
-   
+      if (onLoginSuccess) onLoginSuccess(user);
     } catch (error) {
-      setMessage(error.response?.data?.message || "Login failed");
+      setMessage(error.response?.data?.message || "Request failed");
     } finally {
       setLoading(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-100 px-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-semibold text-center mb-6 text-indigo-600">Login to Your Account</h2>
-        <form onSubmit={handleLogin} className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white p-8 rounded-xl w-full max-w-md shadow-lg relative">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-4 text-gray-500 hover:text-gray-700 text-xl"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-semibold text-center mb-6 text-indigo-600">
+          {isLogin ? "Login to Your Account" : "Create an Account"}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
             name="email"
@@ -56,15 +70,32 @@ const Login = () => {
             className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"
             disabled={loading}
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading
+              ? isLogin
+                ? "Logging in..."
+                : "Registering..."
+              : isLogin
+              ? "Login"
+              : "Register"}
           </button>
         </form>
         {message && (
-          <p className={`mt-4 text-center text-sm ${message.includes("success") ? "text-green-600" : "text-red-500"}`}>
+          <p
+            className={`mt-4 text-center text-sm ${
+              message.includes("successful") ? "text-green-600" : "text-red-500"
+            }`}
+          >
             {message}
           </p>
         )}
-        <p className="text-center text-xs text-gray-500 mt-6">Don't have an account? Register now</p>
+        <p
+          onClick={() => setIsLogin(!isLogin)}
+          className="text-center text-sm text-indigo-600 mt-6 cursor-pointer"
+        >
+          {isLogin
+            ? "Don't have an account? Register now"
+            : "Already have an account? Login"}
+        </p>
       </div>
     </div>
   );
