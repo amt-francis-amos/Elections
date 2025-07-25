@@ -6,7 +6,7 @@ import {
   getUserProfile,
   updateUserProfile,
   changePassword,
-  uploadProfilePicture
+  uploadProfilePicture,
 } from "../controllers/userController.js";
 import { authenticateToken } from "../middlewares/auth.js";
 import upload from "../middlewares/upload.js";
@@ -16,17 +16,17 @@ const router = express.Router();
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: { success: false, message: "Too many authentication attempts, please try again later." },
+  message: { success: false, message: "Too many authentication attempts. Please try again later." },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: { success: false, message: "Too many requests, please try again later." },
+  message: { success: false, message: "Too many requests. Please try again later." },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 router.post("/register", authLimiter, registerUser);
