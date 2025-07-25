@@ -9,7 +9,6 @@ import Elections from './pages/Elections'
 import Candidates from './pages/Candidates'
 import Results from './pages/Results'
 import Footer from './components/Footer'
-import Profile from './pages/Profile'
 import Login from './pages/Login'
 
 const App = () => (
@@ -23,7 +22,7 @@ const App = () => (
   <Route path="/vote/elections" element={<Elections />} />
   <Route path="/vote/candidates" element={<Candidates />} />
   <Route path="/vote/results" element={<Results />} />
-  <Route path="/profile" element={<Profile />} />
+
 </Routes>
 
     </main>
