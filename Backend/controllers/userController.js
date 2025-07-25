@@ -1,6 +1,5 @@
 import User from '../models/userModel.js';
 import bcrypt from 'bcrypt';
-import nodemailer from '../config/nodemailer.js';
 import jwt from 'jsonwebtoken';
 
 const generateToken = (payload) => {
@@ -14,30 +13,18 @@ function generateUserId() {
 
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
 
-    const normalizedEmail = email.toLowerCase().trim();
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "Name, email, and password are required" });
+    if (!name || !password) {
+      return res.status(400).json({ success: false, message: "Name and password are required" });
     }
 
     if (name.length < 2) {
       return res.status(400).json({ success: false, message: "Name must be at least 2 characters long" });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(normalizedEmail)) {
-      return res.status(400).json({ success: false, message: "Invalid email format" });
-    }
-
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
-    }
-
-    const existingEmail = await User.findOne({ email: normalizedEmail });
-    if (existingEmail) {
-      return res.status(400).json({ success: false, message: "Email already registered" });
     }
 
     const existingName = await User.findOne({ name: name.trim() });
@@ -52,14 +39,13 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
-    const adminEmails = ['admin@example.com', 'superadmin@elections.com'];
-    const role = adminEmails.includes(normalizedEmail) ? 'admin' : 'voter';
+    // Default role is voter - admin assignment would need to be done manually or through different logic
+    const role = 'voter';
 
     console.log("✅ Creating user with role:", role); 
 
     const user = await User.create({
       name: name.trim(),
-      email: normalizedEmail,
       password: hashed,
       userId,
       role,
@@ -69,32 +55,7 @@ export const registerUser = async (req, res) => {
       id: user._id,
       name: user.name,
       role: user.role,
-      email: user.email,
     });
-
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || '"Your App" <nsbt@Elections.com>',
-      to: user.email,
-      subject: "Welcome to Our Platform!",
-      html: `
-        <div style="font-family: sans-serif; line-height: 1.6">
-          <h2>Hello ${user.name},</h2>
-          <p>Welcome to our platform! Your account has been successfully created.</p>
-          <p><strong>Your User ID is:</strong> <code>${user.userId}</code></p>
-          <p><strong>Your Role is:</strong> <code>${user.role}</code></p>
-          <p>Please keep this ID safe. You may need it for login or support.</p>
-          <br/>
-          <p>Best regards,<br/>The Team</p>
-        </div>
-      `,
-    };
-
-    try {
-      await nodemailer.sendMail(mailOptions);
-      console.log("✅ Welcome email sent successfully");
-    } catch (emailErr) {
-      console.error("Failed to send welcome email:", emailErr.message);
-    }
 
     res.status(201).json({
       success: true,
@@ -102,7 +63,6 @@ export const registerUser = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
-        email: user.email,
         userId: user.userId,
         role: user.role,
         createdAt: user.createdAt,
@@ -155,7 +115,6 @@ export const loginUser = async (req, res) => {
       id: user._id,
       name: user.name,
       role: user.role,
-      email: user.email,
     });
 
     console.log("✅ Login successful for user:", user.name, "Role:", user.role);
@@ -167,7 +126,6 @@ export const loginUser = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
-        email: user.email,
         userId: user.userId,
         role: user.role,
       }
@@ -183,10 +141,8 @@ export const loginUser = async (req, res) => {
   }
 };
 
-
 export const getAllUsers = async (req, res) => {
   try {
-   
     const users = await User.find({}, {
       password: 0 
     }).sort({ createdAt: -1 });

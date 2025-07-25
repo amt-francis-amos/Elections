@@ -8,7 +8,6 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     id: "",
-    email: "",
     name: "",
     password: "",
   });
@@ -35,7 +34,6 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           }
         : {
             name: formData.name,
-            email: formData.email,
             password: formData.password,
           };
 
@@ -65,7 +63,6 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
         setFormData({
           id: user.userId,
-          email: user.email,
           password: formData.password,
           name: "",
         });
@@ -101,35 +98,19 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
-              <>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    required
-                    onChange={handleChange}
-                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                    Name
-                  </label>
-                </div>
-
-                <div className="relative">
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    required
-                    onChange={handleChange}
-                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                    Email Address
-                  </label>
-                </div>
-              </>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  required
+                  onChange={handleChange}
+                  className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                  Name
+                </label>
+              </div>
             )}
 
             {isLogin && (
