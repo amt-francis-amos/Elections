@@ -10,6 +10,7 @@ import Candidates from './pages/Candidates'
 import Results from './pages/Results'
 import Footer from './components/Footer'
 import Profile from './pages/Profile'
+import Login from './pages/Login'
 
 const App = () => (
   <div className="flex flex-col min-h-screen bg-white text-gray-900">
