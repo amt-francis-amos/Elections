@@ -55,7 +55,7 @@ const Navbar = () => {
   const handleLoginSuccess = userData => {
     setUser(userData)
     localStorage.setItem('userData', JSON.stringify(userData))
-    
+    localStorage.setItem('userToken', 'dummyToken')
     closeAuthModal()
   }
   
