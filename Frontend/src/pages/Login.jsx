@@ -25,7 +25,11 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
       const payload = isLogin
         ? { id: formData.id, email: formData.email }
-        : { name: formData.name, password: formData.password };
+        : {
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+          };
 
       const response = await axios.post(url, payload);
       const { token, user } = response.data;
@@ -59,18 +63,33 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
-              <div className="relative">
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  onChange={handleChange}
-                  className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                  Name
-                </label>
-              </div>
+              <>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    onChange={handleChange}
+                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                    Name
+                  </label>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    onChange={handleChange}
+                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                    Email Address
+                  </label>
+                </div>
+              </>
             )}
 
             {isLogin && (
@@ -148,7 +167,6 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         </div>
       </div>
 
-   
       <ToastContainer position="top-right" autoClose={3000} pauseOnHover />
     </>
   );
