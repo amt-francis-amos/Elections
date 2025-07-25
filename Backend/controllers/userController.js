@@ -13,38 +13,54 @@ const generateToken = (id) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const { name, password } = req.body;
+    const { name, email, password } = req.body;
 
-    if (!name || !password) {
-      return res.status(400).json({ success: false, message: "Name and password are required" });
+    // Check if all fields are provided
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: "Name, email, and password are required" });
+    }
+
+    // Basic validations
+    if (name.length < 2) {
+      return res.status(400).json({ success: false, message: "Name must be at least 2 characters long" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email format" });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
     }
 
-    if (name.length < 2) {
-      return res.status(400).json({ success: false, message: "Name must be at least 2 characters long" });
+    // Check for existing user with same email or name
+    const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingEmail) {
+      return res.status(400).json({ success: false, message: "Email already registered" });
     }
 
-    const exists = await User.findOne({ name: name.trim() });
-    if (exists) {
+    const existingName = await User.findOne({ name: name.trim() });
+    if (existingName) {
       return res.status(400).json({ success: false, message: "Name already taken" });
     }
 
+    // Hash password
     const hashed = await bcrypt.hash(password, 12);
 
+    // Create user
     const user = await User.create({
       name: name.trim(),
+      email: email.toLowerCase().trim(),
       password: hashed,
     });
 
     const token = generateToken(user._id);
 
-   
+    // Send welcome email
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"Your App" <no-reply@yourapp.com>',
-      to: user.email || 'default@example.com', 
+      to: user.email,
       subject: "Welcome to Our Platform!",
       html: `
         <div style="font-family: sans-serif; line-height: 1.6">
@@ -65,12 +81,14 @@ export const registerUser = async (req, res) => {
       }
     });
 
+    // Return success response
     res.status(201).json({
       success: true,
       message: "User registered successfully",
       user: {
         _id: user._id,
         name: user.name,
+        email: user.email,
         createdAt: user.createdAt,
       },
       token,
@@ -81,6 +99,7 @@ export const registerUser = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error during registration" });
   }
 };
+
 
 
 export const loginUser = async (req, res) => {
