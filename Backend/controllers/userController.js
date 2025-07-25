@@ -16,7 +16,7 @@ export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // ✅ Normalize email early
+
     const normalizedEmail = email.toLowerCase().trim();
 
     if (!name || !email || !password) {
