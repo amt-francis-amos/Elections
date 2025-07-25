@@ -2,8 +2,8 @@
 
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
-import connectDb from '../config/mongoDB.js';
-import User from '../models/userModel.js';
+import connectDb from '../config/connectDb.js';  
+import User from '../models/userModel.js';       
 
 dotenv.config();
 
