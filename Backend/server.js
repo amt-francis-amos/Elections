@@ -31,7 +31,7 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 
-app.use('/api/users', userRoutes);
+app.use('/api', userRoutes);
 
 app.use('/api/elections', electionRoutes);
 app.use('/api/candidates', candidateRoutes);
