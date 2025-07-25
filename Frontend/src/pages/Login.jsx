@@ -20,8 +20,8 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
     try {
       const url = isLogin
-        ? "https://elections-backend-j8m8.onrender.com/api/login"
-        : "https://elections-backend-j8m8.onrender.com/api/register";
+        ? "https://elections-backend-j8m8.onrender.com/api/users/login"
+        : "https://elections-backend-j8m8.onrender.com/api/users/register";
 
       const payload = isLogin
         ? { id: formData.id, email: formData.email, password: formData.password }
