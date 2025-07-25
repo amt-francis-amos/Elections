@@ -16,7 +16,6 @@ export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-
     const normalizedEmail = email.toLowerCase().trim();
 
     if (!name || !email || !password) {
@@ -53,7 +52,6 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
-    
     const adminEmails = ['admin@example.com', 'superadmin@elections.com'];
     const role = adminEmails.includes(normalizedEmail) ? 'admin' : 'voter';
 
@@ -117,6 +115,105 @@ export const registerUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error during registration",
+      error: error.message,
+    });
+  }
+};
+
+export const loginUser = async (req, res) => {
+  try {
+    const { id, email, password } = req.body;
+
+    console.log("Login attempt:", { id, email }); 
+
+    // Add validation for required fields
+    if (!id || !email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "User ID, email, and password are required" 
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Find user by both userId and email
+    const user = await User.findOne({ 
+      userId: id, 
+      email: normalizedEmail 
+    });
+
+    if (!user) {
+      console.log("User not found with ID:", id, "and email:", normalizedEmail);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid credentials" 
+      });
+    }
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log("Password mismatch for user:", id);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid credentials" 
+      });
+    }
+
+    // Generate token
+    const token = generateToken({
+      id: user._id,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+    });
+
+    console.log("✅ Login successful for user:", user.name, "Role:", user.role);
+
+    // Return success response
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        userId: user.userId,
+        role: user.role,
+      }
+    });
+
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during login",
+      error: error.message,
+    });
+  }
+};
+
+// GET ALL USERS FUNCTION (for admin)
+export const getAllUsers = async (req, res) => {
+  try {
+    // Only return non-sensitive user data
+    const users = await User.find({}, {
+      password: 0 // Exclude password field
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Users retrieved successfully",
+      users,
+      total: users.length
+    });
+
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching users",
       error: error.message,
     });
   }

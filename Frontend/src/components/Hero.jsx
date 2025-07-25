@@ -19,7 +19,7 @@ const Hero = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/50 via-blue-800/50 to-indigo-900/50"></div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        <div className="grid lg:grid-cols-12 gap-8 items-center min-h-[80vh]">
+        <div className="grid lg:grid-cols-12 gap-8 md:items-center min-h-[80vh]">
           <motion.div
             className="lg:col-span-7 text-center lg:text-left"
             initial="hidden"
