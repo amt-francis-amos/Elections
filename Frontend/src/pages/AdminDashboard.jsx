@@ -1,20 +1,13 @@
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import UserTable from "../components/UserTable";
 import { toast } from "react-toastify";
+import UserTable from "../components/UserTable";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "https://elections-backend-j8m8.onrender.com/api",
-});
-
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
 });
 
 const AdminDashboard = () => {
@@ -23,26 +16,31 @@ const AdminDashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get("/admin/users");
+      const res = await api.get("/users");
       setUsers(res.data.users);
     } catch (err) {
       console.error(err);
       setMessage("Failed to load users.");
-      toast.error("Failed to load users.");
     }
   };
 
   const promoteHandler = async (userId) => {
     try {
       const res = await api.post("/admin/promote", { userId });
-      setMessage(res.data.message);
       toast.success(res.data.message);
-      fetchUsers(); // Refresh users
+      fetchUsers();
     } catch (err) {
-      console.error(err.response?.data?.message || err.message);
-      const errorMsg = err.response?.data?.message || "Promotion failed.";
-      setMessage(errorMsg);
-      toast.error(errorMsg);
+      toast.error(err.response?.data?.message || "Promotion failed.");
+    }
+  };
+
+  const deleteHandler = async (userId) => {
+    try {
+      const res = await api.delete(`/admin/users/${userId}`);
+      toast.success(res.data.message);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete user.");
     }
   };
 
@@ -60,7 +58,7 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      <UserTable users={users} promoteHandler={promoteHandler} />
+      <UserTable users={users} promoteHandler={promoteHandler} deleteHandler={deleteHandler} />
     </div>
   );
 };
