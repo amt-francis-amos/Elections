@@ -20,16 +20,25 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidateId, setVotedCandidateId] = useState(null);
 
-  const electionId = '64ef1234abcd5678ef901234'; 
-
-useEffect(() => {
+  useEffect(() => {
   const fetchCandidates = async () => {
     try {
-      const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`);
+      const token = localStorage.getItem('token');
+      const electionId = '64ef1234abcd5678ef901234'; 
+
+      const res = await axios.get(
+        `https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       setCandidates(res.data);
     } catch (err) {
-      console.error('Error fetching candidates:', err);
-      alert('Failed to fetch candidates. Please try again later.');
+      console.error('Error loading candidates:', err);
+      alert('Failed to load candidates.');
     }
   };
 
