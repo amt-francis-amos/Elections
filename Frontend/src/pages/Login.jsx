@@ -23,10 +23,8 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     e.preventDefault();
     setLoading(true);
 
-    const loginUrl =
-      "https://elections-backend-j8m8.onrender.com/api/users/login";
-    const registerUrl =
-      "https://elections-backend-j8m8.onrender.com/api/users/register";
+    const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
+    const registerUrl = "https://elections-backend-j8m8.onrender.com/api/users/register";
 
     try {
       const url = isLogin ? loginUrl : registerUrl;
@@ -52,11 +50,9 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         localStorage.setItem("userData", JSON.stringify(user));
 
         toast.success("Login successful!");
-        if (user.role === "admin") {
-          toast.success("Welcome, Admin!");
-        } else {
-          toast.info("Welcome, Voter!");
-        }
+        user.role === "admin"
+          ? toast.success("Welcome, Admin!")
+          : toast.info("Welcome, Voter!");
 
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
