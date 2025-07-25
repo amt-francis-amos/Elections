@@ -1,3 +1,8 @@
+
+import User from '../models/userModel.js'
+import bcrypt from 'bcrypt'
+import nodemailer from '../config/nodemailer.js'
+
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -48,7 +53,7 @@ export const registerUser = async (req, res) => {
       `
     };
 
-    transporter.sendMail(mailOptions, (err, info) => {
+    nodemailer.sendMail(mailOptions, (err, info) => {
       if (err) {
         console.error("❌ Failed to send welcome email:", err);
       } else {
