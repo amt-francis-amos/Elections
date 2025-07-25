@@ -11,7 +11,7 @@ connectDb();
 
 app.use('/api/users', userRoutes)
 
- app.use(cors({credential:true}));
+ app.use(cors({credentials:true}));
  app.use(express.json());
 
 

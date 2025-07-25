@@ -71,7 +71,7 @@ const Profile = ({ onLogout }) => {
     setUpdateLoading(true);
     try {
       const { data } = await axios.put(
-        "https://stylebyyavbackend.onrender.com/api/users/profile",
+        "https://elections-backend-j8m8.onrender.com/api/users/profile",
         {
           name: profileForm.name.trim(),
           email: profileForm.email.trim()
@@ -105,7 +105,7 @@ const Profile = ({ onLogout }) => {
     setPasswordLoading(true);
     try {
       await axios.put(
-        "https://stylebyyavbackend.onrender.com/api/users/change-password",
+        "https://elections-backend-j8m8.onrender.com/api/users/change-password",
         {
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword
@@ -134,7 +134,7 @@ const Profile = ({ onLogout }) => {
     if (!file) return;
     setImageLoading(true);
 
-    // show local preview immediately
+  
     const reader = new FileReader();
     reader.onload = (ev) => {
       setUser(prev => ({ ...prev, profilePicture: ev.target.result }));
@@ -145,7 +145,7 @@ const Profile = ({ onLogout }) => {
     form.append("image", file);
     try {
       const { data } = await axios.post(
-        "https://stylebyyavbackend.onrender.com/api/users/profile/picture",
+        "https://elections-backend-j8m8.onrender.com/api/users/profile/picture",
         form,
         { headers: { Authorization: `Bearer ${token}` } }
       );
