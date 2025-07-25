@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "proxy":"https://elections-backend-j8m8.onrender.com",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
