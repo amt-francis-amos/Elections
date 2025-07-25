@@ -38,10 +38,10 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         localStorage.setItem("token", token);
         toast.success("Login successful!");
 
-        // ✅ Handle user role
+      
         if (user.role === "admin") {
           toast.success("Welcome, Admin!");
-          // Optional: navigate to admin dashboard
+         
         } else {
           toast.info("Welcome, Voter!");
         }
