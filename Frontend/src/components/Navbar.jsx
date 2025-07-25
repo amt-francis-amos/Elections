@@ -22,7 +22,7 @@ const Navbar = () => {
     }
   }, [])
 
-  // Close profile menu when clicking outside
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
@@ -206,7 +206,7 @@ const Navbar = () => {
 
                   {isProfileMenuOpen && (
                     <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50 animate-in slide-in-from-top-2 duration-200">
-                      {/* User Info Header */}
+                     
                       <div className="px-4 py-3 border-b border-gray-100">
                         <div className="flex items-center gap-3">
                           {user.profilePicture ? (
@@ -231,7 +231,7 @@ const Navbar = () => {
                         </div>
                       </div>
 
-                      {/* Menu Items */}
+                     
                       <div className="py-2">
                         <Link
                           to="/profile"
@@ -247,22 +247,10 @@ const Navbar = () => {
                           </div>
                         </Link>
 
-                        <Link
-                          to="/settings"
-                          onClick={closeProfileMenu}
-                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 group"
-                        >
-                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors duration-200">
-                            <Settings size={18} className="text-gray-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Settings</p>
-                            <p className="text-xs text-gray-500">Account preferences</p>
-                          </div>
-                        </Link>
+                      
                       </div>
 
-                      {/* Logout */}
+                   
                       <div className="border-t border-gray-100 pt-2">
                         <button
                           onClick={handleLogout}
@@ -405,14 +393,7 @@ const Navbar = () => {
                       <UserCircle size={16} /> My Profile
                     </Link>
                     
-                    <Link
-                      to="/settings"
-                      onClick={closeMenu}
-                      className="flex items-center gap-2 w-full text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors duration-200"
-                    >
-                      <Settings size={16} /> Settings
-                    </Link>
-                    
+                
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-2 w-full text-red-600 px-4 py-2 rounded-md hover:bg-red-50 transition-colors duration-200 mt-2"
