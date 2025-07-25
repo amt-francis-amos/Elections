@@ -58,7 +58,6 @@ const Profile = ({ onLogout }) => {
         setProfileForm({ name: data.user.name, email: data.user.email });
       } catch (error) {
         console.error("Failed to fetch user profile:", error);
-        // Optionally handle the error (e.g., redirect to login)
         if (error.response?.status === 401 && onLogout) {
           onLogout();
         }
