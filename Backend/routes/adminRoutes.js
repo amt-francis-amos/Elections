@@ -5,10 +5,7 @@ import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();
 
-
 router.post('/promote', authenticateToken, authorizeRoles('admin'), promoteToAdmin);
-
-
 router.delete('/users/:id', authenticateToken, authorizeRoles('admin'), deleteUser);
 
 export default router;

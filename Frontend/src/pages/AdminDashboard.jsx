@@ -2,19 +2,23 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import UserTable from "../components/UserTable";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://elections-backend-j8m8.onrender.com/api",
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
-
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [message, setMessage] = useState("");
 
+  // Create axios instance with dynamic token
+  const createApiInstance = () => {
+    return axios.create({
+      baseURL: import.meta.env.VITE_API_BASE_URL || "https://elections-backend-j8m8.onrender.com/api",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+  };
+
   const fetchUsers = async () => {
     try {
+      const api = createApiInstance();
       const res = await api.get("/users");
       setUsers(res.data.users);
     } catch (err) {
@@ -25,6 +29,7 @@ const AdminDashboard = () => {
 
   const promoteHandler = async (userId) => {
     try {
+      const api = createApiInstance();
       const res = await api.post("/admin/promote", { userId });
       setMessage(res.data.message);
       fetchUsers(); // Refresh users
@@ -39,6 +44,7 @@ const AdminDashboard = () => {
     if (!confirm) return;
 
     try {
+      const api = createApiInstance();
       const res = await api.delete(`/admin/users/${userId}`);
       setMessage(res.data.message);
       fetchUsers(); // Refresh users

@@ -1,4 +1,3 @@
-// src/components/UserTable.jsx
 import React from "react";
 
 const UserTable = ({ users, promoteHandler, deleteHandler }) => {
@@ -26,21 +25,23 @@ const UserTable = ({ users, promoteHandler, deleteHandler }) => {
                 <td className="px-6 py-4">{user.name}</td>
                 <td className="px-6 py-4">{user.email}</td>
                 <td className="px-6 py-4 capitalize">{user.role}</td>
-                <td className="px-6 py-4 flex gap-2 justify-center">
-                  {user.role !== "admin" && (
+                <td className="px-6 py-4">
+                  <div className="flex gap-2 justify-center">
+                    {user.role !== "admin" && (
+                      <button
+                        onClick={() => promoteHandler(user._id)}
+                        className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                      >
+                        Promote
+                      </button>
+                    )}
                     <button
-                      onClick={() => promoteHandler(user._id)}
-                      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                      onClick={() => deleteHandler(user._id)}
+                      className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                     >
-                      Promote
+                      Delete
                     </button>
-                  )}
-                  <button
-                    onClick={() => deleteHandler(user._id)}
-                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
+                  </div>
                 </td>
               </tr>
             ))

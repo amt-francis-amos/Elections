@@ -4,7 +4,8 @@ export const promoteToAdmin = async (req, res) => {
   try {
     const { userId } = req.body;
 
-    const user = await User.findOne({ userId });
+    
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
@@ -24,7 +25,6 @@ export const promoteToAdmin = async (req, res) => {
 };
 
 
-// Delete user controller
 export const deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -34,12 +34,12 @@ export const deleteUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    // Prevent deleting self
+   
     if (req.user._id.toString() === userId) {
       return res.status(403).json({ success: false, message: 'You cannot delete yourself.' });
     }
 
-    await user.deleteOne();
+    await User.findByIdAndDelete(userId);
 
     res.status(200).json({ success: true, message: 'User deleted successfully.' });
   } catch (err) {
