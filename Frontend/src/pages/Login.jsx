@@ -6,7 +6,12 @@ import "react-toastify/dist/ReactToastify.css";
 
 const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ id: "", email: "", name: "", password: "" });
+  const [formData, setFormData] = useState({
+    id: "",
+    email: "",
+    name: "",
+    password: "",
+  });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -18,8 +23,10 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     e.preventDefault();
     setLoading(true);
 
-    const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
-    const registerUrl = "https://elections-backend-j8m8.onrender.com/api/users/register";
+    const loginUrl =
+      "https://elections-backend-j8m8.onrender.com/api/users/login";
+    const registerUrl =
+      "https://elections-backend-j8m8.onrender.com/api/users/register";
 
     try {
       const url = isLogin ? loginUrl : registerUrl;
@@ -38,6 +45,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
       const response = await axios.post(url, payload);
       const data = response.data;
 
+      // ✅ LOGIN FLOW
       if (isLogin) {
         const { token, user } = data;
 
@@ -45,9 +53,9 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           throw new Error("Invalid login response format");
         }
 
-        // Save token and user
+       
         localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("userData", JSON.stringify(user)); 
 
         toast.success("Login successful!");
         if (user.role === "admin") {
@@ -58,14 +66,19 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
-      } else {
+      }
+
+     
+      else {
         const { user, token } = data;
 
         if (!user || !user.userId || !token) {
           throw new Error("Invalid registration response format");
         }
 
-        // Auto-fill login fields after registration
+        toast.success(`Registration successful! Your ID is: ${user.userId}`);
+
+       
         setFormData({
           id: user.userId,
           email: user.email,
@@ -73,15 +86,15 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           name: "",
         });
 
-        toast.success(`Registration successful! Your ID is: ${user.userId}`);
-
         setTimeout(() => {
-          setIsLogin(true); // Switch to login form
+          setIsLogin(true); 
         }, 1000);
       }
     } catch (error) {
       console.error("Request error:", error);
-      toast.error(error.response?.data?.message || error.message || "Something went wrong");
+      toast.error(
+        error.response?.data?.message || error.message || "Something went wrong"
+      );
     } finally {
       setLoading(false);
     }
