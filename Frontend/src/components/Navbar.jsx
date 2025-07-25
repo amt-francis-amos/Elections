@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Menu, X, ChevronDown, LogOut, User, UserCircle } from 'lucide-react'
+import { Menu, X, ChevronDown, LogOut, User, Settings, UserCircle } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { assets } from '../assets/assets'
 import Login from '../pages/Login'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isMobileVoteOpen, setIsMobileVoteOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
@@ -20,6 +22,7 @@ const Navbar = () => {
     }
   }, [])
 
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
@@ -32,18 +35,23 @@ const Navbar = () => {
   }, [])
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen)
+  const toggleMobileVote = () => setIsMobileVoteOpen(!isMobileVoteOpen)
   const toggleProfileMenu = () => setIsProfileMenuOpen(!isProfileMenuOpen)
   const closeMenu = () => setIsMenuOpen(false)
+  const closeDropdown = () => setIsDropdownOpen(false)
+  const closeMobileVote = () => setIsMobileVoteOpen(false)
   const closeProfileMenu = () => setIsProfileMenuOpen(false)
   const isActive = path => location.pathname === path
-
+  
   const openAuthModal = () => {
     setIsAuthModalOpen(true)
+    closeDropdown()
     closeMenu()
   }
-
+  
   const closeAuthModal = () => setIsAuthModalOpen(false)
-
+  
 const handleLoginSuccess = ({ user, token }) => {
   setUser(user)
   localStorage.setItem('userData', JSON.stringify(user))
@@ -51,7 +59,7 @@ const handleLoginSuccess = ({ user, token }) => {
   closeAuthModal()
 }
 
-
+  
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem('userToken')
@@ -69,16 +77,17 @@ const handleLoginSuccess = ({ user, token }) => {
       <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" onClick={closeMenu}>
+            <Link to="/" onClick={closeDropdown}>
               <img src={assets.logo} alt="NSBT LOGO" className="w-[150px]" />
             </Link>
-
             <div className="hidden md:flex items-center space-x-8">
               <Link
                 to="/"
-                onClick={closeMenu}
+                onClick={closeDropdown}
                 className={`relative font-medium transition-colors duration-200 px-3 py-2 rounded-md group ${
-                  isActive('/') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                  isActive('/')
+                    ? 'text-blue-600'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
                 Home
@@ -89,11 +98,64 @@ const handleLoginSuccess = ({ user, token }) => {
                 />
               </Link>
 
+              <div className="relative">
+                <button
+                  onClick={toggleDropdown}
+                  className={`flex items-center space-x-1 font-medium transition-colors duration-200 px-3 py-2 rounded-md group ${
+                    location.pathname.includes('/vote')
+                      ? 'text-blue-600'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>Vote</span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isDropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                  <span
+                    className={`absolute bottom-0 left-3 right-3 h-0.5 bg-[#03073d] transform transition-transform duration-300 ${
+                      location.pathname.includes('/vote')
+                        ? 'scale-x-100'
+                        : 'scale-x-0 group-hover:scale-x-100'
+                    }`}
+                  />
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                    <Link
+                      to="/vote/elections"
+                      onClick={closeDropdown}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200"
+                    >
+                      Current Elections
+                    </Link>
+                    <Link
+                      to="/vote/candidates"
+                      onClick={closeDropdown}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200"
+                    >
+                      View Candidates
+                    </Link>
+                    <Link
+                      to="/vote/results"
+                      onClick={closeDropdown}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200"
+                    >
+                      Election Results
+                    </Link>
+                  </div>
+                )}
+              </div>
+
               <Link
                 to="/admin"
-                onClick={closeMenu}
+                onClick={closeDropdown}
                 className={`relative font-medium transition-colors duration-200 px-3 py-2 rounded-md group ${
-                  isActive('/admin') ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                  isActive('/admin')
+                    ? 'text-blue-600'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
                 Admin
@@ -102,6 +164,13 @@ const handleLoginSuccess = ({ user, token }) => {
                     isActive('/admin') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
                   }`}
                 />
+              </Link>
+
+              <Link
+                to="/vote"
+                className="bg-[#03073d] hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+              >
+                Vote Now
               </Link>
 
               {user ? (
@@ -122,8 +191,12 @@ const handleLoginSuccess = ({ user, token }) => {
                       </div>
                     )}
                     <div className="hidden lg:block text-left">
-                      <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">{user.name}</p>
-                      <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
+                        {user.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate max-w-[120px]">
+                        {user.email}
+                      </p>
                     </div>
                     <ChevronDown
                       className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
@@ -134,6 +207,7 @@ const handleLoginSuccess = ({ user, token }) => {
 
                   {isProfileMenuOpen && (
                     <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50 animate-in slide-in-from-top-2 duration-200">
+                     
                       <div className="px-4 py-3 border-b border-gray-100">
                         <div className="flex items-center gap-3">
                           {user.profilePicture ? (
@@ -148,12 +222,17 @@ const handleLoginSuccess = ({ user, token }) => {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">{user.name}</p>
-                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                            <p className="font-semibold text-gray-900 truncate">
+                              {user.name}
+                            </p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {user.email}
+                            </p>
                           </div>
                         </div>
                       </div>
 
+                     
                       <div className="py-2">
                         <Link
                           to="/profile"
@@ -168,8 +247,11 @@ const handleLoginSuccess = ({ user, token }) => {
                             <p className="text-xs text-gray-500">View and edit profile</p>
                           </div>
                         </Link>
+
+                      
                       </div>
 
+                   
                       <div className="border-t border-gray-100 pt-2">
                         <button
                           onClick={handleLogout}
@@ -220,6 +302,50 @@ const handleLoginSuccess = ({ user, token }) => {
                   Home
                 </Link>
 
+                <div className="space-y-1">
+                  <button
+                    onClick={toggleMobileVote}
+                    className={`flex items-center justify-between w-full text-left px-3 py-2 font-medium border-b border-gray-100 rounded-md transition-colors duration-200 ${
+                      location.pathname.includes('/vote')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-900 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>Vote</span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        isMobileVoteOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isMobileVoteOpen && (
+                    <div className="space-y-1">
+                      <Link
+                        to="/vote/elections"
+                        onClick={closeMobileVote}
+                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors duration-200"
+                      >
+                        Current Elections
+                      </Link>
+                      <Link
+                        to="/vote/candidates"
+                        onClick={closeMobileVote}
+                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors duration-200"
+                      >
+                        View Candidates
+                      </Link>
+                      <Link
+                        to="/vote/results"
+                        onClick={closeMobileVote}
+                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors duration-200"
+                      >
+                        Election Results
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
                 <Link
                   to="/admin"
                   onClick={closeMenu}
@@ -230,6 +356,14 @@ const handleLoginSuccess = ({ user, token }) => {
                   }`}
                 >
                   Admin
+                </Link>
+
+                <Link
+                  to="/vote"
+                  onClick={closeMenu}
+                  className="block w-full bg-[#03073d] hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-md transition-colors duration-200 shadow-sm text-center"
+                >
+                  Vote Now
                 </Link>
 
                 {user ? (
@@ -251,7 +385,7 @@ const handleLoginSuccess = ({ user, token }) => {
                         <p className="text-sm text-gray-500 truncate">{user.email}</p>
                       </div>
                     </div>
-
+                    
                     <Link
                       to="/profile"
                       onClick={closeMenu}
@@ -259,7 +393,8 @@ const handleLoginSuccess = ({ user, token }) => {
                     >
                       <UserCircle size={16} /> My Profile
                     </Link>
-
+                    
+                
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-2 w-full text-red-600 px-4 py-2 rounded-md hover:bg-red-50 transition-colors duration-200 mt-2"
