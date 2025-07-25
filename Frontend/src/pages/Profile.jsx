@@ -45,7 +45,10 @@ const Profile = ({ onLogout }) => {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       try {
         const { data } = await axios.get(
           "https://elections-backend-j8m8.onrender.com/api/users/profile",
@@ -53,7 +56,13 @@ const Profile = ({ onLogout }) => {
         );
         setUser(data.user);
         setProfileForm({ name: data.user.name, email: data.user.email });
-      } catch {}
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+        // Optionally handle the error (e.g., redirect to login)
+        if (error.response?.status === 401 && onLogout) {
+          onLogout();
+        }
+      }
       setLoading(false);
     })();
   }, [onLogout, token]);
@@ -179,12 +188,32 @@ const Profile = ({ onLogout }) => {
       minute: "2-digit"
     });
 
-  if (loading)
+  // Show loading state
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse w-64 h-64 bg-gray-200 rounded"></div>
       </div>
     );
+  }
+
+  // Show error state if user data couldn't be loaded
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Unable to load profile</h2>
+          <p className="text-gray-600 mb-6">Please try refreshing the page or logging in again.</p>
+          <button
+            onClick={handleLogout}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pt-24 pb-12">
@@ -458,8 +487,6 @@ const Profile = ({ onLogout }) => {
                 </div>
               </div>
             </div>
-
-           
 
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-3xl p-6">
               <div className="flex items-center gap-3 mb-3">
