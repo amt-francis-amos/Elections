@@ -29,6 +29,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
     }
 
+    // Check if name already exists
     const existingName = await User.findOne({ name: name.trim() });
     if (existingName) {
       return res.status(400).json({ success: false, message: "Name already taken" });
@@ -36,28 +37,35 @@ export const registerUser = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 12);
 
+    // Generate unique userId
     let userId = generateUserId();
     while (await User.findOne({ userId })) {
       userId = generateUserId();
     }
 
-    
     const role = 'voter';
 
     console.log("✅ Creating user with role:", role); 
 
-    const user = await User.create({
+    // Create user with only the fields we need
+    const userData = {
       name: name.trim(),
       password: hashed,
       userId,
       role,
-    });
+    };
+
+    console.log("User data to create:", userData);
+
+    const user = await User.create(userData);
 
     const token = generateToken({
       id: user._id,
       name: user.name,
       role: user.role,
     });
+
+    console.log("✅ User created successfully:", user.name);
 
     res.status(201).json({
       success: true,
@@ -74,6 +82,16 @@ export const registerUser = async (req, res) => {
 
   } catch (error) {
     console.error("Register error:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field} already exists`,
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Server error during registration",
