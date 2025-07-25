@@ -142,7 +142,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         
        
         setTimeout(() => {
-          navigate('/shop');
+          navigate('/vote');
         }, 100);
         
       } else {
