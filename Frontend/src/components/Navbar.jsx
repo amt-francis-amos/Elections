@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect } from 'react'
-import { Menu, X, ChevronDown, LogOut, User } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Menu, X, ChevronDown, LogOut, User, Settings, UserCircle } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { assets } from '../assets/assets'
 import Login from '../pages/Login'
@@ -10,8 +9,10 @@ const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileVoteOpen, setIsMobileVoteOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
   const location = useLocation()
+  const profileMenuRef = useRef(null)
 
   useEffect(() => {
     const token = localStorage.getItem('userToken')
@@ -21,30 +22,53 @@ const Navbar = () => {
     }
   }, [])
 
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen)
   const toggleMobileVote = () => setIsMobileVoteOpen(!isMobileVoteOpen)
+  const toggleProfileMenu = () => setIsProfileMenuOpen(!isProfileMenuOpen)
   const closeMenu = () => setIsMenuOpen(false)
   const closeDropdown = () => setIsDropdownOpen(false)
   const closeMobileVote = () => setIsMobileVoteOpen(false)
+  const closeProfileMenu = () => setIsProfileMenuOpen(false)
   const isActive = path => location.pathname === path
+  
   const openAuthModal = () => {
     setIsAuthModalOpen(true)
     closeDropdown()
     closeMenu()
   }
+  
   const closeAuthModal = () => setIsAuthModalOpen(false)
+  
   const handleLoginSuccess = userData => {
     setUser(userData)
     localStorage.setItem('userData', JSON.stringify(userData))
     localStorage.setItem('userToken', 'dummyToken')
     closeAuthModal()
   }
+  
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem('userToken')
     localStorage.removeItem('userData')
+    closeProfileMenu()
     window.location.href = '/'
+  }
+
+  const getInitials = (name) => {
+    return name ? name.split(' ').map(word => word[0]).join('').toUpperCase() : 'U'
   }
 
   return (
@@ -149,16 +173,112 @@ const Navbar = () => {
               </Link>
 
               {user ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold uppercase">
-                    {user.name?.charAt(0)}
-                  </div>
+                <div className="relative" ref={profileMenuRef}>
                   <button
-                    onClick={handleLogout}
-                    className="text-red-600 hover:text-red-700 transition-colors duration-200 flex items-center gap-1"
+                    onClick={toggleProfileMenu}
+                    className="flex items-center gap-3 p-1 rounded-full hover:bg-gray-50 transition-all duration-200 group"
                   >
-                    <LogOut size={16} /> Logout
+                    {user.profilePicture ? (
+                      <img
+                        src={user.profilePicture}
+                        alt={user.name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-300 transition-colors duration-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200 group-hover:border-blue-300 transition-colors duration-200">
+                        {getInitials(user.name)}
+                      </div>
+                    )}
+                    <div className="hidden lg:block text-left">
+                      <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
+                        {user.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate max-w-[120px]">
+                        {user.email}
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                        isProfileMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
+
+                  {isProfileMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50 animate-in slide-in-from-top-2 duration-200">
+                      {/* User Info Header */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          {user.profilePicture ? (
+                            <img
+                              src={user.profilePicture}
+                              alt={user.name}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                              {getInitials(user.name)}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {user.name}
+                            </p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {user.email}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Menu Items */}
+                      <div className="py-2">
+                        <Link
+                          to="/profile"
+                          onClick={closeProfileMenu}
+                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 group"
+                        >
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors duration-200">
+                            <UserCircle size={18} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">My Profile</p>
+                            <p className="text-xs text-gray-500">View and edit profile</p>
+                          </div>
+                        </Link>
+
+                        <Link
+                          to="/settings"
+                          onClick={closeProfileMenu}
+                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 group"
+                        >
+                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors duration-200">
+                            <Settings size={18} className="text-gray-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">Settings</p>
+                            <p className="text-xs text-gray-500">Account preferences</p>
+                          </div>
+                        </Link>
+                      </div>
+
+                      {/* Logout */}
+                      <div className="border-t border-gray-100 pt-2">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-all duration-200 w-full group"
+                        >
+                          <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200">
+                            <LogOut size={18} className="text-red-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">Sign Out</p>
+                            <p className="text-xs text-red-500">Logout from account</p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button
@@ -222,14 +342,14 @@ const Navbar = () => {
                       <Link
                         to="/vote/candidates"
                         onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors.duration-200"
+                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors duration-200"
                       >
                         View Candidates
                       </Link>
                       <Link
                         to="/vote/results"
                         onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors-duration-200"
+                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors duration-200"
                       >
                         Election Results
                       </Link>
@@ -258,12 +378,48 @@ const Navbar = () => {
                 </Link>
 
                 {user ? (
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full text-red-600 px-4 py-2 rounded-md hover:bg-red-50 transition-colors duration-200 mt-2"
-                  >
-                    <LogOut size={16} /> Logout
-                  </button>
+                  <div className="pt-4 border-t border-gray-100 mt-4">
+                    <div className="flex items-center gap-3 px-3 py-2 mb-2">
+                      {user.profilePicture ? (
+                        <img
+                          src={user.profilePicture}
+                          alt={user.name}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          {getInitials(user.name)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{user.name}</p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    
+                    <Link
+                      to="/profile"
+                      onClick={closeMenu}
+                      className="flex items-center gap-2 w-full text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <UserCircle size={16} /> My Profile
+                    </Link>
+                    
+                    <Link
+                      to="/settings"
+                      onClick={closeMenu}
+                      className="flex items-center gap-2 w-full text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <Settings size={16} /> Settings
+                    </Link>
+                    
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 w-full text-red-600 px-4 py-2 rounded-md hover:bg-red-50 transition-colors duration-200 mt-2"
+                    >
+                      <LogOut size={16} /> Logout
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={openAuthModal}
