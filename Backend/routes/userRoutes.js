@@ -1,4 +1,3 @@
-
 import express from 'express'
 import { signupUser, loginUser } from '../controllers/userController.js'
 
