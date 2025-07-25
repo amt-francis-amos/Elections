@@ -3,16 +3,17 @@ import bcrypt from 'bcrypt';
 import nodemailer from '../config/nodemailer.js';
 import jwt from 'jsonwebtoken';
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-};
 
+const generateToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
 
 const generateUserId = () => {
   const prefix = "USR";
   const random = Math.random().toString(36).substring(2, 10).toUpperCase();
   return `${prefix}-${random}`;
 };
+
 
 export const registerUser = async (req, res) => {
   try {
@@ -47,21 +48,29 @@ export const registerUser = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 12);
 
-   
     let userId = generateUserId();
     while (await User.findOne({ userId })) {
       userId = generateUserId();
     }
 
+ 
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashed,
       userId,
+      role: 'voter', 
     });
 
-    const token = generateToken(user._id);
+    
+    const token = generateToken({
+      id: user._id,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+    });
 
+    
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"Your App" <nsbt@Elections.com>',
       to: user.email,
@@ -93,6 +102,7 @@ export const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         userId: user.userId,
+        role: user.role,
         createdAt: user.createdAt,
       },
       token,
@@ -127,7 +137,13 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ success: false, message: "Incorrect password" });
     }
 
-    const token = generateToken(user._id);
+    // ✅ Include role in token
+    const token = generateToken({
+      id: user._id,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+    });
 
     res.status(200).json({
       success: true,
@@ -137,6 +153,7 @@ export const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         userId: user.userId,
+        role: user.role,
       },
       token,
     });
@@ -148,22 +165,20 @@ export const loginUser = async (req, res) => {
 };
 
 
-
 export const getAllUsers = async (req, res) => {
   try {
-
     const users = await User.find({}).select('-password').sort({ createdAt: -1 });
-    
+
     res.status(200).json({
       success: true,
-      users: users
+      users,
     });
-    
+
   } catch (error) {
     console.error("Get all users error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching users"
+      message: "Server error while fetching users",
     });
   }
 };
