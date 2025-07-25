@@ -148,10 +148,10 @@ export const loginUser = async (req, res) => {
 };
 
 
-// Add this to your controller file
+
 export const getAllUsers = async (req, res) => {
   try {
-    // Fetch all users but exclude passwords
+
     const users = await User.find({}).select('-password').sort({ createdAt: -1 });
     
     res.status(200).json({
