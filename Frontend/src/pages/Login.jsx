@@ -108,7 +108,7 @@ const Login = ({
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-        localStorage.setItem("token", token);
+        localStorage.setItem("userToken", token);
         localStorage.setItem("userData", JSON.stringify(user));
 
         toast.success("Login successful!");
@@ -118,7 +118,7 @@ const Login = ({
           toast.info("Welcome, Voter! Redirecting...");
         }
 
-        if (onLoginSuccess) onLoginSuccess(user);
+        if (onLoginSuccess) onLoginSuccess({ user, token });
         onClose();
         setFormData({ id: "", name: "", email: "", password: "" });
         handleRoleBasedRedirect(user);
