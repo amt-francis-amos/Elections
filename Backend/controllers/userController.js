@@ -17,7 +17,6 @@ export const registerUser = async (req, res) => {
     
     console.log("Registration request body:", req.body);
 
-    
     if (!name || !email || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -25,7 +24,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-
+  
     if (name.length < 2) {
       return res.status(400).json({ 
         success: false, 
@@ -33,7 +32,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ 
@@ -42,6 +41,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
+ 
     if (password.length < 6) {
       return res.status(400).json({ 
         success: false, 
@@ -49,7 +49,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    
+   
     const existingName = await User.findOne({ name: name.trim() });
     if (existingName) {
       return res.status(400).json({ 
@@ -58,7 +58,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-  
+   
     const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingEmail) {
       return res.status(400).json({ 
@@ -69,7 +69,7 @@ export const registerUser = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 12);
 
-
+  
     let userId = generateUserId();
     while (await User.findOne({ userId })) {
       userId = generateUserId();
@@ -133,9 +133,12 @@ export const registerUser = async (req, res) => {
     });
   }
 };
+
+
 export const loginUser = async (req, res) => {
   try {
     const { id, password } = req.body;
+
 
     if (!id || !password) {
       return res.status(400).json({ 
@@ -144,7 +147,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-  
     const user = await User.findOne({ userId: id });
 
     if (!user) {
@@ -155,6 +157,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
+ 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("Password mismatch for user:", id);
@@ -164,6 +167,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
+  
     const token = generateToken({
       id: user._id,
       name: user.name,
