@@ -83,7 +83,7 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error("Register error:", error);
     
-    // Handle specific MongoDB errors
+    
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       return res.status(400).json({
@@ -111,7 +111,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Find user by userId only
+  
     const user = await User.findOne({ userId: id });
 
     if (!user) {
