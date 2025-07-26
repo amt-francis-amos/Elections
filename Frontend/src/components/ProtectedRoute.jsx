@@ -22,7 +22,7 @@ const ProtectedRoute = ({ allowedRoles = [], children }) => {
   const user = getUserData();
 
   if (!token || !user) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/login" replace />;
   }
 
 
