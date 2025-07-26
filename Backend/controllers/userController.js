@@ -17,7 +17,7 @@ export const registerUser = async (req, res) => {
     
     console.log("Registration request body:", req.body);
 
-    // Fixed validation - email should be required
+    
     if (!name || !email || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -25,7 +25,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Name validation
+
     if (name.length < 2) {
       return res.status(400).json({ 
         success: false, 
@@ -33,7 +33,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Email validation
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ 
@@ -42,7 +42,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Password validation
     if (password.length < 6) {
       return res.status(400).json({ 
         success: false, 
@@ -50,7 +49,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Check if name already exists
+    
     const existingName = await User.findOne({ name: name.trim() });
     if (existingName) {
       return res.status(400).json({ 
@@ -59,7 +58,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Check if email already exists
+  
     const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingEmail) {
       return res.status(400).json({ 
@@ -68,10 +67,9 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Hash password
     const hashed = await bcrypt.hash(password, 12);
 
-    // Generate unique userId
+
     let userId = generateUserId();
     while (await User.findOne({ userId })) {
       userId = generateUserId();
@@ -81,10 +79,9 @@ export const registerUser = async (req, res) => {
 
     console.log("✅ Creating user with role:", role); 
 
-    // User data with email included
     const userData = {
       name: name.trim(),
-      email: email.toLowerCase().trim(), // Store email in lowercase
+      email: email.toLowerCase().trim(), 
       password: hashed,
       userId,
       role,
@@ -119,8 +116,7 @@ export const registerUser = async (req, res) => {
 
   } catch (error) {
     console.error("Register error:", error);
-    
-    // Handle duplicate key errors
+
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       const fieldName = field === 'email' ? 'Email' : field;
