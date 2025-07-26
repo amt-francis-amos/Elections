@@ -22,14 +22,46 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/vote" element={<Vote />} />
-        <Route path="/vote/elections" element={<Elections />} />
-        <Route path="/vote/candidates" element={<Candidates />} />
-        <Route path="/vote/results" element={<Results />} />
+        
+      
+        <Route
+          path="/vote"
+          element={
+            <ProtectedRoute allowedRoles={['voter']}>
+              <Vote />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vote/elections"
+          element={
+            <ProtectedRoute allowedRoles={['voter']}>
+              <Elections />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vote/candidates"
+          element={
+            <ProtectedRoute allowedRoles={['voter']}>
+              <Candidates />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vote/results"
+          element={
+            <ProtectedRoute allowedRoles={['voter']}>
+              <Results />
+            </ProtectedRoute>
+          }
+        />
+
+       
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
             </ProtectedRoute>
           }
