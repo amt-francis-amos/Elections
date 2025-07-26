@@ -9,6 +9,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [formData, setFormData] = useState({
     id: "",
     name: "",
+    email: "", // Added email field
     password: "",
   });
   const [loading, setLoading] = useState(false);
@@ -29,12 +30,23 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         return false;
       }
     } else {
+      // Registration validation
       if (!formData.name.trim()) {
         toast.error("Name is required");
         return false;
       }
       if (formData.name.trim().length < 2) {
         toast.error("Name must be at least 2 characters long");
+        return false;
+      }
+      if (!formData.email.trim()) {
+        toast.error("Email is required");
+        return false;
+      }
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error("Please provide a valid email address");
         return false;
       }
       if (!formData.password) {
@@ -67,7 +79,8 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
             password: formData.password,
           }
         : {
-            name: formData.name.trim(), 
+            name: formData.name.trim(),
+            email: formData.email.trim().toLowerCase(), // Added email to registration payload
             password: formData.password,
           };
 
@@ -91,8 +104,8 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
 
-       
-        setFormData({ id: "", name: "", password: "" });
+        // Clear form data
+        setFormData({ id: "", name: "", email: "", password: "" });
       } else {
         const { user, token } = data;
         if (!user || !user.userId || !token) {
@@ -101,11 +114,12 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
         
-       
+        // Auto-fill login form with new user's ID
         setFormData({
           id: user.userId,
           password: formData.password,
           name: "",
+          email: "",
         });
 
         setTimeout(() => setIsLogin(true), 2000); 
@@ -119,10 +133,9 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     }
   };
 
- 
   const handleModeSwitch = () => {
     setIsLogin(!isLogin);
-    setFormData({ id: "", name: "", password: "" });
+    setFormData({ id: "", name: "", email: "", password: "" });
     setShowPassword(false);
   };
 
@@ -145,20 +158,37 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
-              <div className="relative">
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  required
-                  onChange={handleChange}
-                  placeholder=" "
-                  className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                  Name (min 2 characters)
-                </label>
-              </div>
+              <>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    required
+                    onChange={handleChange}
+                    placeholder=" "
+                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                    Name (min 2 characters)
+                  </label>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    required
+                    onChange={handleChange}
+                    placeholder=" "
+                    className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
+                    Email Address
+                  </label>
+                </div>
+              </>
             )}
 
             {isLogin && (
