@@ -21,7 +21,7 @@ const Navbar = () => {
     if (token && userData && userData !== "undefined" && userData !== "null") {
       try {
         setUser(JSON.parse(userData));
-      } catch (err) {
+      } catch {
         localStorage.removeItem("userData");
         setUser(null);
       }
@@ -29,14 +29,11 @@ const Navbar = () => {
       localStorage.removeItem("userData");
       setUser(null);
     }
-  }, []);
+  }, [location]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (
-        profileMenuRef.current &&
-        !profileMenuRef.current.contains(e.target)
-      ) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
         setIsProfileMenuOpen(false);
       }
     };
@@ -99,17 +96,13 @@ const Navbar = () => {
                 to="/"
                 onClick={closeDropdown}
                 className={`relative font-medium px-3 py-2 rounded-md transition-colors ${
-                  isActive("/")
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                  isActive("/") ? "text-blue-600" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 }`}
               >
                 Home
                 <span
                   className={`absolute bottom-0 left-3 right-3 h-0.5 bg-[#03073d] transition-transform ${
-                    isActive("/")
-                      ? "scale-x-100"
-                      : "scale-x-0 group-hover:scale-x-100"
+                    isActive("/") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                   }`}
                 />
               </Link>
@@ -132,46 +125,31 @@ const Navbar = () => {
                 </button>
                 {isDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
-                    <Link
-                      to="/vote/elections"
-                      onClick={closeDropdown}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                    >
+                    <Link to="/vote/elections" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                       Current Elections
                     </Link>
-                    <Link
-                      to="/vote/candidates"
-                      onClick={closeDropdown}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                    >
+                    <Link to="/vote/candidates" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                       View Candidates
                     </Link>
-                    <Link
-                      to="/vote/results"
-                      onClick={closeDropdown}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                    >
+                    <Link to="/vote/results" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                       Election Results
                     </Link>
                   </div>
                 )}
               </div>
+
               {user?.role === "admin" && (
                 <Link
                   to="/admin"
                   onClick={closeDropdown}
                   className={`relative font-medium px-3 py-2 rounded-md transition-colors ${
-                    isActive("/admin")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    isActive("/admin") ? "text-blue-600" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
                   Admin
                   <span
                     className={`absolute bottom-0 left-3 right-3 h-0.5 bg-[#03073d] transition-transform ${
-                      isActive("/admin")
-                        ? "scale-x-100"
-                        : "scale-x-0 group-hover:scale-x-100"
+                      isActive("/admin") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                     }`}
                   />
                 </Link>
@@ -195,12 +173,8 @@ const Navbar = () => {
                       </div>
                     )}
                     <div className="hidden lg:block text-left">
-                      <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate max-w-[120px]">
-                        {user.email}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">{user.name}</p>
+                      <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
                     </div>
                     <ChevronDown
                       className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -224,12 +198,8 @@ const Navbar = () => {
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">
-                            {user.name}
-                          </p>
-                          <p className="text-sm text-gray-500 truncate">
-                            {user.email}
-                          </p>
+                          <p className="font-semibold text-gray-900 truncate">{user.name}</p>
+                          <p className="text-sm text-gray-500 truncate">{user.email}</p>
                         </div>
                       </div>
                       <div className="py-2">
@@ -243,9 +213,7 @@ const Navbar = () => {
                           </div>
                           <div>
                             <p className="font-medium">My Profile</p>
-                            <p className="text-xs text-gray-500">
-                              View and edit profile
-                            </p>
+                            <p className="text-xs text-gray-500">View and edit profile</p>
                           </div>
                         </Link>
                       </div>
@@ -259,9 +227,7 @@ const Navbar = () => {
                           </div>
                           <div>
                             <p className="font-medium text-red-600">Sign Out</p>
-                            <p className="text-xs text-red-500">
-                              Logout from account
-                            </p>
+                            <p className="text-xs text-red-500">Logout from account</p>
                           </div>
                         </button>
                       </div>
@@ -283,11 +249,7 @@ const Navbar = () => {
                 onClick={toggleMenu}
                 className="text-gray-700 hover:text-blue-600 p-2 rounded-md transition"
               >
-                {isMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>
@@ -299,9 +261,7 @@ const Navbar = () => {
                   to="/"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md font-medium transition-colors ${
-                    isActive("/")
-                      ? "text-blue-600 bg-blue-50"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    isActive("/") ? "text-blue-600 bg-blue-50" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
                   Home
@@ -318,32 +278,18 @@ const Navbar = () => {
                   >
                     <span>Vote</span>
                     <ChevronDown
-                      className={`w-4 h-4 transition-transform ${
-                        isMobileVoteOpen ? "rotate-180" : ""
-                      }`}
+                      className={`w-4 h-4 transition-transform ${isMobileVoteOpen ? "rotate-180" : ""}`}
                     />
                   </button>
                   {isMobileVoteOpen && (
                     <>
-                      <Link
-                        to="/vote/elections"
-                        onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                      >
+                      <Link to="/vote/elections" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
                         Current Elections
                       </Link>
-                      <Link
-                        to="/vote/candidates"
-                        onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                      >
+                      <Link to="/vote/candidates" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
                         View Candidates
                       </Link>
-                      <Link
-                        to="/vote/results"
-                        onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                      >
+                      <Link to="/vote/results" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
                         Election Results
                       </Link>
                     </>
@@ -354,9 +300,7 @@ const Navbar = () => {
                   to="/admin"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md font-medium transition-colors ${
-                    isActive("/admin")
-                      ? "text-blue-600 bg-blue-50"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    isActive("/admin") ? "text-blue-600 bg-blue-50" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
                   Admin
@@ -377,33 +321,19 @@ const Navbar = () => {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
-                          {user.name}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">
-                          {user.email}
-                        </p>
+                        <p className="font-medium text-gray-900 truncate">{user.name}</p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
                       </div>
                     </div>
-                    <Link
-                      to="/profile"
-                      onClick={closeMenu}
-                      className="flex items-center gap-2 w-full px-4 py-2 rounded-md hover:bg-gray-50 transition"
-                    >
+                    <Link to="/profile" onClick={closeMenu} className="flex items-center gap-2 w-full px-4 py-2 rounded-md hover:bg-gray-50 transition">
                       <UserCircle size={16} /> My Profile
                     </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-2 w-full px-4 py-2 rounded-md hover:bg-red-50 transition mt-2 text-red-600"
-                    >
+                    <button onClick={handleLogout} className="flex items-center gap-2 w-full px-4 py-2 rounded-md hover:bg-red-50 transition mt-2 text-red-600">
                       <LogOut size={16} /> Logout
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={openAuthModal}
-                    className="flex items-center gap-2 w-full px-4 py-2 rounded-md hover:bg-gray-50 transition mt-2"
-                  >
+                  <button onClick={openAuthModal} className="flex items-center gap-2 w-full px-4 py-2 rounded-md hover:bg-gray-50 transition mt-2">
                     <User size={16} /> Login
                   </button>
                 )}
@@ -414,16 +344,9 @@ const Navbar = () => {
       </nav>
 
       {isAuthModalOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-40 z-40"
-          onClick={closeAuthModal}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-40" onClick={closeAuthModal} />
       )}
-      <Login
-        isOpen={isAuthModalOpen}
-        onClose={closeAuthModal}
-        onLoginSuccess={handleLoginSuccess}
-      />
+      <Login isOpen={isAuthModalOpen} onClose={closeAuthModal} onLoginSuccess={handleLoginSuccess} />
     </>
   );
 };
