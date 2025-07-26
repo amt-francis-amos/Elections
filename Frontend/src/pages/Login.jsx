@@ -30,7 +30,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         return false;
       }
     } else {
-     
+      // Registration validation
       if (!formData.name.trim()) {
         toast.error("Name is required");
         return false;
@@ -43,7 +43,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         toast.error("Email is required");
         return false;
       }
-      
+      // Basic email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         toast.error("Please provide a valid email address");
@@ -93,9 +93,25 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-     
-        localStorage.setItem("token", token);
-        localStorage.setItem("userData", JSON.stringify(user));
+        // FIX: Store data properly in localStorage with error handling
+        try {
+          localStorage.setItem("token", token);
+          localStorage.setItem("userData", JSON.stringify(user));
+          
+          // Debug: Log what we're storing
+          console.log("Storing token:", token);
+          console.log("Storing userData:", JSON.stringify(user));
+          
+          // Verify storage worked
+          const storedToken = localStorage.getItem("token");
+          const storedUserData = localStorage.getItem("userData");
+          console.log("Verified stored token:", storedToken);
+          console.log("Verified stored userData:", storedUserData);
+          
+        } catch (storageError) {
+          console.error("localStorage error:", storageError);
+          toast.error("Failed to save login data");
+        }
 
         toast.success("Login successful!");
         user.role === "admin"
@@ -105,10 +121,10 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
 
-    
+        // Clear form data
         setFormData({ id: "", name: "", email: "", password: "" });
       } else {
-      
+        // FIX: Handle registration response properly
         const { user, token } = data;
         if (!user || !user.userId || !token) {
           throw new Error("Invalid registration response format");
@@ -116,7 +132,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
         
-      
+        // Auto-fill login form with new user's ID
         setFormData({
           id: user.userId,
           password: formData.password,

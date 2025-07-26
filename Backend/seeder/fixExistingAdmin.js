@@ -8,18 +8,28 @@ const fixExistingAdmins = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     
-   
-    const result = await User.updateMany(
+  
+    const specificUserResult = await User.updateOne(
+      { _id: "6884ff0b92410d7c3c3832b3" },
+      { $set: { role: "admin" } }
+    );
+    
+    console.log("✅ Specific user update results:");
+    console.log("Matched documents:", specificUserResult.matchedCount);
+    console.log("Modified documents:", specificUserResult.modifiedCount);
+    
+
+    const emailResult = await User.updateMany(
       { email: "admin@election.com" },
       { $set: { role: "admin" } }
     );
     
-    console.log("✅ Admin role update results:");
-    console.log("Matched documents:", result.matchedCount);
-    console.log("Modified documents:", result.modifiedCount);
+    console.log("✅ Admin email update results:");
+    console.log("Matched documents:", emailResult.matchedCount);
+    console.log("Modified documents:", emailResult.modifiedCount);
     
-   
-    const superAdminResult = await User.updateMany(
+
+    const nameResult = await User.updateMany(
       { 
         $or: [
           { name: { $regex: /admin/i } },
@@ -30,12 +40,19 @@ const fixExistingAdmins = async () => {
       { $set: { role: "admin" } }
     );
     
-    console.log("✅ Super Admin role update results:");
-  
+    console.log("✅ Admin name update results:");
+    console.log("Matched documents:", nameResult.matchedCount);
+    console.log("Modified documents:", nameResult.modifiedCount);
+    
+   
     const adminUsers = await User.find({ role: "admin" }, { password: 0 });
-    console.log("✅ Current admin users:", adminUsers);
+    console.log("✅ Current admin users:", adminUsers.length);
+    adminUsers.forEach(admin => {
+      console.log(`- ${admin.name} (${admin.email}) - Role: ${admin.role}`);
+    });
     
     await mongoose.connection.close();
+    console.log("✅ Database connection closed");
     process.exit(0);
   } catch (error) {
     console.error("❌ Error fixing admin roles:", error);

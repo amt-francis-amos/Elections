@@ -70,7 +70,10 @@ export const registerUser = async (req, res) => {
     }
 
     // FIX: Check if this is an admin registration based on email or other criteria
-    const role = email.toLowerCase().trim() === 'admin@election.com' ? 'admin' : 'voter';
+    const normalizedEmail = email.toLowerCase().trim();
+    const role = (normalizedEmail === 'admin@election.com' || 
+                  normalizedEmail.includes('admin@') || 
+                  name.toLowerCase().includes('admin')) ? 'admin' : 'voter';
 
     console.log("✅ Creating user with role:", role); 
 
