@@ -1,15 +1,36 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-const isAuthenticated = () => {
+const getUserData = () => {
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('userData'));
+  const userData = localStorage.getItem('userData');
 
-  return token && user && user.role === 'admin'; 
+
+  if (token && userData && userData !== 'undefined' && userData !== 'null') {
+    try {
+      return JSON.parse(userData);
+    } catch (err) {
+      console.error('Error parsing userData:', err);
+      return null;
+    }
+  }
+  return null;
 };
 
-const ProtectedRoute = ({ children }) => {
-  return isAuthenticated() ? children : <Navigate to="/login" replace />;
+const ProtectedRoute = ({ allowedRoles = [], children }) => {
+  const token = localStorage.getItem('token');
+  const user = getUserData();
+
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return children;
 };
 
 export default ProtectedRoute;
