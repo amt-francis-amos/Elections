@@ -14,7 +14,7 @@ const Candidates = () => {
         setLoading(true);
         const token = localStorage.getItem('token');
         
-        // Check if token exists
+ 
         if (!token) {
           toast.error('No authentication token found. Please log in.');
           setLoading(false);
@@ -23,12 +23,6 @@ const Candidates = () => {
 
         const electionId = '64ef1234abcd5678ef901234';
 
-        // First test the debug route
-        const testRes = await axios.get(
-          `https://elections-backend-j8m8.onrender.com/api/test`
-        );
-        console.log('Server test response:', testRes.data);
-
         const res = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`,
           {
@@ -36,7 +30,7 @@ const Candidates = () => {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
-            timeout: 10000, // 10 second timeout
+            timeout: 10000, 
           }
         );
 
@@ -49,7 +43,7 @@ const Candidates = () => {
         if (err.code === 'ECONNABORTED') {
           toast.error('Request timeout. Please check your internet connection.');
         } else if (err.response) {
-          // Server responded with error status
+      
           const status = err.response.status;
           const message = err.response.data?.message;
           
@@ -64,7 +58,7 @@ const Candidates = () => {
             toast.error(message || 'Failed to load candidates.');
           }
         } else if (err.request) {
-          // Network error
+    
           toast.error('Network error. Please check your connection and try again.');
         } else {
           toast.error('An unexpected error occurred.');

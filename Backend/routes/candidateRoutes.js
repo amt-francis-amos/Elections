@@ -5,6 +5,7 @@ import upload from '../middlewares/multer.js';
 
 const router = express.Router();
 
+
 router.get('/candidates/:electionId', auth, getCandidatesByElection);
 
 
