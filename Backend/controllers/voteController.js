@@ -1,4 +1,4 @@
-// controllers/voteController.js
+
 import Vote from '../models/VotingModel.js';
 import Candidate from '../models/candidateModel.js';
 
