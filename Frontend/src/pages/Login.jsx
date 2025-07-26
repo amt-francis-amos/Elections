@@ -18,8 +18,42 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const validateForm = () => {
+    if (isLogin) {
+      if (!formData.id.trim()) {
+        toast.error("User ID is required");
+        return false;
+      }
+      if (!formData.password) {
+        toast.error("Password is required");
+        return false;
+      }
+    } else {
+      if (!formData.name.trim()) {
+        toast.error("Name is required");
+        return false;
+      }
+      if (formData.name.trim().length < 2) {
+        toast.error("Name must be at least 2 characters long");
+        return false;
+      }
+      if (!formData.password) {
+        toast.error("Password is required");
+        return false;
+      }
+      if (formData.password.length < 6) {
+        toast.error("Password must be at least 6 characters long");
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setLoading(true);
 
     const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
@@ -29,13 +63,15 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
       const url = isLogin ? loginUrl : registerUrl;
       const payload = isLogin
         ? {
-            id: formData.id,
+            id: formData.id.trim(), 
             password: formData.password,
           }
         : {
-            name: formData.name,
+            name: formData.name.trim(), 
             password: formData.password,
           };
+
+      console.log("Sending payload:", payload); 
 
       const response = await axios.post(url, payload);
       const data = response.data;
@@ -54,6 +90,9 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
+
+       
+        setFormData({ id: "", name: "", password: "" });
       } else {
         const { user, token } = data;
         if (!user || !user.userId || !token) {
@@ -61,22 +100,30 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         }
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
+        
+       
         setFormData({
           id: user.userId,
           password: formData.password,
           name: "",
         });
 
-        setTimeout(() => setIsLogin(true), 1000);
+        setTimeout(() => setIsLogin(true), 2000); 
       }
     } catch (error) {
       console.error("Request error:", error);
-      toast.error(
-        error.response?.data?.message || error.message || "Something went wrong"
-      );
+      const errorMessage = error.response?.data?.message || error.message || "Something went wrong";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+ 
+  const handleModeSwitch = () => {
+    setIsLogin(!isLogin);
+    setFormData({ id: "", name: "", password: "" });
+    setShowPassword(false);
   };
 
   if (!isOpen) return null;
@@ -105,10 +152,11 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                   value={formData.name}
                   required
                   onChange={handleChange}
+                  placeholder=" "
                   className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                  Name
+                  Name (min 2 characters)
                 </label>
               </div>
             )}
@@ -121,10 +169,11 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                   value={formData.id}
                   required
                   onChange={handleChange}
+                  placeholder=" "
                   className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                  User ID
+                  User ID (e.g., USR-ABC123)
                 </label>
               </div>
             )}
@@ -136,10 +185,11 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                 value={formData.password}
                 required
                 onChange={handleChange}
+                placeholder=" "
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                Password
+                Password {!isLogin && "(min 6 characters)"}
               </label>
               <div
                 className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600"
@@ -165,7 +215,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           </form>
 
           <p
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={handleModeSwitch}
             className="text-center text-sm text-indigo-600 mt-6 cursor-pointer hover:text-indigo-800"
           >
             {isLogin
