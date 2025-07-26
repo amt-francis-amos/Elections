@@ -9,7 +9,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
   const [formData, setFormData] = useState({
     id: "",
     name: "",
-    email: "", // Added email field
+    email: "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         return false;
       }
     } else {
-      // Registration validation
+     
       if (!formData.name.trim()) {
         toast.error("Name is required");
         return false;
@@ -43,7 +43,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         toast.error("Email is required");
         return false;
       }
-      // Basic email validation
+      
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         toast.error("Please provide a valid email address");
@@ -80,7 +80,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
           }
         : {
             name: formData.name.trim(),
-            email: formData.email.trim().toLowerCase(), // Added email to registration payload
+            email: formData.email.trim().toLowerCase(),
             password: formData.password,
           };
 
@@ -93,6 +93,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
+     
         localStorage.setItem("token", token);
         localStorage.setItem("userData", JSON.stringify(user));
 
@@ -104,9 +105,10 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
 
-        // Clear form data
+    
         setFormData({ id: "", name: "", email: "", password: "" });
       } else {
+      
         const { user, token } = data;
         if (!user || !user.userId || !token) {
           throw new Error("Invalid registration response format");
@@ -114,7 +116,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
         
-        // Auto-fill login form with new user's ID
+      
         setFormData({
           id: user.userId,
           password: formData.password,
@@ -185,7 +187,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                    Email Address
+                    Email Address (use admin@election.com for admin role)
                   </label>
                 </div>
               </>

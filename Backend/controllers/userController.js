@@ -24,14 +24,12 @@ export const registerUser = async (req, res) => {
       });
     }
 
-  
     if (name.length < 2) {
       return res.status(400).json({ 
         success: false, 
         message: "Name must be at least 2 characters long" 
       });
     }
-
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -41,7 +39,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
- 
     if (password.length < 6) {
       return res.status(400).json({ 
         success: false, 
@@ -49,7 +46,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-   
     const existingName = await User.findOne({ name: name.trim() });
     if (existingName) {
       return res.status(400).json({ 
@@ -58,7 +54,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-   
     const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingEmail) {
       return res.status(400).json({ 
@@ -69,13 +64,13 @@ export const registerUser = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 12);
 
-  
     let userId = generateUserId();
     while (await User.findOne({ userId })) {
       userId = generateUserId();
     }
 
-    const role = 'voter';
+    // FIX: Check if this is an admin registration based on email or other criteria
+    const role = email.toLowerCase().trim() === 'admin@election.com' ? 'admin' : 'voter';
 
     console.log("✅ Creating user with role:", role); 
 
@@ -91,6 +86,7 @@ export const registerUser = async (req, res) => {
 
     const user = await User.create(userData);
 
+    // FIX: Include email in token payload
     const token = generateToken({
       id: user._id,
       name: user.name,
@@ -134,11 +130,9 @@ export const registerUser = async (req, res) => {
   }
 };
 
-
 export const loginUser = async (req, res) => {
   try {
     const { id, password } = req.body;
-
 
     if (!id || !password) {
       return res.status(400).json({ 
@@ -157,7 +151,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
- 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("Password mismatch for user:", id);
@@ -167,10 +160,11 @@ export const loginUser = async (req, res) => {
       });
     }
 
-  
+    // FIX: Include email in token payload
     const token = generateToken({
       id: user._id,
       name: user.name,
+      email: user.email, // Added email
       role: user.role,
     });
 
@@ -183,6 +177,7 @@ export const loginUser = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
+        email: user.email, // Added email to response
         userId: user.userId,
         role: user.role,
       }
