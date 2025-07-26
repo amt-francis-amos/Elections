@@ -13,28 +13,62 @@ function generateUserId() {
 
 export const registerUser = async (req, res) => {
   try {
-    const { name, password } = req.body;
+    const { name, email, password } = req.body;
     
     console.log("Registration request body:", req.body);
 
-    if (!name || !password) {
-      return res.status(400).json({ success: false, message: "Name and password are required" });
+    // Fixed validation - email should be required
+    if (!name || !email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Name, email, and password are required" 
+      });
     }
 
+    // Name validation
     if (name.length < 2) {
-      return res.status(400).json({ success: false, message: "Name must be at least 2 characters long" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Name must be at least 2 characters long" 
+      });
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Please provide a valid email address" 
+      });
+    }
+
+    // Password validation
     if (password.length < 6) {
-      return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Password must be at least 6 characters long" 
+      });
     }
 
     // Check if name already exists
     const existingName = await User.findOne({ name: name.trim() });
     if (existingName) {
-      return res.status(400).json({ success: false, message: "Name already taken" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Name already taken" 
+      });
     }
 
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email already registered" 
+      });
+    }
+
+    // Hash password
     const hashed = await bcrypt.hash(password, 12);
 
     // Generate unique userId
@@ -47,21 +81,23 @@ export const registerUser = async (req, res) => {
 
     console.log("✅ Creating user with role:", role); 
 
-    // Create user with only the fields we need
+    // User data with email included
     const userData = {
       name: name.trim(),
+      email: email.toLowerCase().trim(), // Store email in lowercase
       password: hashed,
       userId,
       role,
     };
 
-    console.log("User data to create:", userData);
+    console.log("User data to create:", { ...userData, password: '[HIDDEN]' });
 
     const user = await User.create(userData);
 
     const token = generateToken({
       id: user._id,
       name: user.name,
+      email: user.email,
       role: user.role,
     });
 
@@ -73,6 +109,7 @@ export const registerUser = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
+        email: user.email,
         userId: user.userId,
         role: user.role,
         createdAt: user.createdAt,
@@ -83,12 +120,13 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error("Register error:", error);
     
-    
+    // Handle duplicate key errors
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
+      const fieldName = field === 'email' ? 'Email' : field;
       return res.status(400).json({
         success: false,
-        message: `${field} already exists`,
+        message: `${fieldName} already exists`,
       });
     }
 
@@ -99,7 +137,6 @@ export const registerUser = async (req, res) => {
     });
   }
 };
-
 export const loginUser = async (req, res) => {
   try {
     const { id, password } = req.body;
