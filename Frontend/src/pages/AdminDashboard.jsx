@@ -52,53 +52,67 @@ const AdminDashboard = () => {
   });
 
   const createApiInstance = () => {
-    return {
-      get: async (url) => {
-        await new Promise((res) => setTimeout(res, 800));
-        if (url === "/users") {
-          return {
-            data: {
-              users: [
-                { _id: "1", name: "Alice Johnson", email: "alice@example.com", joinDate: "2024-01-15", status: "active" },
-                { _id: "2", name: "Bob Smith", email: "bob@example.com", joinDate: "2024-02-20", status: "active" },
-                { _id: "3", name: "Carol Davis", email: "carol@example.com", joinDate: "2024-03-10", status: "inactive" },
-                { _id: "4", name: "David Wilson", email: "david@example.com", joinDate: "2024-03-25", status: "active" },
-                { _id: "5", name: "Emma Thompson", email: "emma@example.com", joinDate: "2024-04-05", status: "active" },
-                { _id: "6", name: "Frank Miller", email: "frank@example.com", joinDate: "2024-04-12", status: "inactive" },
-              ],
-            },
-          };
-        }
-        if (url === "/elections") {
-          return {
-            data: {
-              elections: [
-                { _id: "1", title: "SRC 2025 Elections", description: "Election for Student Representative Council executives.", startDate: "2025-09-01", endDate: "2025-09-03", status: "upcoming", totalVotes: 0 },
-                { _id: "2", title: "Faculty Board Elections", description: "Annual faculty board member elections.", startDate: "2025-10-15", endDate: "2025-10-17", status: "draft", totalVotes: 0 },
-                { _id: "3", title: "Alumni Association Elections", description: "Alumni association leadership elections.", startDate: "2025-08-01", endDate: "2025-08-03", status: "completed", totalVotes: 342 },
-                { _id: "4", title: "Sports Committee Elections", description: "University sports committee elections.", startDate: "2025-11-01", endDate: "2025-11-02", status: "upcoming", totalVotes: 0 },
-              ],
-            },
-          };
-        }
-        if (url === "/candidates") {
-          return {
-            data: {
-              candidates: [
-                { _id: "1", name: "Daniel Appiah", position: "President", description: "Dedicated to serving students with integrity and innovation.", electionId: "1", votes: 0 },
-                { _id: "2", name: "Sarah Mitchell", position: "Vice President", description: "Committed to transparency and student welfare.", electionId: "1", votes: 0 },
-                { _id: "3", name: "Michael Chen", position: "Secretary", description: "Experienced in student governance and communication.", electionId: "1", votes: 0 },
-                { _id: "4", name: "Dr. Emma Thompson", position: "Dean", description: "Leading academic excellence for over 15 years.", electionId: "2", votes: 0 },
-                { _id: "5", name: "Jennifer Adams", position: "Treasurer", description: "Financial expertise and transparent budgeting.", electionId: "1", votes: 0 },
-                { _id: "6", name: "Robert Wilson", position: "Chairman", description: "Bringing fresh perspectives to alumni engagement.", electionId: "3", votes: 156 },
-              ],
-            },
-          };
-        }
-        return { data: {} };
-      },
-    };
+  return {
+    get: async (url) => {
+      await new Promise((res) => setTimeout(res, 800));
+      if (url === "/users") {
+        return { data: { users: [...mockUsers] } };
+      }
+      if (url === "/elections") {
+        return { data: { elections: [...mockElections] } };
+      }
+      if (url === "/candidates") {
+        return { data: { candidates: [...mockCandidates] } };
+      }
+      return { data: {} };
+    },
+    post: async (url, body) => {
+      await new Promise((res) => setTimeout(res, 800));
+      if (url === "/candidates") {
+        const newCandidate = { ...body, _id: Date.now().toString(), votes: 0 };
+        mockCandidates.push(newCandidate);
+        return { data: newCandidate };
+      }
+      return { data: {} };
+    },
+    delete: async (url) => {
+      await new Promise((res) => setTimeout(res, 800));
+      const id = url.split("/").pop();
+      if (url.startsWith("/candidates/")) {
+        const index = mockCandidates.findIndex((c) => c._id === id);
+        if (index > -1) mockCandidates.splice(index, 1);
+        return { status: 200 };
+      }
+      return { status: 404 };
+    },
   };
+};
+
+const mockCandidates = [
+  { _id: "1", name: "Daniel Appiah", position: "President", description: "Dedicated to serving students with integrity and innovation.", electionId: "1", votes: 0 },
+  { _id: "2", name: "Sarah Mitchell", position: "Vice President", description: "Committed to transparency and student welfare.", electionId: "1", votes: 0 },
+  { _id: "3", name: "Michael Chen", position: "Secretary", description: "Experienced in student governance and communication.", electionId: "1", votes: 0 },
+  { _id: "4", name: "Dr. Emma Thompson", position: "Dean", description: "Leading academic excellence for over 15 years.", electionId: "2", votes: 0 },
+  { _id: "5", name: "Jennifer Adams", position: "Treasurer", description: "Financial expertise and transparent budgeting.", electionId: "1", votes: 0 },
+  { _id: "6", name: "Robert Wilson", position: "Chairman", description: "Bringing fresh perspectives to alumni engagement.", electionId: "3", votes: 156 },
+];
+
+const mockUsers = [
+  { _id: "1", name: "Alice Johnson", email: "alice@example.com", joinDate: "2024-01-15", status: "active" },
+  { _id: "2", name: "Bob Smith", email: "bob@example.com", joinDate: "2024-02-20", status: "active" },
+  { _id: "3", name: "Carol Davis", email: "carol@example.com", joinDate: "2024-03-10", status: "inactive" },
+  { _id: "4", name: "David Wilson", email: "david@example.com", joinDate: "2024-03-25", status: "active" },
+  { _id: "5", name: "Emma Thompson", email: "emma@example.com", joinDate: "2024-04-05", status: "active" },
+  { _id: "6", name: "Frank Miller", email: "frank@example.com", joinDate: "2024-04-12", status: "inactive" },
+];
+
+const mockElections = [
+  { _id: "1", title: "SRC 2025 Elections", description: "Election for Student Representative Council executives.", startDate: "2025-09-01", endDate: "2025-09-03", status: "upcoming", totalVotes: 0 },
+  { _id: "2", title: "Faculty Board Elections", description: "Annual faculty board member elections.", startDate: "2025-10-15", endDate: "2025-10-17", status: "draft", totalVotes: 0 },
+  { _id: "3", title: "Alumni Association Elections", description: "Alumni association leadership elections.", startDate: "2025-08-01", endDate: "2025-08-03", status: "completed", totalVotes: 342 },
+  { _id: "4", title: "Sports Committee Elections", description: "University sports committee elections.", startDate: "2025-11-01", endDate: "2025-11-02", status: "upcoming", totalVotes: 0 },
+];
+
 
   const api = createApiInstance();
 
@@ -145,22 +159,26 @@ const AdminDashboard = () => {
     showMessage("Election created successfully!", "success");
   };
 
-  const handleCreateCandidate = () => {
-    if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
-      showMessage("Please fill in all required fields", "error");
-      return;
-    }
-    
-    const newCandidate = { 
-      ...candidateForm, 
-      _id: Date.now().toString(),
-      votes: 0
-    };
-    setCandidates((prev) => [...prev, newCandidate]);
+  const handleCreateCandidate = async () => {
+  if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
+    showMessage("Please fill in all required fields", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const response = await api.post("/candidates", candidateForm);
+    setCandidates(prev => [...prev, response.data]);
     setCandidateForm({ name: "", position: "President", description: "", electionId: "" });
     setShowCandidateModal(false);
     showMessage("Candidate added successfully!", "success");
-  };
+  } catch (error) {
+    showMessage("Error adding candidate", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleDeleteElection = (electionId) => {
     setElections(prev => prev.filter(e => e._id !== electionId));
@@ -168,10 +186,18 @@ const AdminDashboard = () => {
     showMessage("Election deleted successfully!", "success");
   };
 
-  const handleDeleteCandidate = (candidateId) => {
+  const handleDeleteCandidate = async (candidateId) => {
+  setLoading(true);
+  try {
+    await api.delete(`/candidates/${candidateId}`);
     setCandidates(prev => prev.filter(c => c._id !== candidateId));
     showMessage("Candidate removed successfully!", "success");
-  };
+  } catch (error) {
+    showMessage("Failed to delete candidate", "error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const showMessage = (text, type = "success") => {
     setMessage({ text, type });
