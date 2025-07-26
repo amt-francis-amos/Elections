@@ -4,14 +4,13 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const Login = ({ 
-  isOpen, 
-  onClose, 
+const Login = ({
+  isOpen,
+  onClose,
   onLoginSuccess,
-  
-  navigate, 
-  router,   
-  redirectMethod = "location" 
+  navigate,
+  router,
+  redirectMethod = "navigate",
 }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -38,7 +37,6 @@ const Login = ({
         return false;
       }
     } else {
-     
       if (!formData.name.trim()) {
         toast.error("Name is required");
         return false;
@@ -51,7 +49,6 @@ const Login = ({
         toast.error("Email is required");
         return false;
       }
-      
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         toast.error("Please provide a valid email address");
@@ -69,48 +66,23 @@ const Login = ({
     return true;
   };
 
- 
   const handleRoleBasedRedirect = (user) => {
     const adminPath = "/admin";
     const voterPath = "/vote";
     const targetPath = user.role === "admin" ? adminPath : voterPath;
 
-    const performRedirect = () => {
-      switch (redirectMethod) {
-        case "navigate": 
-          if (navigate) {
-            navigate(targetPath);
-          } else {
-            console.warn("navigate function not provided, falling back to window.location");
-            window.location.href = targetPath;
-          }
-          break;
-          
-        case "router": 
-          if (router) {
-            router.push(targetPath);
-          } else {
-            console.warn("router object not provided, falling back to window.location");
-            window.location.href = targetPath;
-          }
-          break;
-          
-        case "location": 
-        default:
-          window.location.href = targetPath;
-          break;
-      }
-    };
-
-    
-    setTimeout(performRedirect, 1500);
+    if (redirectMethod === "navigate" && navigate) {
+      navigate(targetPath);
+    } else if (redirectMethod === "router" && router) {
+      router.push(targetPath);
+    } else {
+      window.location.href = targetPath;
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     setLoading(true);
 
     const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
@@ -120,7 +92,7 @@ const Login = ({
       const url = isLogin ? loginUrl : registerUrl;
       const payload = isLogin
         ? {
-            id: formData.id.trim(), 
+            id: formData.id.trim(),
             password: formData.password,
           }
         : {
@@ -129,8 +101,6 @@ const Login = ({
             password: formData.password,
           };
 
-      console.log("Sending payload:", payload); 
-
       const response = await axios.post(url, payload);
       const data = response.data;
 
@@ -138,57 +108,25 @@ const Login = ({
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-    
-        try {
-          localStorage.setItem("token", token);
-          localStorage.setItem("userData", JSON.stringify(user));
-          
-       
-          console.log("Storing token:", token);
-          console.log("Storing userData:", JSON.stringify(user));
-          
-         
-          const storedToken = localStorage.getItem("token");
-          const storedUserData = localStorage.getItem("userData");
-          console.log("Verified stored token:", storedToken);
-          console.log("Verified stored userData:", storedUserData);
-          
-        } catch (storageError) {
-          console.error("localStorage error:", storageError);
-          toast.error("Failed to save login data");
-          return;
-        }
+        localStorage.setItem("token", token);
+        localStorage.setItem("userData", JSON.stringify(user));
 
         toast.success("Login successful!");
-        
         if (user.role === "admin") {
-          toast.success("Welcome, Admin! Redirecting to Admin Dashboard...");
+          toast.success("Welcome, Admin! Redirecting...");
         } else {
-          toast.info("Welcome, Voter! Redirecting to Voter Dashboard...");
+          toast.info("Welcome, Voter! Redirecting...");
         }
 
-      
         if (onLoginSuccess) onLoginSuccess(user);
-        
-       
         onClose();
-
-       
         setFormData({ id: "", name: "", email: "", password: "" });
-
-       
         handleRoleBasedRedirect(user);
-
       } else {
-     
         const { user, token } = data;
-        if (!user || !user.userId || !token) {
-          throw new Error("Invalid registration response format");
-        }
+        if (!user || !user.userId || !token) throw new Error("Invalid registration response format");
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
-        
-        
         setFormData({
           id: user.userId,
           password: formData.password,
@@ -196,10 +134,9 @@ const Login = ({
           email: "",
         });
 
-        setTimeout(() => setIsLogin(true), 2000); 
+        setTimeout(() => setIsLogin(true), 2000);
       }
     } catch (error) {
-      console.error("Request error:", error);
       const errorMessage = error.response?.data?.message || error.message || "Something went wrong";
       toast.error(errorMessage);
     } finally {
@@ -259,7 +196,7 @@ const Login = ({
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                    Email Address (use admin@election.com for admin role)
+                    Email Address
                   </label>
                 </div>
               </>
@@ -277,7 +214,7 @@ const Login = ({
                   className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
-                  User ID (e.g., USR-ABC123)
+                  User ID
                 </label>
               </div>
             )}
