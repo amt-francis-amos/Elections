@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -7,11 +6,21 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const Candidates = () => {
   const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
+        setLoading(true);
         const token = localStorage.getItem('token');
+        
+        // Check if token exists
+        if (!token) {
+          toast.error('No authentication token found. Please log in.');
+          setLoading(false);
+          return;
+        }
+
         const electionId = '64ef1234abcd5678ef901234';
 
         const res = await axios.get(
@@ -19,23 +28,42 @@ const Candidates = () => {
           {
             headers: {
               Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
+            timeout: 10000,
           }
         );
 
-        setCandidates(res.data);
+        setCandidates(res.data || []);
+        setLoading(false);
       } catch (err) {
-  console.error("Error loading candidates:", err);
-  
-  if (err.response?.data?.message === 'Access denied. User not found.') {
-    localStorage.removeItem('token');
-    toast.error('Session expired. Please log in again.');
-   
-  } else {
-    toast.error('Failed to load candidates. Please try again later.');
-  }
-}
-
+        console.error("Error loading candidates:", err);
+        setLoading(false);
+        
+        if (err.code === 'ECONNABORTED') {
+          toast.error('Request timeout. Please check your internet connection.');
+        } else if (err.response) {
+        
+          const status = err.response.status;
+          const message = err.response.data?.message;
+          
+          if (status === 401 || message === 'Access denied. User not found.') {
+            localStorage.removeItem('token');
+            toast.error('Session expired. Please log in again.');
+          } else if (status === 404) {
+            toast.error('Election or candidates not found.');
+          } else if (status === 500) {
+            toast.error('Server error. Please try again later.');
+          } else {
+            toast.error(message || 'Failed to load candidates.');
+          }
+        } else if (err.request) {
+        
+          toast.error('Network error. Please check your connection and try again.');
+        } else {
+          toast.error('An unexpected error occurred.');
+        }
+      }
     };
 
     fetchCandidates();
@@ -43,7 +71,7 @@ const Candidates = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={5000} />
       <div className="bg-blue-900 text-white py-20 px-6 text-center">
         <motion.h1
           className="text-4xl md:text-5xl font-bold mb-4"
@@ -75,8 +103,15 @@ const Candidates = () => {
           },
         }}
       >
-        {candidates.length === 0 ? (
-          <p className="text-center col-span-full text-gray-500">No candidates found.</p>
+        {loading ? (
+          <div className="col-span-full flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="ml-4 text-gray-600">Loading candidates...</p>
+          </div>
+        ) : candidates.length === 0 ? (
+          <p className="text-center col-span-full text-gray-500 py-20">
+            No candidates found for this election.
+          </p>
         ) : (
           candidates.map((candidate) => (
             <motion.div
@@ -88,9 +123,12 @@ const Candidates = () => {
               }}
             >
               <img
-                src={candidate.image}
+                src={candidate.image || '/api/placeholder/400/300'}
                 alt={candidate.name}
                 className="w-full h-56 object-cover"
+                onError={(e) => {
+                  e.target.src = '/api/placeholder/400/300';
+                }}
               />
               <div className="p-6 text-center">
                 <h3 className="text-xl font-semibold text-gray-800">{candidate.name}</h3>
