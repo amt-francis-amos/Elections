@@ -4,7 +4,15 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const Login = ({ isOpen, onClose, onLoginSuccess }) => {
+const Login = ({ 
+  isOpen, 
+  onClose, 
+  onLoginSuccess,
+  // Optional routing props - use whichever matches your setup
+  navigate, // For React Router v6: const navigate = useNavigate()
+  router,   // For Next.js: const router = useRouter()
+  redirectMethod = "location" // "location" | "navigate" | "router"
+}) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     id: "",
@@ -61,6 +69,43 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
     return true;
   };
 
+  // Role-based redirect function
+  const handleRoleBasedRedirect = (user) => {
+    const adminPath = "/admin-dashboard";
+    const voterPath = "/voter-dashboard";
+    const targetPath = user.role === "admin" ? adminPath : voterPath;
+
+    const performRedirect = () => {
+      switch (redirectMethod) {
+        case "navigate": // React Router v6
+          if (navigate) {
+            navigate(targetPath);
+          } else {
+            console.warn("navigate function not provided, falling back to window.location");
+            window.location.href = targetPath;
+          }
+          break;
+          
+        case "router": // Next.js
+          if (router) {
+            router.push(targetPath);
+          } else {
+            console.warn("router object not provided, falling back to window.location");
+            window.location.href = targetPath;
+          }
+          break;
+          
+        case "location": // Plain redirect
+        default:
+          window.location.href = targetPath;
+          break;
+      }
+    };
+
+    // Perform redirect after toast message
+    setTimeout(performRedirect, 1500);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -93,7 +138,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-        // FIX: Store data properly in localStorage with error handling
+        // Store authentication data
         try {
           localStorage.setItem("token", token);
           localStorage.setItem("userData", JSON.stringify(user));
@@ -111,20 +156,32 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         } catch (storageError) {
           console.error("localStorage error:", storageError);
           toast.error("Failed to save login data");
+          return;
         }
 
+        // Success message and role-based redirect
         toast.success("Login successful!");
-        user.role === "admin"
-          ? toast.success("Welcome, Admin!")
-          : toast.info("Welcome, Voter!");
+        
+        if (user.role === "admin") {
+          toast.success("Welcome, Admin! Redirecting to Admin Dashboard...");
+        } else {
+          toast.info("Welcome, Voter! Redirecting to Voter Dashboard...");
+        }
 
+        // Call onLoginSuccess callback if provided
         if (onLoginSuccess) onLoginSuccess(user);
+        
+        // Close modal
         onClose();
 
         // Clear form data
         setFormData({ id: "", name: "", email: "", password: "" });
+
+        // Handle role-based redirect
+        handleRoleBasedRedirect(user);
+
       } else {
-        // FIX: Handle registration response properly
+        // Handle registration response
         const { user, token } = data;
         if (!user || !user.userId || !token) {
           throw new Error("Invalid registration response format");
