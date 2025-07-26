@@ -121,9 +121,9 @@ const mockElections = [
       setLoading(true);
       try {
         const [usersRes, electionsRes, candidatesRes] = await Promise.all([
-          api.get("/users"),
-          api.get("/elections"),
-          api.get("/candidates"),
+          api.get("https://elections-backend-j8m8.onrender.com/api/users"),
+          api.get("https://elections-backend-j8m8.onrender.com/api/elections"),
+          api.get("https://elections-backend-j8m8.onrender.com/api/candidates"),
         ]);
         setUsers(usersRes.data.users);
         setElections(electionsRes.data.elections);
@@ -167,7 +167,7 @@ const mockElections = [
 
   setLoading(true);
   try {
-    const response = await api.post("/candidates", candidateForm);
+    const response = await api.post("https://elections-backend-j8m8.onrender.com/api/candidates", candidateForm);
     setCandidates(prev => [...prev, response.data]);
     setCandidateForm({ name: "", position: "President", description: "", electionId: "" });
     setShowCandidateModal(false);
@@ -189,7 +189,7 @@ const mockElections = [
   const handleDeleteCandidate = async (candidateId) => {
   setLoading(true);
   try {
-    await api.delete(`/candidates/${candidateId}`);
+    await api.delete(`https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}`);
     setCandidates(prev => prev.filter(c => c._id !== candidateId));
     showMessage("Candidate removed successfully!", "success");
   } catch (error) {
