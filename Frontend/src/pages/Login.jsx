@@ -8,10 +8,10 @@ const Login = ({
   isOpen, 
   onClose, 
   onLoginSuccess,
-  // Optional routing props - use whichever matches your setup
-  navigate, // For React Router v6: const navigate = useNavigate()
-  router,   // For Next.js: const router = useRouter()
-  redirectMethod = "location" // "location" | "navigate" | "router"
+  
+  navigate, 
+  router,   
+  redirectMethod = "location" 
 }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -38,7 +38,7 @@ const Login = ({
         return false;
       }
     } else {
-      // Registration validation
+     
       if (!formData.name.trim()) {
         toast.error("Name is required");
         return false;
@@ -51,7 +51,7 @@ const Login = ({
         toast.error("Email is required");
         return false;
       }
-      // Basic email validation
+      
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         toast.error("Please provide a valid email address");
@@ -69,15 +69,15 @@ const Login = ({
     return true;
   };
 
-  // Role-based redirect function
+ 
   const handleRoleBasedRedirect = (user) => {
-    const adminPath = "/admin-dashboard";
-    const voterPath = "/voter-dashboard";
+    const adminPath = "/admin";
+    const voterPath = "/vote";
     const targetPath = user.role === "admin" ? adminPath : voterPath;
 
     const performRedirect = () => {
       switch (redirectMethod) {
-        case "navigate": // React Router v6
+        case "navigate": 
           if (navigate) {
             navigate(targetPath);
           } else {
@@ -86,7 +86,7 @@ const Login = ({
           }
           break;
           
-        case "router": // Next.js
+        case "router": 
           if (router) {
             router.push(targetPath);
           } else {
@@ -95,14 +95,14 @@ const Login = ({
           }
           break;
           
-        case "location": // Plain redirect
+        case "location": 
         default:
           window.location.href = targetPath;
           break;
       }
     };
 
-    // Perform redirect after toast message
+    
     setTimeout(performRedirect, 1500);
   };
 
@@ -138,16 +138,16 @@ const Login = ({
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-        // Store authentication data
+    
         try {
           localStorage.setItem("token", token);
           localStorage.setItem("userData", JSON.stringify(user));
           
-          // Debug: Log what we're storing
+       
           console.log("Storing token:", token);
           console.log("Storing userData:", JSON.stringify(user));
           
-          // Verify storage worked
+         
           const storedToken = localStorage.getItem("token");
           const storedUserData = localStorage.getItem("userData");
           console.log("Verified stored token:", storedToken);
@@ -159,7 +159,6 @@ const Login = ({
           return;
         }
 
-        // Success message and role-based redirect
         toast.success("Login successful!");
         
         if (user.role === "admin") {
@@ -168,20 +167,20 @@ const Login = ({
           toast.info("Welcome, Voter! Redirecting to Voter Dashboard...");
         }
 
-        // Call onLoginSuccess callback if provided
+      
         if (onLoginSuccess) onLoginSuccess(user);
         
-        // Close modal
+       
         onClose();
 
-        // Clear form data
+       
         setFormData({ id: "", name: "", email: "", password: "" });
 
-        // Handle role-based redirect
+       
         handleRoleBasedRedirect(user);
 
       } else {
-        // Handle registration response
+     
         const { user, token } = data;
         if (!user || !user.userId || !token) {
           throw new Error("Invalid registration response format");
@@ -189,7 +188,7 @@ const Login = ({
 
         toast.success(`Registration successful! Your ID is: ${user.userId}`);
         
-        // Auto-fill login form with new user's ID
+        
         setFormData({
           id: user.userId,
           password: formData.password,
