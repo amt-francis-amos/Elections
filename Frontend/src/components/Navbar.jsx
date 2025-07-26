@@ -17,13 +17,17 @@ const Navbar = () => {
   useEffect(() => {
     const token = localStorage.getItem("userToken");
     const userData = localStorage.getItem("userData");
-    if (token && userData) {
+
+    if (token && userData && userData !== "undefined" && userData !== "null") {
       try {
         setUser(JSON.parse(userData));
       } catch (err) {
-        console.error("Error parsing userData:", err);
         localStorage.removeItem("userData");
+        setUser(null);
       }
+    } else {
+      localStorage.removeItem("userData");
+      setUser(null);
     }
   }, []);
 
