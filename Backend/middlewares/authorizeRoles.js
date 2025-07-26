@@ -1,14 +1,31 @@
-export const authorizeRoles = (...allowedRoles) => {
-  return (req, res, next) => {
-    const userRole = req.user?.role;
 
-    if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({
+export const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    try {
+  
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+     
+      if (!roles.includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Required roles: ${roles.join(', ')}. Your role: ${req.user.role}`
+        });
+      }
+
+ 
+      next();
+    } catch (error) {
+      console.error('Authorization middleware error:', error.message);
+      res.status(500).json({
         success: false,
-        message: "Access denied. You do not have the required permissions.",
+        message: 'Server error in authorization'
       });
     }
-
-    next();
   };
 };

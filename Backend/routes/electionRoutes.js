@@ -1,6 +1,6 @@
 import express from 'express';
 import { createElection, getAllElections } from '../controllers/electionController.js';
-import { auth} from '../middlewares/auth.js';
+import  auth  from '../middlewares/auth.js';
 import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();

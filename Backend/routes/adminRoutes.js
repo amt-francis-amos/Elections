@@ -1,6 +1,6 @@
 import express from 'express';
 import { promoteToAdmin, deleteUser } from '../controllers/adminController.js';
-import { auth } from '../middlewares/auth.js';
+import auth  from '../middlewares/auth.js';
 import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();
