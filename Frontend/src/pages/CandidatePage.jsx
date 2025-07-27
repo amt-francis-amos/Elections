@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, User, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
 import axios from 'axios';
 
+
 const CandidatesPage = () => {
   const [candidates, setCandidates] = useState([]);
   const [elections, setElections] = useState([]);
@@ -25,7 +26,7 @@ const CandidatesPage = () => {
 
   const fetchElections = async () => {
     try {
-      const res = await axios.get('https://elections-backend-j8m8.onrender.com/api/elections', {
+      const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
         headers: { Authorization: 'Bearer token' }
       });
       setElections(res.data);
@@ -89,7 +90,7 @@ const CandidatesPage = () => {
     }
 
     try {
-      const res = await axios.post("/api/candidates", formData, {
+      const res = await axios.post(`https://elections-backend-j8m8.onrender.com/api/candidates`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           Authorization: "Bearer token"
