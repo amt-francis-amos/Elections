@@ -1,10 +1,24 @@
 import express from 'express';
-import { addCandidate, getCandidatesByElection } from '../controllers/candidateController.js';
-import upload from '../middlewares/uploadMiddleware.js';
+import mongoose from 'mongoose';
+import { getCandidatesByElection, addCandidate } from '../controllers/candidateController.js';
+import auth from '../middlewares/auth.js';
+import upload from '../middlewares/multer.js';
 
 const router = express.Router();
 
-router.post('/', upload.single('image'), addCandidate);
-router.get('/:electionId', getCandidatesByElection);
+
+const validateElectionId = (req, res, next) => {
+  const { electionId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(electionId)) {
+    return res.status(400).json({ message: 'Invalid election ID' });
+  }
+  next();
+};
+
+
+router.get('/candidates/:electionId', auth, validateElectionId, getCandidatesByElection);
+
+
+router.post('/candidates', auth, upload.single('image'), addCandidate);
 
 export default router;
