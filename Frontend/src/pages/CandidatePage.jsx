@@ -61,15 +61,15 @@ const CandidatesPage = () => {
   })
   const [imagePreview, setImagePreview] = useState('')
 
-  useEffect(() => {
-    fetchElections()
-  }, [])
+   useEffect(() => {
+    fetchElections();
+  }, []);
 
   useEffect(() => {
-  if (selectedElectionId) {
-    fetchCandidates();
-  }
-}, [selectedElectionId]);
+    if (selectedElectionId) {
+      fetchCandidates(selectedElectionId);
+    }
+  }, [selectedElectionId]);
 
 
   const showMessage = (text, type = 'success') => {
