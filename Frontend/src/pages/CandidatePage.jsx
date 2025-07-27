@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, User, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
 import axios from 'axios';
 
-
 const CandidatesPage = () => {
   const [candidates, setCandidates] = useState([]);
   const [elections, setElections] = useState([]);
@@ -19,6 +18,8 @@ const CandidatesPage = () => {
     image: null
   });
 
+  const token = localStorage.getItem('token');
+
   const showMessage = (text, type = "success") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
@@ -27,7 +28,7 @@ const CandidatesPage = () => {
   const fetchElections = async () => {
     try {
       const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
-        headers: { Authorization: 'Bearer token' }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setElections(res.data);
     } catch {
@@ -40,7 +41,7 @@ const CandidatesPage = () => {
       const all = [];
       for (let election of elections) {
         const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${election._id}`, {
-          headers: { Authorization: 'Bearer token' }
+          headers: { Authorization: `Bearer ${token}` }
         });
         const data = res.data.map(c => ({
           ...c,
@@ -93,7 +94,7 @@ const CandidatesPage = () => {
       const res = await axios.post(`https://elections-backend-j8m8.onrender.com/api/candidates`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: "Bearer token"
+          Authorization: `Bearer ${token}`
         }
       });
 
