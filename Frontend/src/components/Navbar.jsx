@@ -17,7 +17,6 @@ const Navbar = () => {
   useEffect(() => {
     const token = localStorage.getItem("userToken");
     const userData = localStorage.getItem("userData");
-
     if (token && userData && userData !== "undefined" && userData !== "null") {
       try {
         setUser(JSON.parse(userData));
@@ -33,10 +32,7 @@ const Navbar = () => {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (
-        profileMenuRef.current &&
-        !profileMenuRef.current.contains(e.target)
-      ) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
         setIsProfileMenuOpen(false);
       }
     };
@@ -107,9 +103,7 @@ const Navbar = () => {
                 Home
                 <span
                   className={`absolute bottom-0 left-3 right-3 h-0.5 bg-[#03073d] transition-transform ${
-                    isActive("/")
-                      ? "scale-x-100"
-                      : "scale-x-0 group-hover:scale-x-100"
+                    isActive("/") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                   }`}
                 />
               </Link>
@@ -170,9 +164,7 @@ const Navbar = () => {
                   Admin
                   <span
                     className={`absolute bottom-0 left-3 right-3 h-0.5 bg-[#03073d] transition-transform ${
-                      isActive("/admin")
-                        ? "scale-x-100"
-                        : "scale-x-0 group-hover:scale-x-100"
+                      isActive("/admin") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                     }`}
                   />
                 </Link>
@@ -284,11 +276,7 @@ const Navbar = () => {
                 onClick={toggleMenu}
                 className="text-gray-700 hover:text-blue-600 p-2 rounded-md transition"
               >
-                {isMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>
@@ -300,9 +288,7 @@ const Navbar = () => {
                   to="/"
                   onClick={closeMenu}
                   className={`block px-3 py-2 rounded-md font-medium transition-colors ${
-                    isActive("/")
-                      ? "text-blue-600 bg-blue-50"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    isActive("/") ? "text-blue-600 bg-blue-50" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
                   Home
@@ -312,16 +298,12 @@ const Navbar = () => {
                   <button
                     onClick={toggleMobileVote}
                     className={`flex items-center justify-between w-full text-left px-3 py-2 font-medium border-b border-gray-100 rounded-md transition-colors ${
-                      location.pathname.includes("/vote")
-                        ? "text-blue-600 bg-blue-50"
-                        : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                      location.pathname.includes("/vote") ? "text-blue-600 bg-blue-50" : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
                     }`}
                   >
                     <span>Vote</span>
                     <ChevronDown
-                      className={`w-4 h-4 transition-transform ${
-                        isMobileVoteOpen ? "rotate-180" : ""
-                      }`}
+                      className={`w-4 h-4 transition-transform ${isMobileVoteOpen ? "rotate-180" : ""}`}
                     />
                   </button>
                   {isMobileVoteOpen && (
@@ -351,17 +333,19 @@ const Navbar = () => {
                   )}
                 </div>
 
-                <Link
-                  to="/admin"
-                  onClick={closeMenu}
-                  className={`block px-3 py-2 rounded-md font-medium transition-colors ${
-                    isActive("/admin")
-                      ? "text-blue-600 bg-blue-50"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-                  }`}
-                >
-                  Admin
-                </Link>
+                {user?.role === "admin" && (
+                  <Link
+                    to="/admin"
+                    onClick={closeMenu}
+                    className={`block px-3 py-2 rounded-md font-medium transition-colors ${
+                      isActive("/admin")
+                        ? "text-blue-600 bg-blue-50"
+                        : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Admin
+                  </Link>
+                )}
 
                 {user ? (
                   <div className="pt-4 border-t border-gray-100 mt-4">
@@ -378,12 +362,8 @@ const Navbar = () => {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
-                          {user.name}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">
-                          {user.email}
-                        </p>
+                        <p className="font-medium text-gray-900 truncate">{user.name}</p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
                       </div>
                     </div>
                     <Link
