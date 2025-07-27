@@ -125,13 +125,13 @@ const Navbar = () => {
                 </button>
                 {isDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
-                    <Link to="/vote/elections" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                    <Link to="/election" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                       Current Elections
                     </Link>
-                    <Link to="/vote/candidates" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                    <Link to="/candidate" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                       View Candidates
                     </Link>
-                    <Link to="/vote/results" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                    <Link to="/result" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                       Election Results
                     </Link>
                   </div>
@@ -283,13 +283,13 @@ const Navbar = () => {
                   </button>
                   {isMobileVoteOpen && (
                     <>
-                      <Link to="/vote/elections" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
+                      <Link to="/election" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
                         Current Elections
                       </Link>
-                      <Link to="/vote/candidates" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
+                      <Link to="candidate" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
                         View Candidates
                       </Link>
-                      <Link to="/vote/results" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
+                      <Link to="/result" onClick={closeMobileVote} className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md">
                         Election Results
                       </Link>
                     </>
