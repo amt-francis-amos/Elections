@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import axios from 'axios'
 import { 
   Plus, 
   Edit, 
@@ -9,87 +10,183 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  AlertCircle
-} from 'lucide-react';
+  AlertCircle,
+  Upload,
+  X
+} from 'lucide-react'
 
-const mockCandidates = [
-  { _id: "1", name: "Daniel Appiah", position: "President", description: "Dedicated to serving students with integrity and innovation.", electionId: "1", votes: 245, image: "/api/placeholder/300/300" },
-  { _id: "2", name: "Sarah Mitchell", position: "Vice President", description: "Committed to transparency and student welfare.", electionId: "1", votes: 198, image: "/api/placeholder/300/300" },
-  { _id: "3", name: "Michael Chen", position: "Secretary", description: "Experienced in student governance and communication.", electionId: "1", votes: 167, image: "/api/placeholder/300/300" },
-  { _id: "4", name: "Dr. Emma Thompson", position: "Dean", description: "Leading academic excellence for over 15 years.", electionId: "2", votes: 89, image: "/api/placeholder/300/300" },
-  { _id: "5", name: "Jennifer Adams", position: "Treasurer", description: "Financial expertise and transparent budgeting.", electionId: "1", votes: 134, image: "/api/placeholder/300/300" },
-  { _id: "6", name: "Robert Wilson", position: "Chairman", description: "Bringing fresh perspectives to alumni engagement.", electionId: "3", votes: 156, image: "/api/placeholder/300/300" },
-];
-
-const mockElections = [
-  { _id: "1", title: "SRC 2025 Elections", status: "active" },
-  { _id: "2", title: "Faculty Board Elections", status: "upcoming" },
-  { _id: "3", title: "Alumni Association Elections", status: "completed" },
-];
+const apiRequest = async (endpoint, options = {}) => {
+  const token = localStorage.getItem('authToken')
+  try {
+    const config = {
+      url: `https://elections-backend-j8m8.onrender.com/api${endpoint}`,
+      method: options.method || 'GET',
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+        ...options.headers,
+      },
+      data: options.body || undefined,
+    }
+    if (!(options.body instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json'
+    }
+    const response = await axios(config)
+    return response.data
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('authToken')
+      window.location.href = '/login'
+      throw new Error('Unauthorized')
+    }
+    throw new Error(error.response?.data?.message || 'Request failed')
+  }
+}
 
 const CandidatesPage = () => {
-  const [candidates, setCandidates] = useState([]);
-  const [elections, setElections] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [candidates, setCandidates] = useState([])
+  const [elections, setElections] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedElectionId, setSelectedElectionId] = useState('')
+  const [message, setMessage] = useState(null)
   const [candidateForm, setCandidateForm] = useState({
-    name: "",
-    position: "",
-    description: "",
-    electionId: "",
-    image: ""
-  });
+    name: '',
+    position: '',
+    electionId: '',
+    image: null,
+  })
+  const [imagePreview, setImagePreview] = useState('')
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCandidates(mockCandidates);
-      setElections(mockElections);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    fetchElections()
+  }, [])
 
-  const showMessage = (text, type = "success") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 4000);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setCandidateForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCreateCandidate = () => {
-    if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
-      return showMessage("Please fill in all required fields", "error");
+  useEffect(() => {
+    if (selectedElectionId) {
+      fetchCandidates(selectedElectionId)
+    } else {
+      setCandidates([])
+      setLoading(false)
     }
-    
-    const newCandidate = {
-      ...candidateForm,
-      _id: Date.now().toString(),
-      votes: 0,
-      image: candidateForm.image || "/api/placeholder/300/300"
-    };
-    
-    setCandidates(prev => [...prev, newCandidate]);
-    setCandidateForm({ name: "", position: "", description: "", electionId: "", image: "" });
-    setShowModal(false);
-    showMessage("Candidate added successfully!", "success");
-  };
+  }, [selectedElectionId])
 
-  const handleDeleteCandidate = (id) => {
-    setCandidates(prev => prev.filter(c => c._id !== id));
-    showMessage("Candidate removed successfully", "success");
-  };
+  const showMessage = (text, type = 'success') => {
+    setMessage({ text, type })
+    setTimeout(() => setMessage(null), 5000)
+  }
+
+  const fetchElections = async () => {
+    try {
+      const data = await apiRequest('/elections')
+      setElections(data)
+      const activeElection = data.find(e => e.status === 'active' || e.status === 'upcoming')
+      if (activeElection) {
+        setSelectedElectionId(activeElection._id)
+      } else if (data.length > 0) {
+        setSelectedElectionId(data[0]._id)
+      }
+    } catch (error) {
+      showMessage(error.message || 'Failed to fetch elections', 'error')
+    }
+  }
+
+  const fetchCandidates = async electionId => {
+    if (!electionId) return
+    setLoading(true)
+    try {
+      const data = await apiRequest(`/candidates/${electionId}`)
+      setCandidates(data)
+    } catch (error) {
+      showMessage(error.message || 'Failed to fetch candidates', 'error')
+      setCandidates([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleInputChange = e => {
+    const { name, value } = e.target
+    setCandidateForm(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleImageChange = e => {
+    const file = e.target.files[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showMessage('Please select a valid image file', 'error')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        showMessage('Image size should be less than 5MB', 'error')
+        return
+      }
+      setCandidateForm(prev => ({ ...prev, image: file }))
+      const reader = new FileReader()
+      reader.onload = e => setImagePreview(e.target.result)
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeImage = () => {
+    setCandidateForm(prev => ({ ...prev, image: null }))
+    setImagePreview('')
+    const fileInput = document.getElementById('imageInput')
+    if (fileInput) fileInput.value = ''
+  }
+
+  const handleCreateCandidate = async () => {
+    if (!candidateForm.name.trim() || !candidateForm.position.trim() || !candidateForm.electionId) {
+      return showMessage('Please fill in all required fields', 'error')
+    }
+    if (!candidateForm.image) {
+      return showMessage('Please select a candidate image', 'error')
+    }
+    setIsSubmitting(true)
+    try {
+      const formData = new FormData()
+      formData.append('name', candidateForm.name.trim())
+      formData.append('position', candidateForm.position.trim())
+      formData.append('electionId', candidateForm.electionId)
+      formData.append('image', candidateForm.image)
+      const response = await apiRequest('/candidates', {
+        method: 'POST',
+        body: formData,
+      })
+      if (candidateForm.electionId === selectedElectionId) {
+        setCandidates(prev => [response.candidate, ...prev])
+      }
+      setCandidateForm({ name: '', position: '', electionId: '', image: null })
+      setImagePreview('')
+      setShowModal(false)
+      showMessage('Candidate added successfully!', 'success')
+    } catch (error) {
+      showMessage(error.message || 'Failed to add candidate', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteCandidate = async id => {
+    if (!window.confirm('Are you sure you want to delete this candidate?')) return
+    try {
+      await apiRequest(`/candidates/${id}`, { method: 'DELETE' })
+      setCandidates(prev => prev.filter(c => c._id !== id))
+      showMessage('Candidate deleted successfully', 'success')
+    } catch (error) {
+      showMessage(error.message || 'Failed to delete candidate', 'error')
+    }
+  }
 
   const filteredCandidates = candidates.filter(candidate =>
     candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     candidate.position.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  )
 
-  if (loading) {
+  const selectedElection = elections.find(e => e._id === selectedElectionId)
+
+  if (loading && selectedElectionId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
@@ -97,12 +194,11 @@ const CandidatesPage = () => {
           <span className="text-gray-600">Loading candidates...</span>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
@@ -110,83 +206,110 @@ const CandidatesPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">Candidates Management</h1>
               <p className="text-gray-600 mt-1">Manage candidate registrations and profiles</p>
             </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <Plus size={20} />
-              Add Candidate
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => selectedElectionId && fetchCandidates(selectedElectionId)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+                disabled={!selectedElectionId}
+              >
+                Refresh
+              </button>
+              <button
+                onClick={() => setShowModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                disabled={!selectedElectionId}
+              >
+                <Plus size={20} />
+                Add Candidate
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Message Alert */}
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-              message.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
+              message.type === 'success'
+                ? 'bg-green-50 text-green-800 border border-green-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
             }`}
           >
-            {message.type === "success" ? <CheckCircle size={20} /> : <XCircle size={20} />}
+            {message.type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
             <span>{message.text}</span>
           </motion.div>
         )}
 
-        {/* Search Bar */}
         <div className="mb-8">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search candidates..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Election</label>
+          <div className="max-w-md">
+            <select
+              value={selectedElectionId}
+              onChange={e => setSelectedElectionId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Choose an election</option>
+              {elections.map(election => (
+                <option key={election._id} value={election._id}>
+                  {election.title} ({election.status})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Candidates Grid */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: {
-              opacity: 1,
-              transition: { staggerChildren: 0.1 }
-            }
-          }}
-        >
-          {filteredCandidates.map((candidate) => {
-            const election = elections.find(e => e._id === candidate.electionId);
-            return (
+        {selectedElectionId && (
+          <div className="mb-8">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search candidates..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        )}
+
+        {!selectedElectionId && (
+          <div className="text-center py-12">
+            <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-gray-500 text-lg">Select an election to view candidates</p>
+            <p className="text-gray-400">Choose an election from the dropdown above</p>
+          </div>
+        )}
+
+        {selectedElectionId && (
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+            }}
+          >
+            {filteredCandidates.map(candidate => (
               <motion.div
                 key={candidate._id}
                 className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0 }
-                }}
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               >
                 <div className="aspect-w-16 aspect-h-12">
                   <img
                     src={candidate.image}
                     alt={candidate.name}
                     className="w-full h-48 object-cover"
-                    onError={(e) => {
-                      e.target.src = '/api/placeholder/300/300';
+                    onError={e => {
+                      e.target.src = 'https://via.placeholder.com/300x300/e5e7eb/6b7280?text=No+Image'
                     }}
                   />
                 </div>
-                
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -197,13 +320,10 @@ const CandidatesPage = () => {
                       <p className="text-blue-600 text-sm font-medium">{candidate.position}</p>
                     </div>
                   </div>
-
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">{candidate.description}</p>
-
                   <div className="space-y-2 text-sm mb-4">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Election:</span>
-                      <span className="font-medium text-gray-900">{election?.title || "Unknown"}</span>
+                      <span className="font-medium text-gray-900">{selectedElection?.title || 'Unknown'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Votes:</span>
@@ -211,44 +331,46 @@ const CandidatesPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Status:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        election?.status === 'active' ? 'bg-green-100 text-green-800' :
-                        election?.status === 'upcoming' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {election?.status || 'Unknown'}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedElection?.status === 'active'
+                            ? 'bg-green-100 text-green-800'
+                            : selectedElection?.status === 'upcoming'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {selectedElection?.status || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Added:</span>
+                      <span className="text-gray-600 text-xs">
+                        {new Date(candidate.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
-
                   <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                    <button
-                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="View Details"
-                    >
+                    <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Eye size={18} />
                     </button>
-                    <button
-                      className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                      title="Edit Candidate"
-                    >
+                    <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                       <Edit size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteCandidate(candidate._id)}
                       className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove Candidate"
                     >
                       <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
               </motion.div>
-            );
-          })}
-        </motion.div>
+            ))}
+          </motion.div>
+        )}
 
-        {filteredCandidates.length === 0 && (
+        {selectedElectionId && filteredCandidates.length === 0 && !loading && (
           <div className="text-center py-12">
             <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-500 text-lg">No candidates found</p>
@@ -257,7 +379,6 @@ const CandidatesPage = () => {
         )}
       </div>
 
-      {/* Add Candidate Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <motion.div
@@ -269,7 +390,6 @@ const CandidatesPage = () => {
               <h3 className="text-xl font-semibold text-gray-900">Add New Candidate</h3>
               <p className="text-sm text-gray-600 mt-1">Register a new candidate for an election</p>
             </div>
-
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -282,9 +402,9 @@ const CandidatesPage = () => {
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter candidate name"
+                  disabled={isSubmitting}
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Position <span className="text-red-500">*</span>
@@ -296,21 +416,9 @@ const CandidatesPage = () => {
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="e.g., President, Vice President"
+                  disabled={isSubmitting}
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  name="description"
-                  value={candidateForm.description}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Brief description about the candidate..."
-                />
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Election <span className="text-red-500">*</span>
@@ -320,10 +428,11 @@ const CandidatesPage = () => {
                   value={candidateForm.electionId}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isSubmitting}
                 >
                   <option value="">Select an election</option>
                   {elections
-                    .filter(election => election.status !== "completed")
+                    .filter(election => election.status !== 'completed')
                     .map(election => (
                       <option key={election._id} value={election._id}>
                         {election.title}
@@ -331,42 +440,71 @@ const CandidatesPage = () => {
                     ))}
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
-                <input
-                  type="url"
-                  name="image"
-                  value={candidateForm.image}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="https://example.com/image.jpg"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Candidate Image <span className="text-red-500">*</span>
+                </label>
+                {!imagePreview ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                    <input
+                      type="file"
+                      id="imageInput"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                      disabled={isSubmitting}
+                    />
+                    <label htmlFor="imageInput" className="cursor-pointer">
+                      <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <p className="text-sm text-gray-600 mb-2">Click to upload candidate image</p>
+                      <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-40 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      disabled={isSubmitting}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => {
-                  setShowModal(false);
-                  setCandidateForm({ name: "", position: "", description: "", electionId: "", image: "" });
+                  setShowModal(false)
+                  setCandidateForm({ name: '', position: '', electionId: '', image: null })
+                  setImagePreview('')
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateCandidate}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Add Candidate
+                {isSubmitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                {isSubmitting ? 'Adding...' : 'Add Candidate'}
               </button>
             </div>
           </motion.div>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CandidatesPage;
+export default CandidatesPage
