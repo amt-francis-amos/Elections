@@ -33,7 +33,7 @@ const ElectionsPage = () => {
   useEffect(() => {
     const fetchElections = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/elections");
+        const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections");
         if (!response.ok) throw new Error("Failed to fetch elections");
         const data = await response.json();
         setElections(data);
@@ -69,7 +69,7 @@ const ElectionsPage = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/elections", {
+      const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
