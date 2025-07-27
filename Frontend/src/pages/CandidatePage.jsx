@@ -40,7 +40,7 @@ const CandidatesPage = () => {
     try {
       const all = [];
       for (let election of elections) {
-        const res = await axios.get(`hhttps://elections-backend-j8m8.onrender.com/api/candidates/${election._id}`, {
+        const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${election._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = res.data.map(c => ({
