@@ -29,11 +29,16 @@ const ElectionsPage = () => {
     status: "draft"
   });
 
-  // ✅ Fetch elections from backend
   useEffect(() => {
     const fetchElections = async () => {
       try {
-        const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections");
+        const token = localStorage.getItem('token');
+        const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (!response.ok) throw new Error("Failed to fetch elections");
         const data = await response.json();
         setElections(data);
@@ -58,7 +63,6 @@ const ElectionsPage = () => {
     setElectionForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Send election data to backend
   const handleCreateElection = async () => {
     if (!electionForm.title || !electionForm.startDate || !electionForm.endDate) {
       return showMessage("Please fill in all required fields", "error");
@@ -69,10 +73,12 @@ const ElectionsPage = () => {
     }
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(electionForm),
       });
@@ -146,7 +152,6 @@ const ElectionsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
           <div>
@@ -164,7 +169,6 @@ const ElectionsPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Alert */}
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -180,7 +184,6 @@ const ElectionsPage = () => {
           </motion.div>
         )}
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatCard title="Total Elections" value={elections.length} icon={<Calendar className="text-blue-500" />} />
           <StatCard title="Active Elections" value={elections.filter(e => e.status === "active").length} icon={<CheckCircle className="text-green-500" />} />
@@ -188,7 +191,6 @@ const ElectionsPage = () => {
           <StatCard title="Total Votes" value={elections.reduce((sum, e) => sum + (e.totalVotes || 0), 0)} icon={<BarChart3 className="text-orange-500" />} />
         </div>
 
-        {/* Search */}
         <div className="mb-8 relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -200,7 +202,6 @@ const ElectionsPage = () => {
           />
         </div>
 
-        {/* Elections Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredElections.map(election => (
             <div key={election._id} className="bg-white rounded-xl shadow-sm border p-6">
@@ -235,7 +236,6 @@ const ElectionsPage = () => {
         </div>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
@@ -270,7 +270,6 @@ const ElectionsPage = () => {
   );
 };
 
-// Reusable Components
 const StatCard = ({ title, value, icon }) => (
   <div className="bg-white rounded-xl p-6 shadow-sm border">
     <div className="flex items-center justify-between">
