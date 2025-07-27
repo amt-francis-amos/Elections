@@ -323,29 +323,35 @@ const CandidatesPage = () => {
         </div>
       )}
 
-      {showDetails && displayCandidate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <motion.div initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}} className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900">Candidate Details</h3>
-              <button onClick={()=>setShowDetails(false)}><X size={20}/></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <img src={displayCandidate.image} alt={displayCandidate.name} className="w-full h-48 object-cover rounded-lg"/>
-              <h4 className="text-lg font-semibold">{displayCandidate.name}</h4>
-              <p>Position: {displayCandidate.position}</p>
-              <p>Votes: {displayCandidate.votes}</p>
-              <p>Election: {selectedElection?.title}</p>
-              <p>Added: {new Date(displayCandidate.createdAt).toLocaleDateString()}</p>
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button onClick={()=>setShowDetails(false)} className="px-4 py-2 bg-gray-100 rounded-lg">Close</button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </div>
-  )
-}
+       {showDetails && displayCandidate && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div 
+              initial={{opacity:0,scale:0.9}} 
+              animate={{opacity:1,scale:1}} 
+              exit={{opacity:0,scale:0.9}} 
+              className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto"
+            >
+              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900">Candidate Details</h3>
+                <button onClick={()=>setShowDetails(false)}><X size={20}/></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <img src={displayCandidate.image} alt={displayCandidate.name} className="w-full h-48 object-cover rounded-lg"/>
+                <h4 className="text-lg font-semibold">{displayCandidate.name}</h4>
+                <p>Position: {displayCandidate.position}</p>
+                <p>Votes: {displayCandidate.votes}</p>
+                <p>Election: {selectedElection?.title}</p>
+                <p>Added: {new Date(displayCandidate.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div className="p-6 border-t border-gray-200 flex justify-end">
+                <button onClick={()=>setShowDetails(false)} className="px-4 py-2 bg-gray-100 rounded-lg">Close</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </div>
+   
+  );
+};
 
-export default CandidatesPage
+export default CandidatesPage;
