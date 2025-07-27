@@ -66,13 +66,11 @@ const CandidatesPage = () => {
   }, [])
 
   useEffect(() => {
-    if (selectedElectionId) {
-      fetchCandidates(selectedElectionId)
-    } else {
-      setCandidates([])
-      setLoading(false)
-    }
-  }, [selectedElectionId])
+  if (selectedElectionId) {
+    fetchCandidates();
+  }
+}, [selectedElectionId]);
+
 
   const showMessage = (text, type = 'success') => {
     setMessage({ text, type })
