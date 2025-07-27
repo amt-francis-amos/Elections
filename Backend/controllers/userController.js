@@ -69,7 +69,6 @@ export const registerUser = async (req, res) => {
       userId = generateUserId();
     }
 
-    // FIX: Check if this is an admin registration based on email or other criteria
     const normalizedEmail = email.toLowerCase().trim();
     const role = (normalizedEmail === 'admin@election.com' || 
                   normalizedEmail.includes('admin@') || 
@@ -89,7 +88,7 @@ export const registerUser = async (req, res) => {
 
     const user = await User.create(userData);
 
-    // FIX: Include email in token payload
+    
     const token = generateToken({
       id: user._id,
       name: user.name,
@@ -163,11 +162,11 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // FIX: Include email in token payload
+  
     const token = generateToken({
       id: user._id,
       name: user.name,
-      email: user.email, // Added email
+      email: user.email,
       role: user.role,
     });
 
@@ -180,7 +179,7 @@ export const loginUser = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
-        email: user.email, // Added email to response
+        email: user.email, 
         userId: user.userId,
         role: user.role,
       }

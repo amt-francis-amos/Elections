@@ -45,7 +45,7 @@ const mockCandidates = [
   { _id: "6", name: "Robert Wilson", position: "Chairman", description: "Bringing fresh perspectives to alumni engagement.", electionId: "3", votes: 156 },
 ];
 
-// Simulated API instance
+
 const createApiInstance = () => ({
   get: async (url) => {
     await new Promise((res) => setTimeout(res, 500));
@@ -208,9 +208,9 @@ const AdminDashboard = () => {
 
   const renderOverview = () => (
     <div className="space-y-6">
-      {/* stats */}
+    
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Elections */}
+       
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
           <div className="flex justify-between items-center">
             <div>
@@ -223,7 +223,7 @@ const AdminDashboard = () => {
             {elections.filter((e) => ["active","upcoming"].includes(e.status)).length} Active
           </p>
         </div>
-        {/* Total Candidates */}
+  
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
           <div className="flex justify-between items-center">
             <div>
@@ -236,7 +236,7 @@ const AdminDashboard = () => {
             Across {elections.length} elections
           </p>
         </div>
-        {/* Registered Users */}
+  
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
           <div className="flex justify-between items-center">
             <div>
@@ -249,7 +249,7 @@ const AdminDashboard = () => {
             {users.filter((u) => u.status === "active").length} Active
           </p>
         </div>
-        {/* Total Votes */}
+       
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
           <div className="flex justify-between items-center">
             <div>
@@ -266,7 +266,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Recent Activity */}
+   
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-6 border-b">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -495,7 +495,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -513,9 +513,9 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+      
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Tabs */}
+        
         <nav className="flex space-x-6 mb-8">
           {tabs.map((t) => {
             const Icon = t.icon;
@@ -535,7 +535,7 @@ const AdminDashboard = () => {
           })}
         </nav>
 
-        {/* Loader */}
+      
         {loading && (
           <div className="flex justify-center py-12">
             <div className="animate-spin h-8 w-8 rounded-full border-b-2 border-blue-600" />
@@ -543,7 +543,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Message */}
+     
         {message && (
           <div
             className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
@@ -557,7 +557,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Render Tab */}
+ 
         {!loading && (
           <>
             {activeTab === "overview" && renderOverview()}
@@ -568,7 +568,6 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* Election Modal */}
       {showElectionModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto">
@@ -659,7 +658,7 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Candidate Modal */}
+     
       {showCandidateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto">

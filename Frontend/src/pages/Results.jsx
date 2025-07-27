@@ -42,7 +42,7 @@ const Results = () => {
         Election Results
       </motion.h1>
 
-      {/* Summary */}
+     
       <motion.div
         className="bg-white shadow-lg rounded-xl max-w-4xl mx-auto mb-12 p-6 text-center"
         initial={{ opacity: 0, y: 20 }}
@@ -53,7 +53,7 @@ const Results = () => {
         <p className="text-gray-600 text-lg">2,345 votes</p>
       </motion.div>
 
-      {/* Results Grid */}
+     
       <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {candidates.map((candidate, index) => (
           <motion.div
