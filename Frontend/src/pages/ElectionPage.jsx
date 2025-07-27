@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  Users, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Calendar,
+  Users,
   Eye,
   CheckCircle,
   XCircle,
@@ -14,49 +14,6 @@ import {
   Search,
   BarChart3
 } from 'lucide-react';
-
-const mockElections = [
-  { 
-    _id: "1", 
-    title: "SRC 2025 Elections", 
-    description: "Student Representative Council executive elections for the academic year 2025.", 
-    startDate: "2025-09-01", 
-    endDate: "2025-09-03", 
-    status: "upcoming", 
-    totalVotes: 0,
-    candidatesCount: 5
-  },
-  { 
-    _id: "2", 
-    title: "Faculty Board Elections", 
-    description: "Annual faculty board member elections for academic governance.", 
-    startDate: "2025-10-15", 
-    endDate: "2025-10-17", 
-    status: "draft", 
-    totalVotes: 0,
-    candidatesCount: 3
-  },
-  { 
-    _id: "3", 
-    title: "Alumni Association Elections", 
-    description: "Alumni association leadership elections for community engagement.", 
-    startDate: "2025-08-01", 
-    endDate: "2025-08-03", 
-    status: "completed", 
-    totalVotes: 342,
-    candidatesCount: 4
-  },
-  { 
-    _id: "4", 
-    title: "Sports Committee Elections", 
-    description: "University sports committee elections for athletic governance.", 
-    startDate: "2025-11-01", 
-    endDate: "2025-11-02", 
-    status: "active", 
-    totalVotes: 128,
-    candidatesCount: 6
-  }
-];
 
 const ElectionsPage = () => {
   const [elections, setElections] = useState([]);
@@ -72,12 +29,23 @@ const ElectionsPage = () => {
     status: "draft"
   });
 
+  // ✅ Fetch elections from backend
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setElections(mockElections);
-      setLoading(false);
-    }, 1000);
+    const fetchElections = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/elections");
+        if (!response.ok) throw new Error("Failed to fetch elections");
+        const data = await response.json();
+        setElections(data);
+      } catch (error) {
+        console.error("Error fetching elections:", error);
+        showMessage("Failed to load elections", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchElections();
   }, []);
 
   const showMessage = (text, type = "success") => {
@@ -90,7 +58,8 @@ const ElectionsPage = () => {
     setElectionForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCreateElection = () => {
+  // ✅ Send election data to backend
+  const handleCreateElection = async () => {
     if (!electionForm.title || !electionForm.startDate || !electionForm.endDate) {
       return showMessage("Please fill in all required fields", "error");
     }
@@ -98,18 +67,30 @@ const ElectionsPage = () => {
     if (new Date(electionForm.startDate) >= new Date(electionForm.endDate)) {
       return showMessage("End date must be after start date", "error");
     }
-    
-    const newElection = {
-      ...electionForm,
-      _id: Date.now().toString(),
-      totalVotes: 0,
-      candidatesCount: 0
-    };
-    
-    setElections(prev => [...prev, newElection]);
-    setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" });
-    setShowModal(false);
-    showMessage("Election created successfully!", "success");
+
+    try {
+      const response = await fetch("http://localhost:5000/api/elections", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(electionForm),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return showMessage(data.message || "Failed to create election", "error");
+      }
+
+      setElections(prev => [data.election, ...prev]);
+      setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" });
+      setShowModal(false);
+      showMessage("Election created successfully!", "success");
+    } catch (error) {
+      console.error("Error creating election:", error);
+      showMessage("Error creating election", "error");
+    }
   };
 
   const handleDeleteElection = (id) => {
@@ -167,25 +148,23 @@ const ElectionsPage = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Elections Management</h1>
-              <p className="text-gray-600 mt-1">Create and manage election campaigns</p>
-            </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <Plus size={20} />
-              New Election
-            </button>
+        <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Elections Management</h1>
+            <p className="text-gray-600 mt-1">Create and manage election campaigns</p>
           </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus size={20} />
+            New Election
+          </button>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Message Alert */}
+        {/* Alert */}
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -201,241 +180,78 @@ const ElectionsPage = () => {
           </motion.div>
         )}
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Elections</p>
-                <p className="text-2xl font-bold text-gray-900">{elections.length}</p>
-              </div>
-              <Calendar className="w-8 h-8 text-blue-500" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Active Elections</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {elections.filter(e => e.status === "active").length}
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Candidates</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {elections.reduce((sum, e) => sum + (e.candidatesCount || 0), 0)}
-                </p>
-              </div>
-              <Users className="w-8 h-8 text-purple-500" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Votes</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {elections.reduce((sum, e) => sum + (e.totalVotes || 0), 0)}
-                </p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-orange-500" />
-            </div>
-          </div>
+          <StatCard title="Total Elections" value={elections.length} icon={<Calendar className="text-blue-500" />} />
+          <StatCard title="Active Elections" value={elections.filter(e => e.status === "active").length} icon={<CheckCircle className="text-green-500" />} />
+          <StatCard title="Total Candidates" value={elections.reduce((sum, e) => sum + (e.candidatesCount || 0), 0)} icon={<Users className="text-purple-500" />} />
+          <StatCard title="Total Votes" value={elections.reduce((sum, e) => sum + (e.totalVotes || 0), 0)} icon={<BarChart3 className="text-orange-500" />} />
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search elections..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+        {/* Search */}
+        <div className="mb-8 relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Search elections..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         {/* Elections Grid */}
-        <motion.div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: {
-              opacity: 1,
-              transition: { staggerChildren: 0.1 }
-            }
-          }}
-        >
-          {filteredElections.map((election) => (
-            <motion.div
-              key={election._id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0 }
-              }}
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{election.title}</h3>
-                    <p className="text-gray-600 text-sm line-clamp-2">{election.description}</p>
-                  </div>
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(election.status)}`}>
-                    {getStatusIcon(election.status)}
-                    {election.status}
-                  </span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredElections.map(election => (
+            <div key={election._id} className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold">{election.title}</h3>
+                  <p className="text-sm text-gray-600">{election.description}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-600">Start Date</p>
-                    <p className="font-medium text-gray-900">
-                      {new Date(election.startDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-600">End Date</p>
-                    <p className="font-medium text-gray-900">
-                      {new Date(election.endDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users size={16} />
-                      <span>{election.candidatesCount || 0} Candidates</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <BarChart3 size={16} />
-                      <span>{election.totalVotes || 0} Votes</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                  <button
-                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="View Details"
-                  >
-                    <Eye size={18} />
-                  </button>
-                  <button
-                    className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="Edit Election"
-                  >
-                    <Edit size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteElection(election._id)}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete Election"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(election.status)}`}>
+                  {getStatusIcon(election.status)}
+                  {election.status}
+                </span>
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
 
-        {filteredElections.length === 0 && (
-          <div className="text-center py-12">
-            <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 text-lg">No elections found</p>
-            <p className="text-gray-400">Try adjusting your search or create a new election</p>
-          </div>
-        )}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <Info label="Start Date" value={new Date(election.startDate).toLocaleDateString()} />
+                <Info label="End Date" value={new Date(election.endDate).toLocaleDateString()} />
+              </div>
+
+              <div className="flex justify-between text-sm text-gray-600 mb-4">
+                <span><Users size={16} className="inline mr-1" /> {election.candidatesCount} Candidates</span>
+                <span><BarChart3 size={16} className="inline mr-1" /> {election.totalVotes} Votes</span>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button className="text-blue-600 hover:underline" title="View"><Eye size={16} /></button>
+                <button className="text-green-600 hover:underline" title="Edit"><Edit size={16} /></button>
+                <button onClick={() => handleDeleteElection(election._id)} className="text-red-600 hover:underline" title="Delete"><Trash2 size={16} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Create Election Modal */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-          >
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">Create New Election</h3>
-              <p className="text-sm text-gray-600 mt-1">Set up a new election campaign</p>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b">
+              <h3 className="text-xl font-semibold">Create New Election</h3>
             </div>
-
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Election Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={electionForm.title}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter election title"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  name="description"
-                  value={electionForm.description}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Brief description of the election..."
-                />
-              </div>
-
+              <Input label="Election Title" name="title" value={electionForm.title} onChange={handleInputChange} required />
+              <Textarea label="Description" name="description" value={electionForm.description} onChange={handleInputChange} />
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={electionForm.startDate}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={electionForm.endDate}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+                <Input label="Start Date" name="startDate" type="date" value={electionForm.startDate} onChange={handleInputChange} required />
+                <Input label="End Date" name="endDate" type="date" value={electionForm.endDate} onChange={handleInputChange} required />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  name="status"
-                  value={electionForm.status}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
+                <label className="block text-sm mb-1">Status</label>
+                <select name="status" value={electionForm.status} onChange={handleInputChange} className="w-full border rounded-lg px-3 py-2">
                   <option value="draft">Draft</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="active">Active</option>
@@ -443,29 +259,63 @@ const ElectionsPage = () => {
                 </select>
               </div>
             </div>
-
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" });
-                }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateElection}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Create Election
-              </button>
+            <div className="p-6 border-t flex justify-end gap-3">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+              <button onClick={handleCreateElection} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Create</button>
             </div>
-          </motion.div>
+          </div>
         </div>
       )}
     </div>
   );
 };
+
+// Reusable Components
+const StatCard = ({ title, value, icon }) => (
+  <div className="bg-white rounded-xl p-6 shadow-sm border">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600">{title}</p>
+        <p className="text-2xl font-bold">{value}</p>
+      </div>
+      <div className="w-8 h-8">{icon}</div>
+    </div>
+  </div>
+);
+
+const Info = ({ label, value }) => (
+  <div className="bg-gray-50 rounded-lg p-3">
+    <p className="text-sm text-gray-600">{label}</p>
+    <p className="font-medium text-gray-900">{value}</p>
+  </div>
+);
+
+const Input = ({ label, name, value, onChange, type = "text", required }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+    />
+  </div>
+);
+
+const Textarea = ({ label, name, value, onChange }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <textarea
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+      rows={3}
+    />
+  </div>
+);
 
 export default ElectionsPage;
