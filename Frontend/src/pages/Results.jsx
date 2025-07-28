@@ -45,7 +45,7 @@ const Results = () => {
 
        
         const { data } = await axios.get(
-          `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
+          `https://elections-backend-j8m8.onrender.com/api/votes/${election._id}/results`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
