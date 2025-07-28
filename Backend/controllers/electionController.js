@@ -4,12 +4,12 @@ export const createElection = async (req, res) => {
   try {
     const { title, description, startDate, endDate } = req.body;
 
-    // Parse dates
+   
     const start = new Date(startDate);
     const end = new Date(endDate);
     const now = new Date();
 
-    // Simple real-world server-side check
+  
     if (start <= now) {
       return res.status(400).json({ message: "Start date must be in the future" });
     }
