@@ -39,14 +39,14 @@ const Results = () => {
           return;
         }
 
-        // Validate electionId
+       
         if (!electionId || electionId === ":electionId") {
           setError("❌ Invalid or missing election ID in the URL.");
           setLoading(false);
           return;
         }
 
-        // Check if electionId is a valid MongoDB ObjectId format (24 hex characters)
+  
         const objectIdRegex = /^[0-9a-fA-F]{24}$/;
         if (!objectIdRegex.test(electionId)) {
           setError("❌ Invalid election ID format.");
@@ -56,13 +56,34 @@ const Results = () => {
 
         console.log("📌 Fetching results for election ID:", electionId);
 
-        const { data } = await axios.get(
-          `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // Fetch both results and candidates data
+        const [resultsResponse, candidatesResponse] = await Promise.all([
+          axios.get(
+            `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(
+            `https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        ]);
 
-        console.log("💬 Fetched results:", data);
-        setResults(data);
+        console.log("💬 Fetched results:", resultsResponse.data);
+        console.log("💬 Fetched candidates:", candidatesResponse.data);
+
+        
+        const resultsWithImages = resultsResponse.data.map(result => {
+          const candidate = candidatesResponse.data.find(
+            candidate => candidate.name === result.candidateName || candidate._id === result.candidateId
+          );
+          return {
+            ...result,
+            candidateImage: candidate?.image || null,
+            candidatePosition: candidate?.position || 'Candidate'
+          };
+        });
+
+        setResults(resultsWithImages);
         setError(null);
       } catch (err) {
         console.error(
@@ -73,7 +94,7 @@ const Results = () => {
         const errorMessage = err.response?.data?.message || err.message;
         setError(`❌ Failed to load results: ${errorMessage}`);
         
-        // If the error is specifically about invalid election ID, show a more user-friendly message
+       
         if (errorMessage.includes("Invalid election ID") || err.response?.status === 404) {
           setError("❌ Election not found. Please check the election ID and try again.");
         }
@@ -84,6 +105,11 @@ const Results = () => {
 
     fetchResults();
   }, [electionId, navigate]);
+
+  const handleImageError = (e) => {
+    e.target.style.display = 'none';
+    e.target.nextSibling.style.display = 'flex';
+  };
 
   if (loading) {
     return (
@@ -175,13 +201,40 @@ const Results = () => {
             className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300"
             variants={cardVariants}
           >
-            <div className="h-56 bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400 italic">No image</span>
+            <div className="h-56 bg-gray-200 relative overflow-hidden">
+              {r.candidateImage ? (
+                <>
+                  <img
+                    src={r.candidateImage}
+                    alt={r.candidateName}
+                    className="w-full h-full object-cover"
+                    onError={handleImageError}
+                  />
+                  <div 
+                    className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 hidden items-center justify-center"
+                  >
+                    <div className="text-center text-white">
+                      <div className="text-4xl mb-2">👤</div>
+                      <span className="text-sm font-medium">{r.candidateName}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <div className="text-4xl mb-2">👤</div>
+                    <span className="text-sm font-medium">{r.candidateName}</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="p-5 text-center">
               <h3 className="text-xl font-semibold text-gray-800">
                 {r.candidateName}
               </h3>
+              <p className="text-sm text-blue-600 font-medium mt-1">
+                {r.candidatePosition}
+              </p>
               <div className="text-2xl font-bold text-blue-600 mt-4">
                 {r.voteCount.toLocaleString()} votes
               </div>
