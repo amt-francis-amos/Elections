@@ -16,7 +16,7 @@ const CandidatesPage = () => {
     image: null
   });
 
-  // Get token from localStorage (replace with your auth method)
+  
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
   const showMessage = (text, type = "success") => {
@@ -65,7 +65,7 @@ const CandidatesPage = () => {
           ...c,
           description: c.description || "No description provided",
           votes: c.votes || 0,
-          electionId: c.election // Map server's 'election' field to frontend's 'electionId'
+          electionId: c.election 
         }));
         all.push(...candidatesWithElectionId);
       }
@@ -123,7 +123,7 @@ const CandidatesPage = () => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
-          // Don't set Content-Type for FormData, browser will set it automatically
+        
         },
         body: formData
       });
