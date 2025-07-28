@@ -2,7 +2,7 @@ import Election from '../models/electionModel.js';
 
 export const createElection = async (req, res) => {
   try {
-    // ❌ Block non-admin users
+   
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: "Only admin can create elections" });
     }
