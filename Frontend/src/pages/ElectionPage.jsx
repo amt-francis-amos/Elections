@@ -30,35 +30,35 @@ const ElectionsPage = () => {
     status: "draft"
   })
 
-useEffect(() => {
-  const fetchElections = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        showMessage("You must be logged in to view elections", "error");
-        setLoading(false);
-        return;
-      }
-
-      console.log("Token being sent:", token);
-
-      const response = await axios.get("https://elections-backend-j8m8.onrender.com/api/elections", {
-        headers: {
-          Authorization: `Bearer ${token}`
+  useEffect(() => {
+    const fetchElections = async () => {
+      try {
+        const token = localStorage.getItem('userToken') // ✅ updated key here
+        if (!token) {
+          showMessage("You must be logged in to view elections", "error");
+          setLoading(false);
+          return;
         }
-      });
 
-      setElections(response.data);
-    } catch (error) {
-      const message = error.response?.data?.message || "Failed to load elections";
-      showMessage(message, "error");
-    } finally {
-      setLoading(false);
+        console.log("Token being sent:", token);
+
+        const response = await axios.get("https://elections-backend-j8m8.onrender.com/api/elections", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        setElections(response.data);
+      } catch (error) {
+        const message = error.response?.data?.message || "Failed to load elections";
+        showMessage(message, "error");
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  fetchElections();
-}, []);
+    fetchElections();
+  }, []);
 
   const showMessage = (text, type = "success") => {
     setMessage({ text, type })
@@ -80,7 +80,7 @@ useEffect(() => {
     }
 
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('userToken') // ✅ updated key here
       const response = await axios.post(
         "https://elections-backend-j8m8.onrender.com/api/elections",
         electionForm,
@@ -102,7 +102,7 @@ useEffect(() => {
 
   const handleDeleteElection = async (id) => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('userToken') // ✅ updated key here
       await axios.delete(`https://elections-backend-j8m8.onrender.com/api/elections/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -118,31 +118,21 @@ useEffect(() => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "upcoming":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "completed":
-        return "bg-purple-100 text-purple-800 border-purple-200"
-      case "draft":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+      case "active": return "bg-green-100 text-green-800 border-green-200"
+      case "upcoming": return "bg-blue-100 text-blue-800 border-blue-200"
+      case "completed": return "bg-purple-100 text-purple-800 border-purple-200"
+      case "draft": return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      default: return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "active":
-        return <CheckCircle size={16} />
-      case "upcoming":
-        return <Clock size={16} />
-      case "completed":
-        return <CheckCircle size={16} />
-      case "draft":
-        return <AlertCircle size={16} />
-      default:
-        return <AlertCircle size={16} />
+      case "active": return <CheckCircle size={16} />
+      case "upcoming": return <Clock size={16} />
+      case "completed": return <CheckCircle size={16} />
+      case "draft": return <AlertCircle size={16} />
+      default: return <AlertCircle size={16} />
     }
   }
 
