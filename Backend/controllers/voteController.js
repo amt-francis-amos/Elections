@@ -1,6 +1,8 @@
 
 import Vote from '../models/VotingModel.js';
 import Candidate from '../models/candidateModel.js';
+import mongoose from 'mongoose';
+
 
 export const castVote = async (req, res) => {
   try {
