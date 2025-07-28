@@ -7,13 +7,8 @@ import Login from "../pages/Login";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isMobileVoteOpen, setIsMobileVoteOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
-  const [elections, setElections] = useState([]);
-  const [loadingElections, setLoadingElections] = useState(false);
   const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,18 +41,13 @@ const Navbar = () => {
   }, []);
 
   const toggleMenu = () => setIsMenuOpen((open) => !open);
-  const toggleDropdown = () => setIsDropdownOpen((open) => !open);
-  const toggleMobileVote = () => setIsMobileVoteOpen((open) => !open);
   const toggleProfileMenu = () => setIsProfileMenuOpen((open) => !open);
   const closeMenu = () => setIsMenuOpen(false);
-  const closeDropdown = () => setIsDropdownOpen(false);
-  const closeMobileVote = () => setIsMobileVoteOpen(false);
   const closeProfileMenu = () => setIsProfileMenuOpen(false);
   const isActive = (path) => location.pathname === path;
 
   const openAuthModal = () => {
     setIsAuthModalOpen(true);
-    closeDropdown();
     closeMenu();
   };
   const closeAuthModal = () => setIsAuthModalOpen(false);
@@ -86,59 +76,18 @@ const Navbar = () => {
           .toUpperCase()
       : "U";
 
-  // Fetch elections for results modal
-  const fetchElections = async () => {
-    if (!user) {
-      alert("Please log in to view election results.");
-      return;
-    }
-
-    setLoadingElections(true);
-    try {
-      const token = localStorage.getItem("userToken");
-      const { data } = await axios.get(
-        'https://elections-backend-j8m8.onrender.com/api/elections',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setElections(data);
-    } catch (error) {
-      console.error('Error fetching elections:', error);
-      alert('Failed to load elections. Please try again.');
-    } finally {
-      setLoadingElections(false);
-    }
-  };
-
-  const openResultsModal = async () => {
-    closeDropdown();
-    closeMenu();
-    setIsResultsModalOpen(true);
-    await fetchElections();
-  };
-
-  const closeResultsModal = () => {
-    setIsResultsModalOpen(false);
-    setElections([]);
-  };
-
-  const handleElectionSelect = (electionId) => {
-    navigate(`/results/${electionId}`);
-    closeResultsModal();
-  };
-
   return (
     <>
       <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" onClick={closeDropdown}>
+            <Link to="/">
               <img src={assets.logo} alt="NSBT LOGO" className="w-[150px]" />
             </Link>
 
             <div className="hidden md:flex items-center space-x-8">
               <Link
                 to="/"
-                onClick={closeDropdown}
                 className={`relative font-medium px-3 py-2 rounded-md transition-colors ${
                   isActive("/")
                     ? "text-blue-600"
@@ -153,52 +102,25 @@ const Navbar = () => {
                 />
               </Link>
 
-              <div className="relative">
-                <button
-                  onClick={toggleDropdown}
-                  className={`flex items-center space-x-1 font-medium px-3 py-2 rounded-md transition-colors ${
-                    location.pathname.includes("/vote")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+              <Link
+                to="/vote"
+                className={`relative font-medium px-3 py-2 rounded-md transition-colors ${
+                  isActive("/vote")
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                }`}
+              >
+                Vote
+                <span
+                  className={`absolute bottom-0 left-3 right-3 h-0.5 bg-[#03073d] transition-transform ${
+                    isActive("/vote") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                   }`}
-                >
-                  <span>Vote</span>
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform ${
-                      isDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {isDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
-                    <Link
-                      to="/election"
-                      onClick={closeDropdown}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                    >
-                      Current Elections
-                    </Link>
-                    <Link
-                      to="/candidate"
-                      onClick={closeDropdown}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                    >
-                      View Candidates
-                    </Link>
-                    <button
-                      onClick={openResultsModal}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
-                    >
-                      Election Results
-                    </button>
-                  </div>
-                )}
-              </div>
+                />
+              </Link>
 
               {user?.role === "admin" && (
                 <Link
                   to="/admin"
-                  onClick={closeDropdown}
                   className={`relative font-medium px-3 py-2 rounded-md transition-colors ${
                     isActive("/admin")
                       ? "text-blue-600"
@@ -338,43 +260,15 @@ const Navbar = () => {
                   Home
                 </Link>
 
-                <div className="space-y-1">
-                  <button
-                    onClick={toggleMobileVote}
-                    className={`flex items-center justify-between w-full text-left px-3 py-2 font-medium border-b border-gray-100 rounded-md transition-colors ${
-                      location.pathname.includes("/vote") ? "text-blue-600 bg-blue-50" : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span>Vote</span>
-                    <ChevronDown
-                      className={`w-4 h-4 transition-transform ${isMobileVoteOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  {isMobileVoteOpen && (
-                    <>
-                      <Link
-                        to="/election"
-                        onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                      >
-                        Current Elections
-                      </Link>
-                      <Link
-                        to="/candidate"
-                        onClick={closeMobileVote}
-                        className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                      >
-                        View Candidates
-                      </Link>
-                      <button
-                        onClick={openResultsModal}
-                        className="block w-full text-left px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                      >
-                        Election Results
-                      </button>
-                    </>
-                  )}
-                </div>
+                <Link
+                  to="/vote"
+                  onClick={closeMenu}
+                  className={`block px-3 py-2 rounded-md font-medium transition-colors ${
+                    isActive("/vote") ? "text-blue-600 bg-blue-50" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
+                >
+                  Vote
+                </Link>
 
                 {user?.role === "admin" && (
                   <Link
@@ -437,76 +331,6 @@ const Navbar = () => {
         </div>
       </nav>
 
-    
-      {isResultsModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-800">Select Election</h3>
-              <button
-                onClick={closeResultsModal}
-                className="text-gray-400 hover:text-gray-600 transition"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <p className="text-gray-600 mb-4 text-sm">
-              Choose an election to view its results:
-            </p>
-
-            {loadingElections ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-500">Loading elections...</p>
-              </div>
-            ) : elections.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No elections found.</p>
-                <button
-                  onClick={closeResultsModal}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {elections.map((election) => (
-                  <button
-                    key={election._id}
-                    onClick={() => handleElectionSelect(election._id)}
-                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition duration-200"
-                  >
-                    <div className="font-medium text-gray-800 mb-1">
-                      {election.title || election.name || 'Untitled Election'}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      Created: {new Date(election.createdAt).toLocaleDateString()}
-                    </div>
-                    {election.description && (
-                      <div className="text-xs text-gray-400 mt-1 truncate">
-                        {election.description}
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={closeResultsModal}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-    
       {isAuthModalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-40"
