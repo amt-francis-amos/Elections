@@ -18,8 +18,6 @@ const CandidatesPage = () => {
     image: null
   });
 
-  const token = localStorage.getItem('token');
-
   const showMessage = (text, type = "success") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
@@ -27,8 +25,8 @@ const CandidatesPage = () => {
 
   const fetchElections = async () => {
     try {
-      const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await axios.get('https://elections-backend-j8m8.onrender.com/api/elections', {
+        headers: { Authorization: 'Bearer token' }
       });
       setElections(res.data);
     } catch {
@@ -41,7 +39,7 @@ const CandidatesPage = () => {
       const all = [];
       for (let election of elections) {
         const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${election._id}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: 'Bearer token' }
         });
         const data = res.data.map(c => ({
           ...c,
@@ -76,45 +74,44 @@ const CandidatesPage = () => {
     setCandidateForm(prev => ({ ...prev, [name]: value }));
   };
 
- const handleCreateCandidate = async () => {
-  if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
-    return showMessage("Please fill in all required fields", "error");
-  }
+  const handleCreateCandidate = async () => {
+    if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
+      return showMessage("Please fill in all required fields", "error");
+    }
 
-  const formData = new FormData();
-  formData.append("name", candidateForm.name);
-  formData.append("position", candidateForm.position);
-  formData.append("description", candidateForm.description);
-  formData.append("electionId", candidateForm.electionId);
-  if (candidateForm.image) {
-    formData.append("image", candidateForm.image);
-  }
+    const formData = new FormData();
+    formData.append("name", candidateForm.name);
+    formData.append("position", candidateForm.position);
+    formData.append("description", candidateForm.description);
+    formData.append("electionId", candidateForm.electionId);
+    if (candidateForm.image) {
+      formData.append("image", candidateForm.image);
+    }
 
-  try {
-    const res = await axios.post(`https://elections-backend-j8m8.onrender.com/api/candidates`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${token}`
-      }
-    });
+    try {
+      const res = await axios.post("/api/candidates", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: "Bearer token"
+        }
+      });
 
-    const newCandidate = res.data.candidate;
-    setCandidates(prev => [...prev, {
-      ...newCandidate,
-      description: candidateForm.description,
-      votes: 0,
-      electionId: newCandidate.election
-    }]);
+      const newCandidate = res.data.candidate;
+      setCandidates(prev => [...prev, {
+        ...newCandidate,
+        description: candidateForm.description,
+        votes: 0,
+        electionId: newCandidate.election
+      }]);
 
-    setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null });
-    setShowModal(false);
-    showMessage("Candidate added successfully!", "success");
-  } catch (err) {
-    const msg = err.response?.data?.message || "Error adding candidate";
-    showMessage(msg, "error");
-  }
-};
-
+      setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null });
+      setShowModal(false);
+      showMessage("Candidate added successfully!", "success");
+    } catch (err) {
+      const msg = err.response?.data?.message || "Error adding candidate";
+      showMessage(msg, "error");
+    }
+  };
 
   const handleDeleteCandidate = (id) => {
     setCandidates(prev => prev.filter(c => c._id !== id));
