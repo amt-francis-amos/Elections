@@ -43,10 +43,7 @@ const Results = () => {
 
         console.log("📌 Fetching results for election ID:", electionId);
 
-        if (!electionId || electionId.length !== 24) {
-          alert("❌ Invalid or missing election ID.");
-          return;
-        }
+       
 
         const { data } = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
