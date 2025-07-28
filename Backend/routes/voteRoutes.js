@@ -7,6 +7,7 @@ import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();
 
+
 router.post('/', auth, castVote);
 
 
