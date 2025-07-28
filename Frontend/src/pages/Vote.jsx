@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 const cardVariant = {
   hidden: { opacity: 0, y: 30 },
-  visible: (i) => ({
+  visible: i => ({
     opacity: 1,
     y: 0,
     transition: {
@@ -22,87 +22,79 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidateId, setVotedCandidateId] = useState(null);
 
+  // Fetch active elections on mount
   useEffect(() => {
     const fetchElections = async () => {
       try {
-        const token = localStorage.getItem('userToken'); 
+        const token = localStorage.getItem('userToken');
         if (!token) {
-          alert('No token found. Please log in.');
+          alert('🚨 No token found. Please log in.');
           return;
         }
 
-        const res = await axios.get('https://elections-backend-j8m8.onrender.com/api/elections', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const { data } = await axios.get(
+          'https://elections-backend-j8m8.onrender.com/api/elections',
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('💬 fetched elections:', data);
 
-        const activeElections = res.data.filter(e => e.status === 'active');
-        setElections(activeElections);
-        if (activeElections.length > 0) {
-          setSelectedElectionId(activeElections[0]._id);
-        }
+        // adjust filter to match your schema (status or isActive)
+        const active = data.filter(e => e.status === 'active');
+        setElections(active);
+        if (active.length) setSelectedElectionId(active[0]._id);
       } catch (err) {
         console.error('Error fetching elections:', err);
-        
+        alert('❌ Failed to load elections.');
       }
     };
-
     fetchElections();
   }, []);
 
+  // Fetch candidates whenever selectedElectionId changes
   useEffect(() => {
-    const fetchCandidates = async () => {
-      if (!selectedElectionId) return;
+    if (!selectedElectionId) return;
 
+    const fetchCandidates = async () => {
+      setLoading(true);
       try {
-        const token = localStorage.getItem('userToken'); 
+        const token = localStorage.getItem('userToken');
         if (!token) return;
 
-        const res = await axios.get(
+        const { data } = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/candidates/${selectedElectionId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        setCandidates(res.data);
+        console.log(`💬 candidates for ${selectedElectionId}:`, data);
+        setCandidates(data);
       } catch (err) {
         console.error('Error loading candidates:', err);
         alert('❌ Failed to load candidates.');
+      } finally {
+        setLoading(false);
       }
     };
-
     fetchCandidates();
   }, [selectedElectionId]);
 
-  const handleVote = async (candidate) => {
-    const token = localStorage.getItem('userToken'); 
+  // Handle the vote button click
+  const handleVote = async candidate => {
+    const token = localStorage.getItem('userToken');
     if (!token) {
-      alert('Please log in first to vote.');
+      alert('🚨 Please log in first to vote.');
       return;
     }
 
     try {
       setLoading(true);
-
       await axios.post(
         'https://elections-backend-j8m8.onrender.com/api/votes',
-        {
-          electionId: selectedElectionId,
-          candidateId: candidate._id
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { electionId: selectedElectionId, candidateId: candidate._id },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       alert(`✅ Vote submitted for ${candidate.name}`);
       setVotedCandidateId(candidate._id);
     } catch (err) {
-      console.error(err);
+      console.error('Error casting vote:', err);
       const message = err.response?.data?.message || 'Something went wrong while voting.';
       alert(`❌ ${message}`);
     } finally {
@@ -124,61 +116,76 @@ const Vote = () => {
 
         {elections.length > 0 ? (
           <div className="mb-6 max-w-sm mx-auto">
-            <label className="block mb-2 font-medium text-gray-700">Select Election</label>
+            <label className="block mb-2 font-medium text-gray-700">
+              Select Election
+            </label>
             <select
               value={selectedElectionId}
-              onChange={(e) => setSelectedElectionId(e.target.value)}
+              onChange={e => setSelectedElectionId(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             >
-              {elections.map((election) => (
-                <option key={election._id} value={election._id}>
-                  {election.title}
+              {elections.map(e => (
+                <option key={e._id} value={e._id}>
+                  {e.title}
                 </option>
               ))}
             </select>
           </div>
         ) : (
-          <p className="text-center text-gray-600">No active elections available.</p>
+          <p className="text-center text-gray-600">
+            No active elections available.
+          </p>
+        )}
+
+        {loading && (
+          <p className="text-center text-gray-700">Loading candidates…</p>
+        )}
+        {!loading && candidates.length === 0 && selectedElectionId && (
+          <p className="text-center text-gray-600">
+            No candidates found for this election.
+          </p>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {candidates.map((candidate, index) => (
+          {candidates.map((c, i) => (
             <motion.div
-              key={candidate._id}
-              className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow ${
-                votedCandidateId === candidate._id ? 'ring-4 ring-green-500' : ''
-              }`}
-              custom={index}
+              key={c._id}
+              custom={i}
               initial="hidden"
               animate="visible"
               variants={cardVariant}
               whileHover={{ scale: 1.03 }}
+              className={`bg-white rounded-xl shadow-lg overflow-hidden transition-shadow ${
+                votedCandidateId === c._id ? 'ring-4 ring-green-500' : ''
+              }`}
             >
               <img
-                src={candidate.image}
-                alt={candidate.name}
+                src={c.image}
+                alt={c.name}
                 className="w-full h-56 object-cover"
               />
               <div className="p-5">
-                <h2 className="text-xl font-semibold text-gray-800">{candidate.name}</h2>
-                <p className="text-gray-500 text-sm mb-4">{candidate.position}</p>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  {c.name}
+                </h2>
+                <p className="text-gray-500 text-sm mb-4">{c.position}</p>
 
                 {votedCandidateId ? (
-                  votedCandidateId === candidate._id ? (
-                    <p className="text-green-600 font-semibold mt-2 text-center">
+                  votedCandidateId === c._id ? (
+                    <p className="text-green-600 font-semibold text-center">
                       You voted for this candidate ✅
                     </p>
                   ) : (
-                    <p className="text-gray-400 text-sm mt-2 text-center">
+                    <p className="text-gray-400 text-sm text-center">
                       You have already voted
                     </p>
                   )
                 ) : (
                   <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleVote(candidate)}
-                    className="w-full py-2 rounded-md text-white transition bg-blue-600 hover:bg-blue-700"
+                    onClick={() => handleVote(c)}
                     disabled={loading}
+                    className="w-full py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700"
                   >
                     Vote
                   </motion.button>
