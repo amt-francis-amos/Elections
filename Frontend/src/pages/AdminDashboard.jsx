@@ -51,24 +51,13 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
-    // TODO: Replace with actual API calls
+    
     fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      // TODO: Implement actual API calls
-      // const statsResponse = await api.get('/admin/stats');
-      // const electionsResponse = await api.get('/admin/elections');
-      // const candidatesResponse = await api.get('/admin/candidates');
-      // const usersResponse = await api.get('/admin/users');
-      // const activityResponse = await api.get('/admin/activity');
       
-      // setStats(statsResponse.data);
-      // setElections(electionsResponse.data);
-      // setCandidates(candidatesResponse.data);
-      // setUsers(usersResponse.data);
-      // setRecentActivity(activityResponse.data);
       
       setLoading(false);
     } catch (error) {
