@@ -22,7 +22,7 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidateId, setVotedCandidateId] = useState(null);
 
-  // Fetch active elections on mount
+  // 1) Fetch elections, filter on isActive
   useEffect(() => {
     const fetchElections = async () => {
       try {
@@ -38,8 +38,8 @@ const Vote = () => {
         );
         console.log('💬 fetched elections:', data);
 
-        // adjust filter to match your schema (status or isActive)
-        const active = data.filter(e => e.status === 'active');
+        // Use isActive flag instead of status
+        const active = data.filter(e => e.isActive);
         setElections(active);
         if (active.length) setSelectedElectionId(active[0]._id);
       } catch (err) {
@@ -50,7 +50,7 @@ const Vote = () => {
     fetchElections();
   }, []);
 
-  // Fetch candidates whenever selectedElectionId changes
+  // 2) Fetch candidates when election changes
   useEffect(() => {
     if (!selectedElectionId) return;
 
@@ -76,7 +76,7 @@ const Vote = () => {
     fetchCandidates();
   }, [selectedElectionId]);
 
-  // Handle the vote button click
+  // 3) Handle vote
   const handleVote = async candidate => {
     const token = localStorage.getItem('userToken');
     if (!token) {
@@ -159,15 +159,9 @@ const Vote = () => {
                 votedCandidateId === c._id ? 'ring-4 ring-green-500' : ''
               }`}
             >
-              <img
-                src={c.image}
-                alt={c.name}
-                className="w-full h-56 object-cover"
-              />
+              <img src={c.image} alt={c.name} className="w-full h-56 object-cover" />
               <div className="p-5">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {c.name}
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-800">{c.name}</h2>
                 <p className="text-gray-500 text-sm mb-4">{c.position}</p>
 
                 {votedCandidateId ? (
