@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, User, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Search, Eye } from 'lucide-react';
 import axios from 'axios';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CandidatesPage = () => {
   const [candidates, setCandidates] = useState([]);
@@ -9,7 +11,6 @@ const CandidatesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [message, setMessage] = useState(null);
   const [candidateForm, setCandidateForm] = useState({
     name: "",
     position: "",
@@ -21,8 +22,7 @@ const CandidatesPage = () => {
   const token = localStorage.getItem('token');
 
   const showMessage = (text, type = "success") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 4000);
+    toast[type](text);
   };
 
   const fetchElections = async () => {
@@ -138,6 +138,8 @@ const CandidatesPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer position="top-right" autoClose={4000} />
+      
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
@@ -157,21 +159,6 @@ const CandidatesPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {message && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-              message.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
-            }`}
-          >
-            {message.type === "success" ? <CheckCircle size={20} /> : <XCircle size={20} />}
-            <span>{message.text}</span>
-          </motion.div>
-        )}
-
         <div className="mb-8">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
