@@ -2,14 +2,17 @@ import Election from '../models/electionModel.js';
 
 export const createElection = async (req, res) => {
   try {
+    // ❌ Block non-admin users
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Only admin can create elections" });
+    }
+
     const { title, description, startDate, endDate } = req.body;
 
-   
     const start = new Date(startDate);
     const end = new Date(endDate);
     const now = new Date();
 
-  
     if (start <= now) {
       return res.status(400).json({ message: "Start date must be in the future" });
     }
