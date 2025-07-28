@@ -67,25 +67,16 @@ const Login = ({
   };
 
   const handleRoleBasedRedirect = (user) => {
-    if (user.role === "admin") {
-      toast.success("Welcome, Admin! Redirecting...");
-      redirectTo("/admin");
-    } else if (user.role === "voter") {
-      toast.info("Welcome, Voter! Redirecting...");
-      redirectTo("/vote");
-    } else {
-      toast.warn("Unknown role. Redirecting to home.");
-      redirectTo("/");
-    }
-  };
+    const adminPath = "/admin";
+    const voterPath = "/vote";
+    const targetPath = user.role === "admin" ? adminPath : voterPath;
 
-  const redirectTo = (path) => {
     if (redirectMethod === "navigate" && navigate) {
-      navigate(path);
+      navigate(targetPath);
     } else if (redirectMethod === "router" && router) {
-      router.push(path);
+      router.push(targetPath);
     } else {
-      window.location.href = path;
+      window.location.href = targetPath;
     }
   };
 
@@ -121,11 +112,15 @@ const Login = ({
         localStorage.setItem("userData", JSON.stringify(user));
 
         toast.success("Login successful!");
+        if (user.role === "admin") {
+          toast.success("Welcome, Admin! Redirecting...");
+        } else {
+          toast.info("Welcome, Voter! Redirecting...");
+        }
 
         if (onLoginSuccess) onLoginSuccess({ user, token });
         onClose();
         setFormData({ id: "", name: "", email: "", password: "" });
-
         handleRoleBasedRedirect(user);
       } else {
         const { user, token } = data;
@@ -142,8 +137,7 @@ const Login = ({
         setTimeout(() => setIsLogin(true), 2000);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || error.message || "Something went wrong";
+      const errorMessage = error.response?.data?.message || error.message || "Something went wrong";
       toast.error(errorMessage);
     } finally {
       setLoading(false);
