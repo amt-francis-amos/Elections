@@ -33,6 +33,7 @@ import Dashboard from '../components/Dashboard.jsx';
 import Elections from '../components/Elections.jsx';
 import Candidates from '../components/Candidates.jsx';
 import Reports from '../components/Reports.jsx';
+import UserAccount from '../components/UserAccount.jsx';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -174,7 +175,7 @@ const AdminDashboard = () => {
 
   const handleCreateElection = async () => {
     try {
-      // Implementation for creating election
+      
       const newElection = {
         id: Date.now(),
         ...formData,
@@ -400,7 +401,7 @@ const AdminDashboard = () => {
         )}
 
         {activeTab === 'users' && (
-          <Users
+          <UserAccount
             users={users}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -420,7 +421,6 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* Modals */}
       <AnimatePresence>
         {showModal && (
           <motion.div
