@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, User, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
 import axios from 'axios';
 
-
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com';
 const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMTAgMTgwQzIxMCAxOTQuMzA3IDE5OC4zMDcgMjA2IDE4NCAyMDZIMTE2QzEwMS42OTMgMjA2IDkwIDE5NC4zMDcgOTAgMTgwVjE4MEg5MEMyMTAgMTgwIDIxMCAxODAiIGZpbGw9IiM5Q0EzQUYiLz4KPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTIwIiByPSI0MCIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
 
 const CandidatesPage = () => {
@@ -14,7 +14,6 @@ const CandidatesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [message, setMessage] = useState(null);
-  const [token, setToken] = useState(null);
   const [candidateForm, setCandidateForm] = useState({
     name: "",
     position: "",
@@ -26,17 +25,13 @@ const CandidatesPage = () => {
   const messageTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
 
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (!storedToken) {
-      showMessage("Please login to continue", "error");
-      return;
+  const showMessage = useCallback((text, type = "success") => {
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
     }
-    setToken(storedToken);
+    setMessage({ text, type });
   }, []);
 
-  // Cleanup message timeout
   useEffect(() => {
     if (message) {
       messageTimeoutRef.current = setTimeout(() => setMessage(null), 4000);
@@ -47,13 +42,6 @@ const CandidatesPage = () => {
       };
     }
   }, [message]);
-
-  const showMessage = useCallback((text, type = "success") => {
-    if (messageTimeoutRef.current) {
-      clearTimeout(messageTimeoutRef.current);
-    }
-    setMessage({ text, type });
-  }, []);
 
   const validateForm = useCallback(() => {
     if (!candidateForm.name.trim()) {
@@ -76,29 +64,34 @@ const CandidatesPage = () => {
   }, [candidateForm, showMessage]);
 
   const fetchElections = useCallback(async () => {
-    if (!token) return;
-    
     try {
-      const response = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showMessage("Please login to continue", "error");
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/api/elections`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setElections(response.data);
     } catch (error) {
+      console.error("Error fetching elections:", error);
       if (error.response?.status === 401) {
         showMessage("Session expired. Please login again", "error");
         localStorage.removeItem('token');
-        return;
+      } else {
+        showMessage("Failed to fetch elections", "error");
       }
-      console.error("Error fetching elections:", error);
-      showMessage("Failed to fetch elections", "error");
     }
-  }, [token, showMessage]);
+  }, [showMessage]);
 
   const fetchCandidates = useCallback(async () => {
-    if (!token || elections.length === 0) return;
-    
     try {
-      // Use Promise.all for parallel requests
+      const token = localStorage.getItem('token');
+      if (!token || elections.length === 0) return;
+
       const candidatePromises = elections.map(election =>
         axios.get(`${API_BASE_URL}/api/candidates/${election._id}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -122,22 +115,17 @@ const CandidatesPage = () => {
       console.error("Error fetching candidates:", error);
       showMessage("Failed to fetch candidates", "error");
     }
-  }, [token, elections, showMessage]);
+  }, [elections, showMessage]);
 
-  // Initial data loading
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (!token) return;
-      
+    const loadData = async () => {
       setLoading(true);
       await fetchElections();
       setLoading(false);
     };
-    
-    loadInitialData();
-  }, [token, fetchElections]);
+    loadData();
+  }, [fetchElections]);
 
-  // Fetch candidates when elections change
   useEffect(() => {
     if (elections.length > 0) {
       fetchCandidates();
@@ -152,14 +140,12 @@ const CandidatesPage = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         showMessage("Please select a valid image file", "error");
         e.target.value = '';
         return;
       }
       
-      // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         showMessage("Image size must be less than 5MB", "error");
         e.target.value = '';
@@ -199,7 +185,8 @@ const CandidatesPage = () => {
     }
 
     try {
-      const response = await axios.post(`https://elections-backend-j8m8.onrender.com/api/candidates`, formData, {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/api/candidates`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`
@@ -237,7 +224,8 @@ const CandidatesPage = () => {
     }
 
     try {
-      await axios.delete(`https://elections-backend-j8m8.onrender.com/api/candidates/${id}`, {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/candidates/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -259,7 +247,7 @@ const CandidatesPage = () => {
     candidate.position.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading || !token) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
@@ -272,7 +260,6 @@ const CandidatesPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
@@ -292,9 +279,7 @@ const CandidatesPage = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Message */}
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -311,7 +296,6 @@ const CandidatesPage = () => {
           </motion.div>
         )}
 
-        {/* Search */}
         <div className="mb-8">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -326,7 +310,6 @@ const CandidatesPage = () => {
           </div>
         </div>
 
-        {/* Candidates Grid */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           initial="hidden"
@@ -422,7 +405,6 @@ const CandidatesPage = () => {
           })}
         </motion.div>
 
-        {/* Empty State */}
         {filteredCandidates.length === 0 && (
           <div className="text-center py-12">
             <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -432,7 +414,6 @@ const CandidatesPage = () => {
         )}
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
