@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import axios from 'axios'
 import {
   Plus,
   Edit,
@@ -13,131 +14,131 @@ import {
   Clock,
   Search,
   BarChart3
-} from 'lucide-react';
+} from 'lucide-react'
 
 const ElectionsPage = () => {
-  const [elections, setElections] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [elections, setElections] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showModal, setShowModal] = useState(false)
+  const [message, setMessage] = useState(null)
   const [electionForm, setElectionForm] = useState({
     title: "",
     description: "",
     startDate: "",
     endDate: "",
     status: "draft"
-  });
+  })
 
   useEffect(() => {
     const fetchElections = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections", {
+        const token = localStorage.getItem('token')
+        const response = await axios.get("https://elections-backend-j8m8.onrender.com/api/elections", {
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) throw new Error("Failed to fetch elections");
-        const data = await response.json();
-        setElections(data);
+            Authorization: `Bearer ${token}`
+          }
+        })
+        setElections(response.data)
       } catch (error) {
-        console.error("Error fetching elections:", error);
-        showMessage("Failed to load elections", "error");
+        showMessage("Failed to load elections", "error")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-
-    fetchElections();
-  }, []);
+    }
+    fetchElections()
+  }, [])
 
   const showMessage = (text, type = "success") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 4000);
-  };
+    setMessage({ text, type })
+    setTimeout(() => setMessage(null), 4000)
+  }
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setElectionForm(prev => ({ ...prev, [name]: value }));
-  };
+    const { name, value } = e.target
+    setElectionForm(prev => ({ ...prev, [name]: value }))
+  }
 
   const handleCreateElection = async () => {
     if (!electionForm.title || !electionForm.startDate || !electionForm.endDate) {
-      return showMessage("Please fill in all required fields", "error");
+      return showMessage("Please fill in all required fields", "error")
     }
 
     if (new Date(electionForm.startDate) >= new Date(electionForm.endDate)) {
-      return showMessage("End date must be after start date", "error");
+      return showMessage("End date must be after start date", "error")
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch("https://elections-backend-j8m8.onrender.com/api/elections", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(electionForm),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return showMessage(data.message || "Failed to create election", "error");
-      }
-
-      setElections(prev => [data.election, ...prev]);
-      setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" });
-      setShowModal(false);
-      showMessage("Election created successfully!", "success");
+      const token = localStorage.getItem('token')
+      const response = await axios.post(
+        "https://elections-backend-j8m8.onrender.com/api/elections",
+        electionForm,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+      setElections(prev => [response.data.election, ...prev])
+      setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" })
+      setShowModal(false)
+      showMessage("Election created successfully!", "success")
     } catch (error) {
-      console.error("Error creating election:", error);
-      showMessage("Error creating election", "error");
+      const message = error.response?.data?.message || "Error creating election"
+      showMessage(message, "error")
     }
-  };
+  }
 
-  const handleDeleteElection = (id) => {
-    setElections(prev => prev.filter(e => e._id !== id));
-    showMessage("Election deleted successfully", "success");
-  };
+  const handleDeleteElection = async (id) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.delete(`https://elections-backend-j8m8.onrender.com/api/elections/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      setElections(prev => prev.filter(e => e._id !== id))
+      showMessage("Election deleted successfully", "success")
+    } catch (error) {
+      const message = error.response?.data?.message || "Failed to delete election"
+      showMessage(message, "error")
+    }
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-green-100 text-green-800 border-green-200"
       case "upcoming":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-100 text-blue-800 border-blue-200"
       case "completed":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+        return "bg-purple-100 text-purple-800 border-purple-200"
       case "draft":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
-  };
+  }
 
   const getStatusIcon = (status) => {
     switch (status) {
       case "active":
-        return <CheckCircle size={16} />;
+        return <CheckCircle size={16} />
       case "upcoming":
-        return <Clock size={16} />;
+        return <Clock size={16} />
       case "completed":
-        return <CheckCircle size={16} />;
+        return <CheckCircle size={16} />
       case "draft":
-        return <AlertCircle size={16} />;
+        return <AlertCircle size={16} />
       default:
-        return <AlertCircle size={16} />;
+        return <AlertCircle size={16} />
     }
-  };
+  }
 
   const filteredElections = elections.filter(election =>
     election.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     election.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  )
 
   if (loading) {
     return (
@@ -147,7 +148,7 @@ const ElectionsPage = () => {
           <span className="text-gray-600">Loading elections...</span>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -267,8 +268,8 @@ const ElectionsPage = () => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
 const StatCard = ({ title, value, icon }) => (
   <div className="bg-white rounded-xl p-6 shadow-sm border">
@@ -280,14 +281,14 @@ const StatCard = ({ title, value, icon }) => (
       <div className="w-8 h-8">{icon}</div>
     </div>
   </div>
-);
+)
 
 const Info = ({ label, value }) => (
   <div className="bg-gray-50 rounded-lg p-3">
     <p className="text-sm text-gray-600">{label}</p>
     <p className="font-medium text-gray-900">{value}</p>
   </div>
-);
+)
 
 const Input = ({ label, name, value, onChange, type = "text", required }) => (
   <div>
@@ -302,7 +303,7 @@ const Input = ({ label, name, value, onChange, type = "text", required }) => (
       className="w-full border border-gray-300 rounded-lg px-3 py-2"
     />
   </div>
-);
+)
 
 const Textarea = ({ label, name, value, onChange }) => (
   <div>
@@ -315,6 +316,6 @@ const Textarea = ({ label, name, value, onChange }) => (
       rows={3}
     />
   </div>
-);
+)
 
-export default ElectionsPage;
+export default ElectionsPage
