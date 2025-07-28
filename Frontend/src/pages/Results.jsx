@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { motion } from 'framer-motion';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { motion } from "framer-motion";
+import { useParams } from "react-router-dom";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -16,7 +16,7 @@ const cardVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, ease: 'easeOut' },
+    transition: { duration: 0.6, ease: "easeOut" },
   },
 };
 
@@ -30,34 +30,40 @@ const Results = () => {
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const token = localStorage.getItem('userToken');
+        const token = localStorage.getItem("userToken");
         if (!token) {
-          alert('🚨 Please log in to view results.');
+          alert("🚨 Please log in to view results.");
           return;
         }
 
         if (!electionId) {
-          alert('❌ Election ID is missing in the URL.');
+          alert("❌ Election ID is missing in the URL.");
           return;
         }
 
         console.log("📌 Fetching results for election ID:", electionId);
 
-       
+        if (!electionId || electionId.length !== 24) {
+          alert("❌ Invalid or missing election ID.");
+          return;
+        }
+
         const { data } = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        console.log('💬 Fetched results:', data);
+        console.log("💬 Fetched results:", data);
         setResults(data);
       } catch (err) {
         console.error(
-          '❌ Error fetching results:',
+          "❌ Error fetching results:",
           err.response?.data || err.message
         );
         alert(
-          `❌ Failed to load results: ${err.response?.data?.message || err.message}`
+          `❌ Failed to load results: ${
+            err.response?.data?.message || err.message
+          }`
         );
       } finally {
         setLoading(false);
@@ -98,7 +104,9 @@ const Results = () => {
         transition={{ duration: 0.6 }}
       >
         <h2 className="text-2xl font-semibold mb-2">Total Votes Cast</h2>
-        <p className="text-gray-600 text-lg">{totalVotes.toLocaleString()} votes</p>
+        <p className="text-gray-600 text-lg">
+          {totalVotes.toLocaleString()} votes
+        </p>
       </motion.div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
