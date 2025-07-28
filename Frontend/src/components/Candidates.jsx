@@ -19,6 +19,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [preview, setPreview] = useState(currentImage);
+  const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const validateFile = (file) => {
@@ -43,13 +44,12 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
       return;
     }
 
-    setUploadStatus({ type: 'success', message: 'Image uploaded successfully!' });
+    setUploadStatus({ type: 'success', message: 'Image selected successfully!' });
+    setSelectedFile(file);
     
     const reader = new FileReader();
     reader.onload = (e) => {
-      const imageUrl = e.target.result;
-      setPreview(imageUrl);
-      onImageSelect(imageUrl, file);
+      setPreview(e.target.result);
     };
     reader.readAsDataURL(file);
   };
@@ -86,11 +86,33 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
 
   const removeImage = () => {
     setPreview(null);
+    setSelectedFile(null);
     setUploadStatus(null);
-    onImageSelect(null, null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleSave = () => {
+    if (selectedFile) {
+      onImageSelect(selectedFile);
+      onClose();
+    }
+  };
+
+  const resetModal = () => {
+    setPreview(currentImage);
+    setSelectedFile(null);
+    setUploadStatus(null);
+    setDragActive(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClose = () => {
+    resetModal();
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -101,7 +123,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Upload Candidate Photo</h3>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X size={20} />
@@ -180,14 +202,14 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
 
         <div className="flex gap-3 p-6 border-t border-gray-200">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={onClose}
-            disabled={!preview}
+            onClick={handleSave}
+            disabled={!selectedFile}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
           >
             Save Photo
@@ -201,9 +223,8 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
 const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
   const [showImageModal, setShowImageModal] = useState(false);
 
-  const handleImageSelect = (imageUrl, file) => {
-    onImageUpload(candidate.id, imageUrl, file);
-    setShowImageModal(false);
+  const handleImageSelect = (file) => {
+    onImageUpload(candidate.id, file);
   };
 
   return (
@@ -217,6 +238,9 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
                   src={candidate.image}
                   alt={candidate.name}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = '/api/placeholder/64/64';
+                  }}
                 />
               ) : (
                 <Users size={24} className="text-gray-400" />
@@ -225,6 +249,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
             <button
               onClick={() => setShowImageModal(true)}
               className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+              title="Upload photo"
             >
               <Camera size={16} className="text-white" />
             </button>
@@ -255,20 +280,26 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
           </div>
           
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Mail size={14} />
-              <span className="truncate">{candidate.email}</span>
-            </div>
+            {candidate.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Mail size={14} />
+                <span className="truncate">{candidate.email}</span>
+              </div>
+            )}
             
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Phone size={14} />
-              <span>{candidate.phone}</span>
-            </div>
+            {candidate.phone && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Phone size={14} />
+                <span>{candidate.phone}</span>
+              </div>
+            )}
             
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <MapPin size={14} />
-              <span>{candidate.department} • {candidate.year}</span>
-            </div>
+            {candidate.department && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <MapPin size={14} />
+                <span>{candidate.department} {candidate.year && `• ${candidate.year}`}</span>
+              </div>
+            )}
           </div>
           
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -306,16 +337,11 @@ const Candidates = ({
            candidate.department?.toLowerCase().includes(searchLower);
   });
 
-  const handleImageUpload = (candidateId, imageUrl, file) => {
-    // In a real application, you would upload the file to your server/cloud storage
-    // and get back a permanent URL. For now, we'll use the data URL.
-    
+  const handleImageUpload = (candidateId, file) => {
+    // Pass the file object to parent component for API upload
     if (onImageUpload) {
-      onImageUpload(candidateId, imageUrl, file);
+      onImageUpload(candidateId, file);
     }
-    
-    // You might want to show a success notification here
-    console.log('Image uploaded for candidate:', candidateId);
   };
 
   return (
