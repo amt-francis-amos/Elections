@@ -42,7 +42,7 @@ const Vote = () => {
         }
       } catch (err) {
         console.error('Error fetching elections:', err);
-        alert('Failed to load elections.');
+        
       }
     };
 
