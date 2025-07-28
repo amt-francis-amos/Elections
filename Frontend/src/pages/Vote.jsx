@@ -77,7 +77,7 @@ const Vote = () => {
   }, [selectedElectionId]);
 
   const handleVote = async (candidate) => {
-    const token = localStorage.getItem('userToken'); // ✅ Fixed here
+    const token = localStorage.getItem('userToken'); 
     if (!token) {
       alert('Please log in first to vote.');
       return;

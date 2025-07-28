@@ -33,7 +33,7 @@ const ElectionsPage = () => {
   useEffect(() => {
     const fetchElections = async () => {
       try {
-        const token = localStorage.getItem('userToken') // ✅ updated key here
+        const token = localStorage.getItem('userToken')
         if (!token) {
           showMessage("You must be logged in to view elections", "error");
           setLoading(false);
