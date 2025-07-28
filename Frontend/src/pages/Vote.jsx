@@ -44,7 +44,6 @@ const Vote = () => {
     fetchElections();
   }, []);
 
-
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!selectedElectionId) return;
@@ -69,7 +68,6 @@ const Vote = () => {
 
     fetchCandidates();
   }, [selectedElectionId]);
-
 
   const handleVote = async (candidate) => {
     const token = localStorage.getItem('token');
@@ -140,7 +138,9 @@ const Vote = () => {
           {candidates.map((candidate, index) => (
             <motion.div
               key={candidate._id}
-              className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow"
+              className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow ${
+                votedCandidateId === candidate._id ? 'ring-4 ring-green-500' : ''
+              }`}
               custom={index}
               initial="hidden"
               animate="visible"
@@ -155,18 +155,27 @@ const Vote = () => {
               <div className="p-5">
                 <h2 className="text-xl font-semibold text-gray-800">{candidate.name}</h2>
                 <p className="text-gray-500 text-sm mb-4">{candidate.position}</p>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleVote(candidate)}
-                  className={`w-full py-2 rounded-md text-white transition ${
-                    votedCandidateId === candidate._id
-                      ? 'bg-green-600 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                  disabled={loading || votedCandidateId === candidate._id}
-                >
-                  {votedCandidateId === candidate._id ? 'Voted' : 'Vote'}
-                </motion.button>
+
+                {votedCandidateId ? (
+                  votedCandidateId === candidate._id ? (
+                    <p className="text-green-600 font-semibold mt-2 text-center">
+                      You voted for this candidate ✅
+                    </p>
+                  ) : (
+                    <p className="text-gray-400 text-sm mt-2 text-center">
+                      You have already voted
+                    </p>
+                  )
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleVote(candidate)}
+                    className="w-full py-2 rounded-md text-white transition bg-blue-600 hover:bg-blue-700"
+                    disabled={loading}
+                  >
+                    Vote
+                  </motion.button>
+                )}
               </div>
             </motion.div>
           ))}
