@@ -62,31 +62,36 @@ const ElectionsPage = () => {
     setElectionForm(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleCreateElection = async () => {
-    if (!electionForm.title || !electionForm.startDate || !electionForm.endDate) {
-      return toast.error("Please fill in all required fields")
-    }
-    if (new Date(electionForm.startDate) >= new Date(electionForm.endDate)) {
-      return toast.error("End date must be after start date")
-    }
-
-    try {
-      const token = localStorage.getItem('userToken')
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/elections",
-        electionForm,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setElections(prev => [data.election, ...prev])
-      setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" })
-      setShowModal(false)
-      toast.success("Election created successfully!")
-    } catch (error) {
-      const msg = error.response?.data?.message || "Error creating election"
-      toast.error(msg)
-    }
+const handleCreateElection = async () => {
+  if (!electionForm.title || !electionForm.startDate || !electionForm.endDate) {
+    return toast.error("Please fill in all required fields");
   }
 
+  if (new Date(electionForm.startDate) >= new Date(electionForm.endDate)) {
+    return toast.error("End date must be after start date");
+  }
+
+  try {
+    const token = localStorage.getItem('userToken');
+    const { data } = await axios.post(
+      "https://elections-backend-j8m8.onrender.com/api/elections",
+      electionForm,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setElections(prev => [data.election, ...prev]);
+    setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" });
+    setShowModal(false);
+    toast.success("Election created successfully!");
+  } catch (error) {
+    if (error.response?.status === 403) {
+      toast.error("Only admin can create elections");
+    } else {
+      const msg = error.response?.data?.message || "Error creating election";
+      toast.error(msg);
+    }
+  }
+};
   const handleDeleteElection = async (id) => {
     try {
       const token = localStorage.getItem('userToken')
