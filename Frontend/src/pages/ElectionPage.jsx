@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com';
 
 const ElectionsPage = () => {
   const [elections, setElections] = useState([]);
@@ -25,7 +25,6 @@ const ElectionsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [message, setMessage] = useState(null);
-  const [token, setToken] = useState(null);
   const [electionForm, setElectionForm] = useState({
     title: "",
     description: "",
@@ -36,16 +35,12 @@ const ElectionsPage = () => {
 
   const messageTimeoutRef = useRef(null);
 
- 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (!storedToken) {
-      showMessage("Please login to continue", "error");
-      return;
+  const showMessage = useCallback((text, type = "success") => {
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
     }
-    setToken(storedToken);
+    setMessage({ text, type });
   }, []);
-
 
   useEffect(() => {
     if (message) {
@@ -57,13 +52,6 @@ const ElectionsPage = () => {
       };
     }
   }, [message]);
-
-  const showMessage = useCallback((text, type = "success") => {
-    if (messageTimeoutRef.current) {
-      clearTimeout(messageTimeoutRef.current);
-    }
-    setMessage({ text, type });
-  }, []);
 
   const validateForm = useCallback(() => {
     const { title, startDate, endDate } = electionForm;
@@ -92,7 +80,6 @@ const ElectionsPage = () => {
       return false;
     }
     
-  
     if (['draft', 'upcoming'].includes(electionForm.status)) {
       if (start < now.setHours(0, 0, 0, 0)) {
         showMessage("Start date cannot be in the past", "error");
@@ -104,10 +91,15 @@ const ElectionsPage = () => {
   }, [electionForm, showMessage]);
 
   const fetchElections = useCallback(async () => {
-    if (!token) return;
-
     try {
-      const response = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showMessage("Please login to continue", "error");
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/api/elections`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -120,25 +112,17 @@ const ElectionsPage = () => {
       if (error.response?.status === 401) {
         showMessage("Session expired. Please login again", "error");
         localStorage.removeItem('token');
-        return;
+      } else {
+        showMessage("Failed to load elections", "error");
       }
-      
-      showMessage("Failed to load elections", "error");
+    } finally {
+      setLoading(false);
     }
-  }, [token, showMessage]);
-
+  }, [showMessage]);
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (!token) return;
-      
-      setLoading(true);
-      await fetchElections();
-      setLoading(false);
-    };
-    
-    loadInitialData();
-  }, [token, fetchElections]);
+    fetchElections();
+  }, [fetchElections]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -161,7 +145,8 @@ const ElectionsPage = () => {
     setSubmitting(true);
 
     try {
-      const response = await axios.post(`https://elections-backend-j8m8.onrender.com/api/elections`, {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/api/elections`, {
         ...electionForm,
         title: electionForm.title.trim(),
         description: electionForm.description.trim()
@@ -198,7 +183,8 @@ const ElectionsPage = () => {
     }
 
     try {
-      await axios.delete(`$https://elections-backend-j8m8.onrender.com/api/elections/${id}`, {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/elections/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -269,7 +255,7 @@ const ElectionsPage = () => {
     election.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading || !token) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
@@ -282,7 +268,6 @@ const ElectionsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
           <div>
@@ -300,9 +285,7 @@ const ElectionsPage = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Message */}
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -319,7 +302,6 @@ const ElectionsPage = () => {
           </motion.div>
         )}
 
-        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatCard 
             title="Total Elections" 
@@ -343,7 +325,6 @@ const ElectionsPage = () => {
           />
         </div>
 
-        {/* Search */}
         <div className="mb-8 relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -356,7 +337,6 @@ const ElectionsPage = () => {
           />
         </div>
 
-        {/* Elections Grid */}
         <motion.div 
           className="grid grid-cols-1 lg:grid-cols-2 gap-6"
           initial="hidden"
@@ -436,7 +416,6 @@ const ElectionsPage = () => {
           ))}
         </motion.div>
 
-        {/* Empty State */}
         {filteredElections.length === 0 && (
           <div className="text-center py-12">
             <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -446,7 +425,6 @@ const ElectionsPage = () => {
         )}
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -545,7 +523,6 @@ const ElectionsPage = () => {
   );
 };
 
-// Reusable Components
 const StatCard = ({ title, value, icon }) => (
   <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between">
