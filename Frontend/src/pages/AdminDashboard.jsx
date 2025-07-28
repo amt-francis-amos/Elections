@@ -8,9 +8,7 @@ import {
   BarChart3,
   Activity,
   ArrowRight,
-  Clock,
   CheckCircle,
-  AlertTriangle,
   Eye,
   Plus,
   Settings,
@@ -20,146 +18,69 @@ import {
   Download,
   UserPlus,
   UserMinus,
-  FileText,
   Search,
-  Filter,
   X,
   Save,
-  Upload,
-  MoreHorizontal,
   PieChart,
   Users2,
-  Vote,
-  Calendar as CalendarIcon,
   MapPin,
   Mail,
   Phone
 } from 'lucide-react';
 
-const mockStats = {
-  totalElections: 12,
-  activeElections: 3,
-  totalCandidates: 45,
-  totalVotes: 2847,
-  totalUsers: 1234
-};
-
-const mockRecentActivity = [
-  { id: 1, type: 'election', action: 'New election "SRC 2025" created', time: '2 hours ago', status: 'success' },
-  { id: 2, type: 'candidate', action: 'Daniel Appiah registered for President', time: '4 hours ago', status: 'info' },
-  { id: 3, type: 'vote', action: '127 new votes cast in Faculty Elections', time: '6 hours ago', status: 'success' },
-  { id: 4, type: 'user', action: 'New user "Sarah Mitchell" registered', time: '1 day ago', status: 'info' },
-  { id: 5, type: 'election', action: 'Alumni Elections completed successfully', time: '2 days ago', status: 'completed' }
-];
-
-const mockElections = [
-  {
-    id: 1,
-    title: 'SRC 2025 Elections',
-    description: 'Student Representative Council Elections for 2025',
-    startDate: '2025-09-01',
-    endDate: '2025-09-03',
-    status: 'upcoming',
-    totalVotes: 0,
-    totalCandidates: 8,
-    eligibleVoters: 1200,
-    positions: ['President', 'Vice President', 'Secretary', 'Treasurer']
-  },
-  {
-    id: 2,
-    title: 'Faculty Board Elections',
-    description: 'Faculty of Engineering Board Elections',
-    startDate: '2025-08-15',
-    endDate: '2025-08-17',
-    status: 'active',
-    totalVotes: 234,
-    totalCandidates: 6,
-    eligibleVoters: 450,
-    positions: ['Chairman', 'Vice Chairman', 'Secretary']
-  },
-  {
-    id: 3,
-    title: 'Alumni Association Elections',
-    description: 'Annual Alumni Association Leadership Elections',
-    startDate: '2025-07-01',
-    endDate: '2025-07-03',
-    status: 'completed',
-    totalVotes: 892,
-    totalCandidates: 12,
-    eligibleVoters: 980,
-    positions: ['President', 'Vice President', 'Secretary', 'Treasurer', 'Public Relations Officer']
-  }
-];
-
-const mockCandidates = [
-  {
-    id: 1,
-    name: 'Daniel Appiah',
-    position: 'President',
-    electionId: 1,
-    electionTitle: 'SRC 2025 Elections',
-    email: 'daniel.appiah@university.edu',
-    phone: '+233 24 123 4567',
-    department: 'Computer Science',
-    year: '3rd Year',
-    votes: 0,
-    photo: null,
-    manifesto: 'Dedicated to improving student welfare and academic excellence...'
-  },
-  {
-    id: 2,
-    name: 'Sarah Mitchell',
-    position: 'Vice President',
-    electionId: 1,
-    electionTitle: 'SRC 2025 Elections',
-    email: 'sarah.mitchell@university.edu',
-    phone: '+233 20 987 6543',
-    department: 'Business Administration',
-    year: '4th Year',
-    votes: 0,
-    photo: null,
-    manifesto: 'Committed to transparent governance and student empowerment...'
-  },
-  {
-    id: 3,
-    name: 'Michael Johnson',
-    position: 'Chairman',
-    electionId: 2,
-    electionTitle: 'Faculty Board Elections',
-    email: 'michael.johnson@university.edu',
-    phone: '+233 26 555 1234',
-    department: 'Engineering',
-    year: 'Faculty',
-    votes: 156,
-    photo: null,
-    manifesto: 'Fostering innovation and excellence in engineering education...'
-  }
-];
-
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [stats, setStats] = useState(mockStats);
-  const [recentActivity] = useState(mockRecentActivity);
-  const [elections, setElections] = useState(mockElections);
-  const [candidates, setCandidates] = useState(mockCandidates);
+  const [stats, setStats] = useState({
+    totalElections: 0,
+    activeElections: 0,
+    totalCandidates: 0,
+    totalVotes: 0,
+    totalUsers: 0
+  });
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [elections, setElections] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal] = useState(null);
   const [selectedElection, setSelectedElection] = useState(null);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    // TODO: Replace with actual API calls
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // TODO: Implement actual API calls
+      // const statsResponse = await api.get('/admin/stats');
+      // const electionsResponse = await api.get('/admin/elections');
+      // const candidatesResponse = await api.get('/admin/candidates');
+      // const usersResponse = await api.get('/admin/users');
+      // const activityResponse = await api.get('/admin/activity');
+      
+      // setStats(statsResponse.data);
+      // setElections(electionsResponse.data);
+      // setCandidates(candidatesResponse.data);
+      // setUsers(usersResponse.data);
+      // setRecentActivity(activityResponse.data);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setLoading(false);
+    }
+  };
 
   const quickActions = [
     { icon: Plus, label: 'Create Election', color: 'bg-blue-500 hover:bg-blue-600', action: () => openModal('createElection') },
     { icon: Trophy, label: 'Add Candidate', color: 'bg-green-500 hover:bg-green-600', action: () => openModal('addCandidate') },
-    { icon: Users, label: 'Manage Users', color: 'bg-purple-500 hover:bg-purple-600', action: () => setActiveTab('users') },
+    { icon: UserPlus, label: 'Create Voter Account', color: 'bg-purple-500 hover:bg-purple-600', action: () => openModal('createUser') },
     { icon: BarChart3, label: 'View Reports', color: 'bg-orange-500 hover:bg-orange-600', action: () => setActiveTab('reports') }
   ];
 
@@ -171,6 +92,9 @@ const AdminDashboard = () => {
     } else if (type === 'editCandidate' && data) {
       setSelectedCandidate(data);
       setFormData(data);
+    } else if (type === 'editUser' && data) {
+      setSelectedUser(data);
+      setFormData(data);
     } else {
       setFormData({});
     }
@@ -180,108 +104,119 @@ const AdminDashboard = () => {
     setShowModal(null);
     setSelectedElection(null);
     setSelectedCandidate(null);
+    setSelectedUser(null);
     setFormData({});
   };
 
-  const handleCreateElection = () => {
-    const newElection = {
-      id: elections.length + 1,
-      title: formData.title,
-      description: formData.description,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      status: 'upcoming',
-      totalVotes: 0,
-      totalCandidates: 0,
-      eligibleVoters: parseInt(formData.eligibleVoters) || 0,
-      positions: formData.positions ? formData.positions.split(',').map(p => p.trim()) : []
-    };
-    setElections([...elections, newElection]);
-    setStats(prev => ({ ...prev, totalElections: prev.totalElections + 1 }));
-    closeModal();
+  const handleCreateElection = async () => {
+    try {
+      // TODO: Implement actual API call
+      // await api.post('/admin/elections', formData);
+      // await fetchDashboardData(); // Refresh data
+      closeModal();
+    } catch (error) {
+      console.error('Error creating election:', error);
+    }
   };
 
-  const handleUpdateElection = () => {
-    setElections(elections.map(e => e.id === selectedElection.id ? { ...e, ...formData } : e));
-    closeModal();
+  const handleUpdateElection = async () => {
+    try {
+      // TODO: Implement actual API call
+      // await api.put(`/admin/elections/${selectedElection.id}`, formData);
+      // await fetchDashboardData(); // Refresh data
+      closeModal();
+    } catch (error) {
+      console.error('Error updating election:', error);
+    }
   };
 
-  const handleDeleteElection = (id) => {
-    setElections(elections.filter(e => e.id !== id));
-    setCandidates(candidates.filter(c => c.electionId !== id));
-    setStats(prev => ({ ...prev, totalElections: prev.totalElections - 1 }));
+  const handleDeleteElection = async (id) => {
+    if (window.confirm('Are you sure you want to delete this election?')) {
+      try {
+        // TODO: Implement actual API call
+        // await api.delete(`/admin/elections/${id}`);
+        // await fetchDashboardData(); // Refresh data
+      } catch (error) {
+        console.error('Error deleting election:', error);
+      }
+    }
   };
 
-  const handleAddCandidate = () => {
-    const newCandidate = {
-      id: candidates.length + 1,
-      name: formData.name,
-      position: formData.position,
-      electionId: parseInt(formData.electionId),
-      electionTitle: elections.find(e => e.id === parseInt(formData.electionId))?.title,
-      email: formData.email,
-      phone: formData.phone,
-      department: formData.department,
-      year: formData.year,
-      votes: 0,
-      photo: null,
-      manifesto: formData.manifesto || ''
-    };
-    setCandidates([...candidates, newCandidate]);
-    
-    const updatedElections = elections.map(e => 
-      e.id === parseInt(formData.electionId) 
-        ? { ...e, totalCandidates: e.totalCandidates + 1 }
-        : e
-    );
-    setElections(updatedElections);
-    setStats(prev => ({ ...prev, totalCandidates: prev.totalCandidates + 1 }));
-    closeModal();
+  const handleAddCandidate = async () => {
+    try {
+      // TODO: Implement actual API call
+      // await api.post('/admin/candidates', formData);
+      // await fetchDashboardData(); // Refresh data
+      closeModal();
+    } catch (error) {
+      console.error('Error adding candidate:', error);
+    }
   };
 
-  const handleUpdateCandidate = () => {
-    setCandidates(candidates.map(c => c.id === selectedCandidate.id ? { ...c, ...formData } : c));
-    closeModal();
+  const handleUpdateCandidate = async () => {
+    try {
+      // TODO: Implement actual API call
+      // await api.put(`/admin/candidates/${selectedCandidate.id}`, formData);
+      // await fetchDashboardData(); // Refresh data
+      closeModal();
+    } catch (error) {
+      console.error('Error updating candidate:', error);
+    }
   };
 
-  const handleDeleteCandidate = (id) => {
-    const candidate = candidates.find(c => c.id === id);
-    setCandidates(candidates.filter(c => c.id !== id));
-    
-    const updatedElections = elections.map(e => 
-      e.id === candidate.electionId 
-        ? { ...e, totalCandidates: e.totalCandidates - 1 }
-        : e
-    );
-    setElections(updatedElections);
-    setStats(prev => ({ ...prev, totalCandidates: prev.totalCandidates - 1 }));
+  const handleDeleteCandidate = async (id) => {
+    if (window.confirm('Are you sure you want to delete this candidate?')) {
+      try {
+        // TODO: Implement actual API call
+        // await api.delete(`/admin/candidates/${id}`);
+        // await fetchDashboardData(); // Refresh data
+      } catch (error) {
+        console.error('Error deleting candidate:', error);
+      }
+    }
   };
 
-  const exportResults = (format, electionId = null) => {
-    const dataToExport = electionId 
-      ? elections.filter(e => e.id === electionId)
-      : elections;
-    
-    if (format === 'csv') {
-      const csvContent = [
-        ['Election Title', 'Status', 'Start Date', 'End Date', 'Total Votes', 'Total Candidates', 'Turnout %'].join(','),
-        ...dataToExport.map(e => [
-          e.title,
-          e.status,
-          e.startDate,
-          e.endDate,
-          e.totalVotes,
-          e.totalCandidates,
-          ((e.totalVotes / e.eligibleVoters) * 100).toFixed(2)
-        ].join(','))
-      ].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'election_results.csv';
-      a.click();
+  const handleCreateUser = async () => {
+    try {
+      // TODO: Implement actual API call
+      // await api.post('/admin/users', formData);
+      // await fetchDashboardData(); // Refresh data
+      closeModal();
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    try {
+      // TODO: Implement actual API call
+      // await api.put(`/admin/users/${selectedUser.id}`, formData);
+      // await fetchDashboardData(); // Refresh data
+      closeModal();
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        // TODO: Implement actual API call
+        // await api.delete(`/admin/users/${id}`);
+        // await fetchDashboardData(); // Refresh data
+      } catch (error) {
+        console.error('Error deleting user:', error);
+      }
+    }
+  };
+
+  const exportResults = async (format, electionId = null) => {
+    try {
+      // TODO: Implement actual API call
+      // const response = await api.get(`/admin/export/${format}${electionId ? `?election=${electionId}` : ''}`);
+      // Download logic here
+    } catch (error) {
+      console.error('Error exporting results:', error);
     }
   };
 
@@ -314,16 +249,22 @@ const AdminDashboard = () => {
   };
 
   const filteredElections = elections.filter(election => {
-    const matchesSearch = election.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         election.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = election.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         election.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || election.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
   const filteredCandidates = candidates.filter(candidate => {
-    return candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           candidate.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           candidate.electionTitle.toLowerCase().includes(searchTerm.toLowerCase());
+    return candidate.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           candidate.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           candidate.electionTitle?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const filteredUsers = users.filter(user => {
+    return user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           user.role?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   if (loading) {
@@ -344,7 +285,7 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome back! Here's what's happening with your elections.</p>
+              <p className="text-gray-600 mt-1">Manage elections, candidates, and users.</p>
             </div>
             <div className="flex items-center gap-4">
               <button className="p-2 text-gray-400 hover:text-gray-600 relative">
@@ -359,7 +300,7 @@ const AdminDashboard = () => {
           
           <div className="mt-6 border-t pt-4">
             <nav className="flex space-x-8">
-              {['dashboard', 'elections', 'candidates', 'reports'].map((tab) => (
+              {['dashboard', 'elections', 'candidates', 'users', 'reports'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -417,10 +358,6 @@ const AdminDashboard = () => {
                   </div>
                   <Trophy className="w-8 h-8 text-green-200" />
                 </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <TrendingUp size={16} className="text-green-200" />
-                  <span className="text-sm text-green-100">+12% this month</span>
-                </div>
               </motion.div>
 
               <motion.div
@@ -430,13 +367,9 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-purple-100 text-sm">Registered Users</p>
-                    <p className="text-3xl font-bold">{stats.totalUsers.toLocaleString()}</p>
+                    <p className="text-3xl font-bold">{stats.totalUsers}</p>
                   </div>
                   <Users className="w-8 h-8 text-purple-200" />
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <TrendingUp size={16} className="text-purple-200" />
-                  <span className="text-sm text-purple-100">+5% this week</span>
                 </div>
               </motion.div>
 
@@ -447,13 +380,9 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-orange-100 text-sm">Total Votes</p>
-                    <p className="text-3xl font-bold">{stats.totalVotes.toLocaleString()}</p>
+                    <p className="text-3xl font-bold">{stats.totalVotes}</p>
                   </div>
                   <BarChart3 className="w-8 h-8 text-orange-200" />
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <TrendingUp size={16} className="text-orange-200" />
-                  <span className="text-sm text-orange-100">+234 today</span>
                 </div>
               </motion.div>
 
@@ -464,13 +393,11 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-indigo-100 text-sm">Participation</p>
-                    <p className="text-3xl font-bold">87%</p>
+                    <p className="text-3xl font-bold">
+                      {stats.totalUsers > 0 ? Math.round((stats.totalVotes / stats.totalUsers) * 100) : 0}%
+                    </p>
                   </div>
                   <Activity className="w-8 h-8 text-indigo-200" />
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <TrendingUp size={16} className="text-indigo-200" />
-                  <span className="text-sm text-indigo-100">Above average</span>
                 </div>
               </motion.div>
             </motion.div>
@@ -507,29 +434,28 @@ const AdminDashboard = () => {
                 transition={{ delay: 0.4 }}
               >
                 <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <Activity size={20} />
-                      Recent Activity
-                    </h3>
-                    <button className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1">
-                      View All <ArrowRight size={16} />
-                    </button>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Activity size={20} />
+                    Recent Activity
+                  </h3>
                 </div>
                 <div className="p-6">
                   <div className="space-y-4">
-                    {recentActivity.slice(0, 5).map((activity) => (
-                      <div key={activity.id} className="flex items-start gap-3">
-                        <div className={`p-2 rounded-full ${getActivityColor(activity.status)}`}>
-                          {getActivityIcon(activity.type)}
+                    {recentActivity.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No recent activity</p>
+                    ) : (
+                      recentActivity.slice(0, 5).map((activity) => (
+                        <div key={activity.id} className="flex items-start gap-3">
+                          <div className={`p-2 rounded-full ${getActivityColor(activity.status)}`}>
+                            {getActivityIcon(activity.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900">{activity.action}</p>
+                            <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900">{activity.action}</p>
-                          <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -541,36 +467,32 @@ const AdminDashboard = () => {
                 transition={{ delay: 0.5 }}
               >
                 <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <Clock size={20} />
-                      Active Elections
-                    </h3>
-                    <button 
-                      onClick={() => setActiveTab('elections')}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-                    >
-                      Manage <ArrowRight size={16} />
-                    </button>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Calendar size={20} />
+                    Active Elections
+                  </h3>
                 </div>
                 <div className="p-6">
                   <div className="space-y-4">
-                    {elections.filter(e => e.status === 'active' || e.status === 'upcoming').slice(0, 3).map((election) => (
-                      <div key={election.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{election.title}</h4>
-                          <p className="text-sm text-gray-600">
-                            {election.totalVotes} votes • {election.totalCandidates} candidates
-                          </p>
+                    {elections.filter(e => e.status === 'active' || e.status === 'upcoming').length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No active elections</p>
+                    ) : (
+                      elections.filter(e => e.status === 'active' || e.status === 'upcoming').slice(0, 3).map((election) => (
+                        <div key={election.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{election.title}</h4>
+                            <p className="text-sm text-gray-600">
+                              {election.totalVotes} votes • {election.totalCandidates} candidates
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
+                              {election.status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
-                            {election.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -638,61 +560,69 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredElections.map((election) => (
-                      <tr key={election.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{election.title}</div>
-                            <div className="text-sm text-gray-500">{election.description}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
-                            {election.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          <div>{new Date(election.startDate).toLocaleDateString()}</div>
-                          <div className="text-gray-500">to {new Date(election.endDate).toLocaleDateString()}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">
-                            {election.totalVotes} / {election.eligibleVoters} votes
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${(election.totalVotes / election.eligibleVoters) * 100}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {((election.totalVotes / election.eligibleVoters) * 100).toFixed(1)}% turnout
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openModal('editElection', election)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => exportResults('csv', election.id)}
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              <Download size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteElection(election.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
+                    {filteredElections.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                          No elections found
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredElections.map((election) => (
+                        <tr key={election.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{election.title}</div>
+                              <div className="text-sm text-gray-500">{election.description}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
+                              {election.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <div>{new Date(election.startDate).toLocaleDateString()}</div>
+                            <div className="text-gray-500">to {new Date(election.endDate).toLocaleDateString()}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">
+                              {election.totalVotes} / {election.eligibleVoters} votes
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ width: `${election.eligibleVoters > 0 ? (election.totalVotes / election.eligibleVoters) * 100 : 0}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {election.eligibleVoters > 0 ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1) : 0}% turnout
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openModal('editElection', election)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => exportResults('csv', election.id)}
+                                className="text-green-600 hover:text-green-900"
+                              >
+                                <Download size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteElection(election.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -728,57 +658,157 @@ const AdminDashboard = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-                {filteredCandidates.map((candidate) => (
-                  <div key={candidate.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users size={24} className="text-gray-400" />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openModal('editCandidate', candidate)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCandidate(candidate.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <UserMinus size={16} />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">{candidate.name}</h3>
-                      <p className="text-sm text-blue-600 font-medium">{candidate.position}</p>
-                      <p className="text-sm text-gray-600">{candidate.electionTitle}</p>
-                      
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Mail size={14} />
-                        <span>{candidate.email}</span>
+                {filteredCandidates.length === 0 ? (
+                  <div className="col-span-full text-center py-8 text-gray-500">
+                    No candidates found
+                  </div>
+                ) : (
+                  filteredCandidates.map((candidate) => (
+                    <div key={candidate.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                          <Users size={24} className="text-gray-400" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openModal('editCandidate', candidate)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCandidate(candidate.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <UserMinus size={16} />
+                          </button>
+                        </div>
                       </div>
                       
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Phone size={14} />
-                        <span>{candidate.phone}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <MapPin size={14} />
-                        <span>{candidate.department} • {candidate.year}</span>
-                      </div>
-                      
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">Votes Received</span>
-                          <span className="text-lg font-bold text-blue-600">{candidate.votes}</span>
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-gray-900">{candidate.name}</h3>
+                        <p className="text-sm text-blue-600 font-medium">{candidate.position}</p>
+                        <p className="text-sm text-gray-600">{candidate.electionTitle}</p>
+                        
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Mail size={14} />
+                          <span>{candidate.email}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Phone size={14} />
+                          <span>{candidate.phone}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <MapPin size={14} />
+                          <span>{candidate.department} • {candidate.year}</span>
+                        </div>
+                        
+                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">Votes Received</span>
+                            <span className="text-lg font-bold text-blue-600">{candidate.votes || 0}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+              <button
+                onClick={() => openModal('createUser')}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+              >
+                <UserPlus size={20} />
+                Create User Account
+              </button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full max-w-md border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                          No users found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-4">
+                                <Users size={20} className="text-gray-400" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                                <div className="text-sm text-gray-500">{user.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{user.role}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{user.department}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openModal('editUser', user)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -788,15 +818,13 @@ const AdminDashboard = () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Reports & Analytics</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => exportResults('csv')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                >
-                  <Download size={16} />
-                  Export All Data
-                </button>
-              </div>
+              <button
+                onClick={() => exportResults('csv')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+              >
+                <Download size={16} />
+                Export All Data
+              </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -806,25 +834,29 @@ const AdminDashboard = () => {
                   Voter Turnout by Election
                 </h3>
                 <div className="space-y-4">
-                  {elections.map((election) => (
-                    <div key={election.id}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">{election.title}</span>
-                        <span className="text-sm text-gray-500">
-                          {((election.totalVotes / election.eligibleVoters) * 100).toFixed(1)}%
-                        </span>
+                  {elections.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No elections data available</p>
+                  ) : (
+                    elections.map((election) => (
+                      <div key={election.id}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">{election.title}</span>
+                          <span className="text-sm text-gray-500">
+                            {election.eligibleVoters > 0 ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1) : 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${election.eligibleVoters > 0 ? (election.totalVotes / election.eligibleVoters) * 100 : 0}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {election.totalVotes} of {election.eligibleVoters} eligible voters
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ width: `${(election.totalVotes / election.eligibleVoters) * 100}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {election.totalVotes} of {election.eligibleVoters} eligible voters
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -834,41 +866,45 @@ const AdminDashboard = () => {
                   Election Statistics
                 </h3>
                 <div className="space-y-4">
-                  {elections.map((election) => (
-                    <div key={election.id} className="border-l-4 border-blue-500 pl-4">
-                      <h4 className="font-medium text-gray-900">{election.title}</h4>
-                      <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
-                        <div>
-                          <span className="text-gray-500">Status:</span>
-                          <span className={`ml-2 px-2 py-1 rounded text-xs ${getStatusColor(election.status)}`}>
-                            {election.status}
-                          </span>
+                  {elections.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No elections data available</p>
+                  ) : (
+                    elections.map((election) => (
+                      <div key={election.id} className="border-l-4 border-blue-500 pl-4">
+                        <h4 className="font-medium text-gray-900">{election.title}</h4>
+                        <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
+                          <div>
+                            <span className="text-gray-500">Status:</span>
+                            <span className={`ml-2 px-2 py-1 rounded text-xs ${getStatusColor(election.status)}`}>
+                              {election.status}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Candidates:</span>
+                            <span className="ml-2 font-medium">{election.totalCandidates || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Total Votes:</span>
+                            <span className="ml-2 font-medium">{election.totalVotes || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Eligible Voters:</span>
+                            <span className="ml-2 font-medium">{election.eligibleVoters || 0}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-gray-500">Candidates:</span>
-                          <span className="ml-2 font-medium">{election.totalCandidates}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Total Votes:</span>
-                          <span className="ml-2 font-medium">{election.totalVotes}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Eligible Voters:</span>
-                          <span className="ml-2 font-medium">{election.eligibleVoters}</span>
+                        
+                        <div className="mt-3">
+                          <button
+                            onClick={() => exportResults('csv', election.id)}
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                          >
+                            <Download size={14} />
+                            Export Results
+                          </button>
                         </div>
                       </div>
-                      
-                      <div className="mt-3">
-                        <button
-                          onClick={() => exportResults('csv', election.id)}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-                        >
-                          <Download size={14} />
-                          Export Results
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -890,32 +926,40 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {candidates
-                      .sort((a, b) => b.votes - a.votes)
-                      .slice(0, 10)
-                      .map((candidate, index) => (
-                        <tr key={candidate.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm text-gray-900">#{index + 1}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                                <Users size={16} className="text-gray-400" />
+                    {candidates.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                          No candidates data available
+                        </td>
+                      </tr>
+                    ) : (
+                      candidates
+                        .sort((a, b) => (b.votes || 0) - (a.votes || 0))
+                        .slice(0, 10)
+                        .map((candidate, index) => (
+                          <tr key={candidate.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm text-gray-900">#{index + 1}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center">
+                                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                                  <Users size={16} className="text-gray-400" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
+                                  <div className="text-sm text-gray-500">{candidate.department}</div>
+                                </div>
                               </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
-                                <div className="text-sm text-gray-500">{candidate.department}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{candidate.position}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{candidate.electionTitle}</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {candidate.votes} votes
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{candidate.position}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{candidate.electionTitle}</td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {candidate.votes || 0} votes
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1160,6 +1204,138 @@ const AdminDashboard = () => {
                     >
                       <Save size={16} />
                       {showModal === 'addCandidate' ? 'Add Candidate' : 'Update Candidate'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(showModal === 'createUser' || showModal === 'editUser') && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {showModal === 'createUser' ? 'Create New User Account' : 'Edit User Account'}
+                    </h3>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                      <X size={24} />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={formData.name || ''}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter user's full name"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={formData.email || ''}
+                          onChange={(e) => setFormData({...formData, email: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="user@university.edu"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                        <select
+                          value={formData.role || ''}
+                          onChange={(e) => setFormData({...formData, role: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">Select role</option>
+                          <option value="voter">Voter</option>
+                          <option value="candidate">Candidate</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                        <input
+                          type="text"
+                          value={formData.department || ''}
+                          onChange={(e) => setFormData({...formData, department: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Computer Science"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
+                        <input
+                          type="text"
+                          value={formData.studentId || ''}
+                          onChange={(e) => setFormData({...formData, studentId: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter student ID"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input
+                          type="tel"
+                          value={formData.phone || ''}
+                          onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="+233 XX XXX XXXX"
+                        />
+                      </div>
+                    </div>
+
+                    {showModal === 'createUser' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input
+                          type="password"
+                          value={formData.password || ''}
+                          onChange={(e) => setFormData({...formData, password: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter temporary password"
+                        />
+                      </div>
+                    )}
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select
+                        value={formData.status || 'active'}
+                        onChange={(e) => setFormData({...formData, status: e.target.value})}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={closeModal}
+                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={showModal === 'createUser' ? handleCreateUser : handleUpdateUser}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      {showModal === 'createUser' ? 'Create User' : 'Update User'}
                     </button>
                   </div>
                 </div>
