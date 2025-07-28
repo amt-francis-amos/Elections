@@ -25,8 +25,7 @@ const ElectionsPage = () => {
     title: "",
     description: "",
     startDate: "",
-    endDate: "",
-    status: "draft"
+    endDate: ""
   });
 
   useEffect(() => {
@@ -68,7 +67,15 @@ const ElectionsPage = () => {
       return showMessage("Please fill in all required fields", "error");
     }
 
-    if (new Date(electionForm.startDate) >= new Date(electionForm.endDate)) {
+    const start = new Date(electionForm.startDate);
+    const end = new Date(electionForm.endDate);
+    const now = new Date();
+
+    if (start <= now) {
+      return showMessage("Start date must be in the future", "error");
+    }
+
+    if (start >= end) {
       return showMessage("End date must be after start date", "error");
     }
 
@@ -80,7 +87,11 @@ const ElectionsPage = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(electionForm),
+        body: JSON.stringify({
+          ...electionForm,
+          startDate: new Date(electionForm.startDate).toISOString(),
+          endDate: new Date(electionForm.endDate).toISOString()
+        }),
       });
 
       const data = await response.json();
@@ -90,7 +101,7 @@ const ElectionsPage = () => {
       }
 
       setElections(prev => [data.election, ...prev]);
-      setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" });
+      setElectionForm({ title: "", description: "", startDate: "", endDate: "" });
       setShowModal(false);
       showMessage("Election created successfully!", "success");
     } catch (error) {
@@ -136,7 +147,7 @@ const ElectionsPage = () => {
 
   const filteredElections = elections.filter(election =>
     election.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    election.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (election.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -222,8 +233,8 @@ const ElectionsPage = () => {
               </div>
 
               <div className="flex justify-between text-sm text-gray-600 mb-4">
-                <span><Users size={16} className="inline mr-1" /> {election.candidatesCount} Candidates</span>
-                <span><BarChart3 size={16} className="inline mr-1" /> {election.totalVotes} Votes</span>
+                <span><Users size={16} className="inline mr-1" /> {election.candidatesCount || 0} Candidates</span>
+                <span><BarChart3 size={16} className="inline mr-1" /> {election.totalVotes || 0} Votes</span>
               </div>
 
               <div className="flex justify-end gap-2">
@@ -248,15 +259,6 @@ const ElectionsPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Start Date" name="startDate" type="date" value={electionForm.startDate} onChange={handleInputChange} required />
                 <Input label="End Date" name="endDate" type="date" value={electionForm.endDate} onChange={handleInputChange} required />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Status</label>
-                <select name="status" value={electionForm.status} onChange={handleInputChange} className="w-full border rounded-lg px-3 py-2">
-                  <option value="draft">Draft</option>
-                  <option value="upcoming">Upcoming</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                </select>
               </div>
             </div>
             <div className="p-6 border-t flex justify-end gap-3">
