@@ -1,5 +1,5 @@
+
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import axios from 'axios'
 import {
   Plus,
@@ -15,13 +15,14 @@ import {
   Search,
   BarChart3
 } from 'lucide-react'
+import { toast, ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 const ElectionsPage = () => {
   const [elections, setElections] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [showModal, setShowModal] = useState(false)
-  const [message, setMessage] = useState(null)
   const [electionForm, setElectionForm] = useState({
     title: "",
     description: "",
@@ -30,26 +31,24 @@ const ElectionsPage = () => {
     status: "draft"
   })
 
-   useEffect(() => {
+  useEffect(() => {
     const fetchElections = async () => {
       try {
         const token = localStorage.getItem('userToken')
         if (!token) {
-          showMessage("You must be logged in to view elections", "error")
+          toast.error("You must be logged in to view elections")
           setLoading(false)
           return
         }
 
-        const response = await axios.get("https://elections-backend-j8m8.onrender.com/api/elections", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-
+        const response = await axios.get(
+          "https://elections-backend-j8m8.onrender.com/api/elections",
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
         setElections(response.data)
       } catch (error) {
-        const message = error.response?.data?.message || "Failed to load elections"
-        showMessage(message, "error")
+        const msg = error.response?.data?.message || "Failed to load elections"
+        toast.error(msg)
       } finally {
         setLoading(false)
       }
@@ -58,12 +57,6 @@ const ElectionsPage = () => {
     fetchElections()
   }, [])
 
-
-  const showMessage = (text, type = "success") => {
-    setMessage({ text, type })
-    setTimeout(() => setMessage(null), 4000)
-  }
-
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setElectionForm(prev => ({ ...prev, [name]: value }))
@@ -71,47 +64,41 @@ const ElectionsPage = () => {
 
   const handleCreateElection = async () => {
     if (!electionForm.title || !electionForm.startDate || !electionForm.endDate) {
-      return showMessage("Please fill in all required fields", "error")
+      return toast.error("Please fill in all required fields")
     }
-
     if (new Date(electionForm.startDate) >= new Date(electionForm.endDate)) {
-      return showMessage("End date must be after start date", "error")
+      return toast.error("End date must be after start date")
     }
 
     try {
-      const token = localStorage.getItem('userToken') 
-      const response = await axios.post(
+      const token = localStorage.getItem('userToken')
+      const { data } = await axios.post(
         "https://elections-backend-j8m8.onrender.com/api/elections",
         electionForm,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       )
-      setElections(prev => [response.data.election, ...prev])
+      setElections(prev => [data.election, ...prev])
       setElectionForm({ title: "", description: "", startDate: "", endDate: "", status: "draft" })
       setShowModal(false)
-      showMessage("Election created successfully!", "success")
+      toast.success("Election created successfully!")
     } catch (error) {
-      const message = error.response?.data?.message || "Error creating election"
-      showMessage(message, "error")
+      const msg = error.response?.data?.message || "Error creating election"
+      toast.error(msg)
     }
   }
 
   const handleDeleteElection = async (id) => {
     try {
-      const token = localStorage.getItem('userToken') 
-      await axios.delete(`https://elections-backend-j8m8.onrender.com/api/elections/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      const token = localStorage.getItem('userToken')
+      await axios.delete(
+        `https://elections-backend-j8m8.onrender.com/api/elections/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
       setElections(prev => prev.filter(e => e._id !== id))
-      showMessage("Election deleted successfully", "success")
+      toast.success("Election deleted successfully")
     } catch (error) {
-      const message = error.response?.data?.message || "Failed to delete election"
-      showMessage(message, "error")
+      const msg = error.response?.data?.message || "Failed to delete election"
+      toast.error(msg)
     }
   }
 
@@ -153,6 +140,9 @@ const ElectionsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      
+      <ToastContainer position="top-right" autoClose={3000} pauseOnHover />
+
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
           <div>
@@ -170,21 +160,6 @@ const ElectionsPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {message && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-              message.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
-            }`}
-          >
-            {message.type === "success" ? <CheckCircle size={20} /> : <XCircle size={20} />}
-            <span>{message.text}</span>
-          </motion.div>
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatCard title="Total Elections" value={elections.length} icon={<Calendar className="text-blue-500" />} />
           <StatCard title="Active Elections" value={elections.filter(e => e.status === "active").length} icon={<CheckCircle className="text-green-500" />} />
@@ -198,7 +173,7 @@ const ElectionsPage = () => {
             type="text"
             placeholder="Search elections..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
         </div>
