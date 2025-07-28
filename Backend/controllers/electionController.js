@@ -21,8 +21,25 @@ export const createElection = async (req, res) => {
 export const getAllElections = async (req, res) => {
   try {
     const elections = await Election.find().sort({ createdAt: -1 });
-    res.json(elections);
+
+    const enrichedElections = await Promise.all(
+      elections.map(async (election) => {
+        const candidatesCount = await Candidate.countDocuments({ election: election._id });
+
+     
+        const totalVotes = 0;
+
+        return {
+          ...election.toObject(),
+          candidatesCount,
+          totalVotes
+        };
+      })
+    );
+
+    res.json(enrichedElections);
   } catch (error) {
+    console.error("Error fetching elections:", error);
     res.status(500).json({ message: "Error fetching elections", error });
   }
 };

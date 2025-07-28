@@ -184,6 +184,7 @@ const ElectionsPage = () => {
           </motion.div>
         )}
 
+        {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatCard title="Total Elections" value={elections.length} icon={<Calendar className="text-blue-500" />} />
           <StatCard title="Active Elections" value={elections.filter(e => e.status === "active").length} icon={<CheckCircle className="text-green-500" />} />
@@ -191,6 +192,7 @@ const ElectionsPage = () => {
           <StatCard title="Total Votes" value={elections.reduce((sum, e) => sum + (e.totalVotes || 0), 0)} icon={<BarChart3 className="text-orange-500" />} />
         </div>
 
+        {/* Search */}
         <div className="mb-8 relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -202,6 +204,7 @@ const ElectionsPage = () => {
           />
         </div>
 
+        {/* Election Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredElections.map(election => (
             <div key={election._id} className="bg-white rounded-xl shadow-sm border p-6">
@@ -222,8 +225,8 @@ const ElectionsPage = () => {
               </div>
 
               <div className="flex justify-between text-sm text-gray-600 mb-4">
-                <span><Users size={16} className="inline mr-1" /> {election.candidatesCount} Candidates</span>
-                <span><BarChart3 size={16} className="inline mr-1" /> {election.totalVotes} Votes</span>
+                <span><Users size={16} className="inline mr-1" /> {election.candidatesCount || 0} Candidates</span>
+                <span><BarChart3 size={16} className="inline mr-1" /> {election.totalVotes || 0} Votes</span>
               </div>
 
               <div className="flex justify-end gap-2">
@@ -236,6 +239,7 @@ const ElectionsPage = () => {
         </div>
       </div>
 
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
