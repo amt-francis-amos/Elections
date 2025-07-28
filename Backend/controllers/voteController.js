@@ -41,7 +41,7 @@ export const getResults = async (req, res) => {
       { $group: { _id: '$candidate', voteCount: { $sum: 1 } } },
       {
         $lookup: {
-          from: 'candidates', // must match actual MongoDB collection name
+          from: 'candidates', 
           localField: '_id',
           foreignField: '_id',
           as: 'candidateInfo',
