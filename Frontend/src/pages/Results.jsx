@@ -43,6 +43,7 @@ const Results = () => {
 
         console.log("📌 Fetching results for election ID:", electionId);
 
+       
         const { data } = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -51,8 +52,13 @@ const Results = () => {
         console.log('💬 Fetched results:', data);
         setResults(data);
       } catch (err) {
-        console.error('❌ Error fetching results:', err.response?.data || err.message);
-        alert(`❌ Failed to load results: ${err.response?.data?.message || err.message}`);
+        console.error(
+          '❌ Error fetching results:',
+          err.response?.data || err.message
+        );
+        alert(
+          `❌ Failed to load results: ${err.response?.data?.message || err.message}`
+        );
       } finally {
         setLoading(false);
       }
