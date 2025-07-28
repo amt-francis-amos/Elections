@@ -32,12 +32,16 @@ export const getResults = async (req, res) => {
   try {
     const { electionId } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(electionId)) {
+      return res.status(400).json({ message: 'Invalid election ID' });
+    }
+
     const votes = await Vote.aggregate([
       { $match: { election: new mongoose.Types.ObjectId(electionId) } },
       { $group: { _id: '$candidate', voteCount: { $sum: 1 } } },
       {
         $lookup: {
-          from: 'candidates',
+          from: 'candidates', // must match actual MongoDB collection name
           localField: '_id',
           foreignField: '_id',
           as: 'candidateInfo',
@@ -55,6 +59,7 @@ export const getResults = async (req, res) => {
 
     res.json(votes);
   } catch (error) {
+    console.error('❌ Error in getResults:', error);
     res.status(500).json({ message: 'Error fetching results', error });
   }
 };
