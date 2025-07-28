@@ -25,9 +25,10 @@ import {
   Users2,
   MapPin,
   Mail,
-  Phone
+  Phone,
+  Upload,
+  Camera
 } from 'lucide-react';
-
 
 import Dashboard from '../components/Dashboard.jsx';
 import Elections from '../components/Elections.jsx';
@@ -101,7 +102,8 @@ const AdminDashboard = () => {
       phone: '+233 24 123 4567',
       department: 'Computer Science',
       year: '3rd Year',
-      votes: 145
+      votes: 145,
+      image: '/api/placeholder/64/64' 
     },
     {
       id: 2,
@@ -112,7 +114,8 @@ const AdminDashboard = () => {
       phone: '+233 24 234 5678',
       department: 'Engineering',
       year: '4th Year',
-      votes: 98
+      votes: 98,
+      image: null
     }
   ]);
   const [users, setUsers] = useState([
@@ -141,6 +144,7 @@ const AdminDashboard = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({});
+  const [imageUploadLoading, setImageUploadLoading] = useState(false);
 
   const quickActions = [
     { icon: Plus, label: 'Create Election', color: 'bg-blue-500 hover:bg-blue-600', action: () => openModal('createElection') },
@@ -173,9 +177,57 @@ const AdminDashboard = () => {
     setFormData({});
   };
 
-  const handleCreateElection = async () => {
+  
+  const handleCandidateImageUpload = async (candidateId, file) => {
+    setImageUploadLoading(true);
+    
     try {
       
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("candidateId", candidateId);
+
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target.result;
+        
+  
+        setCandidates(prev => prev.map(candidate => 
+          candidate.id === candidateId 
+            ? { ...candidate, image: imageUrl }
+            : candidate
+        ));
+
+   
+        const candidateName = candidates.find(c => c.id === candidateId)?.name || 'Unknown';
+        setRecentActivity(prev => [
+          {
+            id: Date.now(),
+            type: 'candidate',
+            action: `Photo uploaded for candidate ${candidateName}`,
+            time: 'Just now',
+            status: 'success'
+          },
+          ...prev.slice(0, 4) 
+        ]);
+
+        console.log('Image uploaded successfully for candidate:', candidateId);
+      };
+      reader.readAsDataURL(file);
+
+      //     ? { ...candidate, image: data.imageUrl }
+   
+    } catch (error) {
+      console.error('Error uploading image:', error);
+     
+    } finally {
+      setImageUploadLoading(false);
+    }
+  };
+
+  const handleCreateElection = async () => {
+    try {
       const newElection = {
         id: Date.now(),
         ...formData,
@@ -183,6 +235,18 @@ const AdminDashboard = () => {
         totalCandidates: 0
       };
       setElections([...elections, newElection]);
+      
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'election',
+          action: `New election "${formData.title}" created`,
+          time: 'Just now',
+          status: 'success'
+        },
+        ...prev.slice(0, 4)
+      ]);
+      
       closeModal();
     } catch (error) {
       console.error('Error creating election:', error);
@@ -192,6 +256,19 @@ const AdminDashboard = () => {
   const handleUpdateElection = async () => {
     try {
       setElections(elections.map(e => e.id === selectedElection.id ? { ...e, ...formData } : e));
+      
+    
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'election',
+          action: `Election "${formData.title}" updated`,
+          time: 'Just now',
+          status: 'info'
+        },
+        ...prev.slice(0, 4)
+      ]);
+      
       closeModal();
     } catch (error) {
       console.error('Error updating election:', error);
@@ -201,7 +278,20 @@ const AdminDashboard = () => {
   const handleDeleteElection = async (id) => {
     if (window.confirm('Are you sure you want to delete this election?')) {
       try {
+        const election = elections.find(e => e.id === id);
         setElections(elections.filter(e => e.id !== id));
+        
+       
+        setRecentActivity(prev => [
+          {
+            id: Date.now(),
+            type: 'election',
+            action: `Election "${election?.title}" deleted`,
+            time: 'Just now',
+            status: 'completed'
+          },
+          ...prev.slice(0, 4)
+        ]);
       } catch (error) {
         console.error('Error deleting election:', error);
       }
@@ -210,12 +300,28 @@ const AdminDashboard = () => {
 
   const handleAddCandidate = async () => {
     try {
+      const selectedElectionTitle = elections.find(e => e.id == formData.electionId)?.title || 'Unknown Election';
       const newCandidate = {
         id: Date.now(),
         ...formData,
-        votes: 0
+        electionTitle: selectedElectionTitle,
+        votes: 0,
+        image: null
       };
       setCandidates([...candidates, newCandidate]);
+      
+    
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'candidate',
+          action: `${formData.name} registered for ${formData.position} position`,
+          time: 'Just now',
+          status: 'success'
+        },
+        ...prev.slice(0, 4)
+      ]);
+      
       closeModal();
     } catch (error) {
       console.error('Error adding candidate:', error);
@@ -224,7 +330,25 @@ const AdminDashboard = () => {
 
   const handleUpdateCandidate = async () => {
     try {
-      setCandidates(candidates.map(c => c.id === selectedCandidate.id ? { ...c, ...formData } : c));
+      const selectedElectionTitle = elections.find(e => e.id == formData.electionId)?.title || 'Unknown Election';
+      setCandidates(candidates.map(c => c.id === selectedCandidate.id ? { 
+        ...c, 
+        ...formData,
+        electionTitle: selectedElectionTitle 
+      } : c));
+      
+    
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'candidate',
+          action: `Candidate ${formData.name} information updated`,
+          time: 'Just now',
+          status: 'info'
+        },
+        ...prev.slice(0, 4)
+      ]);
+      
       closeModal();
     } catch (error) {
       console.error('Error updating candidate:', error);
@@ -234,7 +358,20 @@ const AdminDashboard = () => {
   const handleDeleteCandidate = async (id) => {
     if (window.confirm('Are you sure you want to delete this candidate?')) {
       try {
+        const candidate = candidates.find(c => c.id === id);
         setCandidates(candidates.filter(c => c.id !== id));
+        
+       
+        setRecentActivity(prev => [
+          {
+            id: Date.now(),
+            type: 'candidate',
+            action: `Candidate ${candidate?.name} removed`,
+            time: 'Just now',
+            status: 'completed'
+          },
+          ...prev.slice(0, 4)
+        ]);
       } catch (error) {
         console.error('Error deleting candidate:', error);
       }
@@ -245,9 +382,23 @@ const AdminDashboard = () => {
     try {
       const newUser = {
         id: Date.now(),
-        ...formData
+        ...formData,
+        status: 'active'
       };
       setUsers([...users, newUser]);
+      
+     
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'user',
+          action: `New ${formData.role} account created for ${formData.name}`,
+          time: 'Just now',
+          status: 'success'
+        },
+        ...prev.slice(0, 4)
+      ]);
+      
       closeModal();
     } catch (error) {
       console.error('Error creating user:', error);
@@ -257,6 +408,19 @@ const AdminDashboard = () => {
   const handleUpdateUser = async () => {
     try {
       setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...formData } : u));
+      
+   
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'user',
+          action: `User ${formData.name} information updated`,
+          time: 'Just now',
+          status: 'info'
+        },
+        ...prev.slice(0, 4)
+      ]);
+      
       closeModal();
     } catch (error) {
       console.error('Error updating user:', error);
@@ -266,7 +430,20 @@ const AdminDashboard = () => {
   const handleDeleteUser = async (id) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
+        const user = users.find(u => u.id === id);
         setUsers(users.filter(u => u.id !== id));
+        
+        
+        setRecentActivity(prev => [
+          {
+            id: Date.now(),
+            type: 'user',
+            action: `User ${user?.name} account deleted`,
+            time: 'Just now',
+            status: 'completed'
+          },
+          ...prev.slice(0, 4)
+        ]);
       } catch (error) {
         console.error('Error deleting user:', error);
       }
@@ -276,6 +453,18 @@ const AdminDashboard = () => {
   const exportResults = async (format, electionId = null) => {
     try {
       console.log(`Exporting ${format} for election ${electionId || 'all'}`);
+      
+
+      setRecentActivity(prev => [
+        {
+          id: Date.now(),
+          type: 'election',
+          action: `Results exported in ${format.toUpperCase()} format`,
+          time: 'Just now',
+          status: 'info'
+        },
+        ...prev.slice(0, 4)
+      ]);
     } catch (error) {
       console.error('Error exporting results:', error);
     }
@@ -322,7 +511,17 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-  
+     
+      {imageUploadLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-gray-700">Uploading image...</span>
+          </div>
+        </div>
+      )}
+
+      
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex justify-between items-center">
@@ -341,7 +540,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-         
+          
           <div className="mt-6 border-t pt-4">
             <nav className="flex space-x-8">
               {['dashboard', 'elections', 'candidates', 'users', 'reports'].map((tab) => (
@@ -362,7 +561,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
- 
+     
       <div className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === 'dashboard' && (
           <Dashboard
@@ -397,6 +596,7 @@ const AdminDashboard = () => {
             setSearchTerm={setSearchTerm}
             openModal={openModal}
             handleDeleteCandidate={handleDeleteCandidate}
+            onImageUpload={handleCandidateImageUpload}
           />
         )}
 
@@ -421,6 +621,7 @@ const AdminDashboard = () => {
         )}
       </div>
 
+    
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -593,6 +794,30 @@ const AdminDashboard = () => {
                           onChange={(e) => setFormData({...formData, department: e.target.value})}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Computer Science"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input
+                          type="tel"
+                          value={formData.phone || ''}
+                          onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="+233 24 123 4567"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                        <input
+                          type="text"
+                          value={formData.year || ''}
+                          onChange={(e) => setFormData({...formData, year: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="1st Year, 2nd Year, etc."
                         />
                       </div>
                     </div>
