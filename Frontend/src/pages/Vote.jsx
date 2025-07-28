@@ -54,7 +54,7 @@ const Vote = () => {
       if (!selectedElectionId) return;
 
       try {
-        const token = localStorage.getItem('userToken'); // ✅ Fixed here
+        const token = localStorage.getItem('userToken'); 
         if (!token) return;
 
         const res = await axios.get(
