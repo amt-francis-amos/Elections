@@ -1,10 +1,11 @@
+
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 const getUserData = () => {
   const token = localStorage.getItem('token');
   const userDataRaw = localStorage.getItem('userData');
-  
+
   if (!token || !userDataRaw) {
     return null;
   }
@@ -20,7 +21,7 @@ const getUserData = () => {
     localStorage.removeItem('userData');
     return null;
   }
-  
+
   return null;
 };
 

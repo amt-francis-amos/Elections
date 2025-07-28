@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
@@ -22,9 +23,8 @@ const Login = ({
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
 
   const validateForm = () => {
     if (isLogin) {
@@ -37,28 +37,16 @@ const Login = ({
         return false;
       }
     } else {
-      if (!formData.name.trim()) {
-        toast.error("Name is required");
-        return false;
-      }
-      if (formData.name.trim().length < 2) {
+      if (!formData.name.trim() || formData.name.trim().length < 2) {
         toast.error("Name must be at least 2 characters long");
         return false;
       }
-      if (!formData.email.trim()) {
-        toast.error("Email is required");
-        return false;
-      }
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
+      if (!emailRegex.test(formData.email.trim())) {
         toast.error("Please provide a valid email address");
         return false;
       }
-      if (!formData.password) {
-        toast.error("Password is required");
-        return false;
-      }
-      if (formData.password.length < 6) {
+      if (!formData.password || formData.password.length < 6) {
         toast.error("Password must be at least 6 characters long");
         return false;
       }
@@ -100,51 +88,45 @@ const Login = ({
     try {
       const url = isLogin ? loginUrl : registerUrl;
       const payload = isLogin
-        ? {
-            id: formData.id.trim(),
-            password: formData.password,
-          }
+        ? { id: formData.id.trim(), password: formData.password }
         : {
             name: formData.name.trim(),
             email: formData.email.trim().toLowerCase(),
             password: formData.password,
           };
 
-      const response = await axios.post(url, payload);
-      const data = response.data;
+      const { data } = await axios.post(url, payload);
 
       if (isLogin) {
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-        localStorage.setItem("userToken", token);
+        // ←— store under "token" so ProtectedRoute sees it
+        localStorage.setItem("token", token);
         localStorage.setItem("userData", JSON.stringify(user));
 
         toast.success("Login successful!");
-
         if (onLoginSuccess) onLoginSuccess({ user, token });
         onClose();
         setFormData({ id: "", name: "", email: "", password: "" });
-
         handleRoleBasedRedirect(user);
       } else {
-        const { user, token } = data;
-        if (!user || !user.userId || !token) throw new Error("Invalid registration response format");
+        const { user: newUser, token: newToken } = data;
+        if (!newUser || !newUser.userId || !newToken)
+          throw new Error("Invalid registration response");
 
-        toast.success(`Registration successful! Your ID is: ${user.userId}`);
+        toast.success(`Registration successful! Your ID is: ${newUser.userId}`);
         setFormData({
-          id: user.userId,
+          id: newUser.userId,
           password: formData.password,
           name: "",
           email: "",
         });
-
         setTimeout(() => setIsLogin(true), 2000);
       }
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || error.message || "Something went wrong";
-      toast.error(errorMessage);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Something went wrong";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -157,7 +139,6 @@ const Login = ({
   };
 
   if (!isOpen) return null;
-
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
@@ -181,24 +162,23 @@ const Login = ({
                     type="text"
                     name="name"
                     value={formData.name}
-                    required
                     onChange={handleChange}
                     placeholder=" "
+                    required
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
                     Name (min 2 characters)
                   </label>
                 </div>
-
                 <div className="relative">
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
-                    required
                     onChange={handleChange}
                     placeholder=" "
+                    required
                     className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -214,9 +194,9 @@ const Login = ({
                   type="text"
                   name="id"
                   value={formData.id}
-                  required
                   onChange={handleChange}
                   placeholder=" "
+                  required
                   className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -230,9 +210,9 @@ const Login = ({
                 type={showPassword ? "text" : "password"}
                 name="password"
                 value={formData.password}
-                required
                 onChange={handleChange}
                 placeholder=" "
+                required
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -248,8 +228,8 @@ const Login = ({
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
+              className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
                 ? isLogin
@@ -271,7 +251,6 @@ const Login = ({
           </p>
         </div>
       </div>
-
       <ToastContainer position="top-right" autoClose={3000} pauseOnHover />
     </>
   );
