@@ -80,7 +80,7 @@ const ElectionsPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('userToken') // ✅ updated key here
+      const token = localStorage.getItem('userToken') 
       const response = await axios.post(
         "https://elections-backend-j8m8.onrender.com/api/elections",
         electionForm,
@@ -102,7 +102,7 @@ const ElectionsPage = () => {
 
   const handleDeleteElection = async (id) => {
     try {
-      const token = localStorage.getItem('userToken') // ✅ updated key here
+      const token = localStorage.getItem('userToken') 
       await axios.delete(`https://elections-backend-j8m8.onrender.com/api/elections/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`
