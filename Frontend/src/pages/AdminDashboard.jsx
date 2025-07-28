@@ -164,9 +164,32 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState({});
   const [imageUploadLoading, setImageUploadLoading] = useState(false);
 
-  // Get auth token from memory
+  // Enhanced token retrieval with multiple fallbacks
   const getAuthToken = () => {
-    return window.authData?.token || null;
+    // Try multiple sources for the token
+    if (window.authData?.token) {
+      return window.authData.token;
+    }
+    
+    // Fallback to localStorage if available
+    try {
+      const stored = localStorage.getItem('authData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.token;
+      }
+    } catch (e) {
+      console.log('No localStorage token found');
+    }
+    
+    return null;
+  };
+
+  // Enhanced auth check
+  const isAuthenticated = () => {
+    const token = getAuthToken();
+    const user = window.authData?.user;
+    return token && user && user.role === 'admin';
   };
 
   // Show notification
@@ -192,7 +215,7 @@ const AdminDashboard = () => {
     setVoterFormData({ ...voterFormData, [e.target.name]: e.target.value });
   };
 
-  // Create voter function
+  // Enhanced create voter function with better error handling
   const handleCreateVoter = async (e) => {
     e.preventDefault();
     
@@ -201,32 +224,50 @@ const AdminDashboard = () => {
       return;
     }
 
-    setLoading(true);
-    const token = getAuthToken();
-
-    if (!token) {
-      showNotification("Authentication required. Please login again.", "error");
-      setLoading(false);
+    // Check authentication before making request
+    if (!isAuthenticated()) {
+      showNotification("You must be logged in as an admin to create voters", "error");
       return;
     }
 
+    setLoading(true);
+    const token = getAuthToken();
+
+    console.log('Token being sent:', token ? 'Token exists' : 'No token');
+    console.log('User data:', window.authData?.user);
+
     try {
+      const requestBody = {
+        name: voterFormData.name.trim(),
+        email: voterFormData.email.trim() || undefined
+      };
+
+      console.log('Request body:', requestBody);
+
       const response = await fetch("https://elections-backend-j8m8.onrender.com/api/admin/create-voter", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          name: voterFormData.name.trim(),
-          email: voterFormData.email.trim() || undefined
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to create voter");
+        // Handle specific error cases
+        if (response.status === 401) {
+          showNotification("Session expired. Please login again.", "error");
+          // Optionally redirect to login
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(data.message || `Server error: ${response.status}`);
       }
 
       setCreatedVoter(data);
@@ -247,43 +288,69 @@ const AdminDashboard = () => {
       ]);
 
     } catch (error) {
+      console.error('Create voter error:', error);
       showNotification(error.message || "Failed to create voter", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch all voters
+  // Enhanced fetch voters with better error handling
   const fetchVoters = async () => {
-    const token = getAuthToken();
-    if (!token) return;
+    if (!isAuthenticated()) {
+      console.log('Not authenticated, skipping voter fetch');
+      return;
+    }
 
+    const token = getAuthToken();
     setLoadingVoters(true);
+
     try {
       const response = await fetch("https://elections-backend-j8m8.onrender.com/api/admin/voters", {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
         }
       });
 
+      if (response.status === 401) {
+        showNotification("Session expired. Please login again.", "error");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch voters: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('Fetched voters:', data);
       
-      if (response.ok) {
+      if (data.success) {
         setVoters(data.voters || []);
       } else {
-        showNotification("Failed to fetch voters", "error");
+        showNotification(data.message || "Failed to fetch voters", "error");
       }
     } catch (error) {
+      console.error('Fetch voters error:', error);
       showNotification("Error fetching voters", "error");
     } finally {
       setLoadingVoters(false);
     }
   };
 
-  // Load voters on component mount
+  // Load voters on component mount and when auth changes
   useEffect(() => {
-    fetchVoters();
+    if (isAuthenticated()) {
+      fetchVoters();
+    }
+  }, []);
+
+  // Check auth status on component mount
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      showNotification("Please ensure you are logged in as an admin", "warning");
+    }
   }, []);
 
   const quickActions = [
@@ -644,6 +711,19 @@ const AdminDashboard = () => {
         </div>
       )}
 
+      {/* Authentication Warning */}
+      {!isAuthenticated() && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                <strong>Authentication Required:</strong> You must be logged in as an admin to access this dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -651,6 +731,11 @@ const AdminDashboard = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600 mt-1">Manage elections, candidates, and users.</p>
+              {window.authData?.user && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Logged in as: {window.authData.user.name} ({window.authData.user.role})
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <button className="p-2 text-gray-400 hover:text-gray-600 relative">
@@ -747,7 +832,7 @@ const AdminDashboard = () => {
           />
         )}
 
-        {/* Voters Tab - New voter management section */}
+        {/* Voters Tab - Enhanced with better auth handling */}
         {activeTab === 'voters' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -757,152 +842,161 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Create Voter Form */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <UserPlus className="text-purple-600" size={20} />
-                  Create New Voter
-                </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Voter Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={voterFormData.name}
-                      onChange={handleVoterChange}
-                      placeholder="Enter voter's full name"
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email (Optional)
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={voterFormData.email}
-                      onChange={handleVoterChange}
-                      placeholder="Enter voter's email address"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      If not provided, a system email will be generated
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={handleCreateVoter}
-                    disabled={loading}
-                    className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? "Creating Voter..." : "Create Voter"}
-                  </button>
-                </div>
+            {!isAuthenticated() ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                <h3 className="text-lg font-medium text-yellow-800 mb-2">Authentication Required</h3>
+                <p className="text-yellow-700">Please login as an admin to access voter management features.</p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Create Voter Form */}
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <UserPlus className="text-purple-600" size={20} />
+                      Create New Voter
+                    </h3>
 
-              {/* Created Voter Credentials */}
-              {createdVoter && (
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4 text-green-600">
-                    ✅ Voter Created Successfully!
-                  </h3>
-                  
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
-                    <p className="text-sm text-gray-700 font-medium">
-                      Share these credentials with the voter:
-                    </p>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between bg-white p-3 rounded border">
-                        <div>
-                          <span className="text-xs text-gray-500">User ID:</span>
-                          <p className="font-mono font-bold text-gray-800">
-                            {createdVoter.credentials.userId}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(createdVoter.credentials.userId, "User ID")}
-                          className="text-gray-500 hover:text-purple-600 transition"
-                        >
-                          {copiedField === "User ID" ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Voter Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={voterFormData.name}
+                          onChange={handleVoterChange}
+                          placeholder="Enter voter's full name"
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
                       </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email (Optional)
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={voterFormData.email}
+                          onChange={handleVoterChange}
+                          placeholder="Enter voter's email address"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          If not provided, a system email will be generated
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={handleCreateVoter}
+                        disabled={loading}
+                        className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? "Creating Voter..." : "Create Voter"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Created Voter Credentials */}
+                  {createdVoter && (
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <h3 className="text-xl font-semibold text-gray-800 mb-4 text-green-600">
+                        ✅ Voter Created Successfully!
+                      </h3>
                       
-                      <div className="flex items-center justify-between bg-white p-3 rounded border">
-                        <div>
-                          <span className="text-xs text-gray-500">Password:</span>
-                          <p className="font-mono font-bold text-gray-800">
-                            {createdVoter.credentials.password}
-                          </p>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                        <p className="text-sm text-gray-700 font-medium">
+                          Share these credentials with the voter:
+                        </p>
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between bg-white p-3 rounded border">
+                            <div>
+                              <span className="text-xs text-gray-500">User ID:</span>
+                              <p className="font-mono font-bold text-gray-800">
+                                {createdVoter.credentials.userId}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(createdVoter.credentials.userId, "User ID")}
+                              className="text-gray-500 hover:text-purple-600 transition"
+                            >
+                              {copiedField === "User ID" ? <Check size={16} /> : <Copy size={16} />}
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center justify-between bg-white p-3 rounded border">
+                            <div>
+                              <span className="text-xs text-gray-500">Password:</span>
+                              <p className="font-mono font-bold text-gray-800">
+                                {createdVoter.credentials.password}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(createdVoter.credentials.password, "Password")}
+                              className="text-gray-500 hover:text-purple-600 transition"
+                            >
+                              {copiedField === "Password" ? <Check size={16} /> : <Copy size={16} />}
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => copyToClipboard(createdVoter.credentials.password, "Password")}
-                          className="text-gray-500 hover:text-purple-600 transition"
-                        >
-                          {copiedField === "Password" ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
+                        
+                        <p className="text-xs text-gray-600 mt-3">
+                          ⚠️ Make sure to share these credentials securely with the voter. 
+                          The password cannot be retrieved again.
+                        </p>
                       </div>
                     </div>
-                    
-                    <p className="text-xs text-gray-600 mt-3">
-                      ⚠️ Make sure to share these credentials securely with the voter. 
-                      The password cannot be retrieved again.
-                    </p>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Voters List */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Eye className="text-purple-600" size={20} />
-                All Voters ({voters.length})
-              </h3>
+                {/* Voters List */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <Eye className="text-purple-600" size={20} />
+                    All Voters ({voters.length})
+                  </h3>
 
-              {loadingVoters ? (
-                <div className="text-center py-8 text-gray-500">
-                  Loading voters...
+                  {loadingVoters ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Loading voters...
+                    </div>
+                  ) : voters.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No voters created yet
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-left p-3 font-medium text-gray-700">Name</th>
+                            <th className="text-left p-3 font-medium text-gray-700">User ID</th>
+                            <th className="text-left p-3 font-medium text-gray-700">Email</th>
+                            <th className="text-left p-3 font-medium text-gray-700">Created</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {voters.map((voter) => (
+                            <tr key={voter._id} className="hover:bg-gray-50">
+                              <td className="p-3 font-medium text-gray-800">{voter.name}</td>
+                              <td className="p-3 font-mono text-gray-600">{voter.userId}</td>
+                              <td className="p-3 text-gray-600">{voter.email}</td>
+                              <td className="p-3 text-gray-600">
+                                {new Date(voter.createdAt).toLocaleDateString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              ) : voters.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No voters created yet
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left p-3 font-medium text-gray-700">Name</th>
-                        <th className="text-left p-3 font-medium text-gray-700">User ID</th>
-                        <th className="text-left p-3 font-medium text-gray-700">Email</th>
-                        <th className="text-left p-3 font-medium text-gray-700">Created</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {voters.map((voter) => (
-                        <tr key={voter._id} className="hover:bg-gray-50">
-                          <td className="p-3 font-medium text-gray-800">{voter.name}</td>
-                          <td className="p-3 font-mono text-gray-600">{voter.userId}</td>
-                          <td className="p-3 text-gray-600">{voter.email}</td>
-                          <td className="p-3 text-gray-600">
-                            {new Date(voter.createdAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
 
