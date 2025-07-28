@@ -437,7 +437,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Results Modal */}
+    
       {isResultsModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
@@ -506,7 +506,7 @@ const Navbar = () => {
         </div>
       )}
 
-      {/* Auth Modal */}
+    
       {isAuthModalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-40"

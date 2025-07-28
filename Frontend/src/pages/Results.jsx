@@ -175,8 +175,26 @@ const Results = () => {
             className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300"
             variants={cardVariants}
           >
-            <div className="h-56 bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400 italic">No image</span>
+            <div className="h-56 bg-gray-200 flex items-center justify-center overflow-hidden">
+              {r.candidateImage || r.image || r.profilePicture ? (
+                <img
+                  src={r.candidateImage || r.image || r.profilePicture}
+                  alt={r.candidateName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className="w-full h-full flex items-center justify-center" style={{ display: r.candidateImage || r.image || r.profilePicture ? 'none' : 'flex' }}>
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-2">
+                    {r.candidateName ? r.candidateName.charAt(0).toUpperCase() : '?'}
+                  </div>
+                  <span className="text-gray-500 text-sm">No image available</span>
+                </div>
+              </div>
             </div>
             <div className="p-5 text-center">
               <h3 className="text-xl font-semibold text-gray-800">
