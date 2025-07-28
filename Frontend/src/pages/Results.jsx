@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -22,8 +22,10 @@ const cardVariants = {
 
 const Results = () => {
   const { electionId } = useParams();
+  const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const totalVotes = results.reduce((sum, r) => sum + r.voteCount, 0);
 
@@ -33,17 +35,26 @@ const Results = () => {
         const token = localStorage.getItem("userToken");
         if (!token) {
           alert("🚨 Please log in to view results.");
+          navigate("/login");
           return;
         }
 
-        if (!electionId) {
-          alert("❌ Election ID is missing in the URL.");
+        // Validate electionId
+        if (!electionId || electionId === ":electionId") {
+          setError("❌ Invalid or missing election ID in the URL.");
+          setLoading(false);
+          return;
+        }
+
+        // Check if electionId is a valid MongoDB ObjectId format (24 hex characters)
+        const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+        if (!objectIdRegex.test(electionId)) {
+          setError("❌ Invalid election ID format.");
+          setLoading(false);
           return;
         }
 
         console.log("📌 Fetching results for election ID:", electionId);
-
-       
 
         const { data } = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
@@ -52,28 +63,79 @@ const Results = () => {
 
         console.log("💬 Fetched results:", data);
         setResults(data);
+        setError(null);
       } catch (err) {
         console.error(
           "❌ Error fetching results:",
           err.response?.data || err.message
         );
-        alert(
-          `❌ Failed to load results: ${
-            err.response?.data?.message || err.message
-          }`
-        );
+        
+        const errorMessage = err.response?.data?.message || err.message;
+        setError(`❌ Failed to load results: ${errorMessage}`);
+        
+        // If the error is specifically about invalid election ID, show a more user-friendly message
+        if (errorMessage.includes("Invalid election ID") || err.response?.status === 404) {
+          setError("❌ Election not found. Please check the election ID and try again.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchResults();
-  }, [electionId]);
+  }, [electionId, navigate]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg text-gray-700">Loading results…</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-700">Loading results…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Error Loading Results</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <div className="space-y-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => navigate("/election")}
+              className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
+            >
+              Back to Elections
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!results || results.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">📊</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">No Results Available</h2>
+          <p className="text-gray-600 mb-6">No votes have been cast for this election yet.</p>
+          <button
+            onClick={() => navigate("/election")}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            Back to Elections
+          </button>
+        </div>
       </div>
     );
   }
@@ -122,6 +184,9 @@ const Results = () => {
               </h3>
               <div className="text-2xl font-bold text-blue-600 mt-4">
                 {r.voteCount.toLocaleString()} votes
+              </div>
+              <div className="text-sm text-gray-500 mt-2">
+                {totalVotes > 0 ? `${((r.voteCount / totalVotes) * 100).toFixed(1)}%` : '0%'}
               </div>
             </div>
           </motion.div>
