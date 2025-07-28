@@ -7,7 +7,7 @@ import {
   Users
 } from 'lucide-react';
 
-const Users = ({ 
+const UserAccount = ({ 
   users, 
   searchTerm, 
   setSearchTerm, 
@@ -115,4 +115,4 @@ const Users = ({
   );
 };
 
-export default Users;
+export default UserAccount;
