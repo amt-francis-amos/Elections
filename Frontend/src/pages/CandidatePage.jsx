@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, User, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
+import axios from 'axios';
 
 const CandidatesPage = () => {
   const [candidates, setCandidates] = useState([]);
@@ -16,8 +18,7 @@ const CandidatesPage = () => {
     image: null
   });
 
-  // Mock token - in real app this would come from localStorage
-  const token = 'mock-token';
+  const token = localStorage.getItem('token');
 
   const showMessage = (text, type = "success") => {
     setMessage({ text, type });
@@ -26,13 +27,10 @@ const CandidatesPage = () => {
 
   const fetchElections = async () => {
     try {
-      // Mock API call - replace with actual fetch
-      const mockElections = [
-        { _id: '1', title: 'Presidential Election 2024', status: 'active' },
-        { _id: '2', title: 'Senate Elections', status: 'upcoming' },
-        { _id: '3', title: 'Governor Election', status: 'completed' }
-      ];
-      setElections(mockElections);
+      const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setElections(res.data);
     } catch {
       showMessage("Failed to fetch elections", "error");
     }
@@ -40,40 +38,20 @@ const CandidatesPage = () => {
 
   const fetchCandidates = async () => {
     try {
-      // Mock candidates data
-      const mockCandidates = [
-        {
-          _id: '1',
-          name: 'John Doe',
-          position: 'President',
-          description: 'Experienced leader with a vision for the future',
-          image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=face',
-          votes: 1250,
-          electionId: '1',
-          election: '1'
-        },
-        {
-          _id: '2',
-          name: 'Jane Smith',
-          position: 'President',
-          description: 'Advocate for change and progress',
-          image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=300&h=300&fit=crop&crop=face',
-          votes: 980,
-          electionId: '1',
-          election: '1'
-        },
-        {
-          _id: '3',
-          name: 'Bob Johnson',
-          position: 'Senator',
-          description: 'Fighting for local communities',
-          image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face',
-          votes: 750,
-          electionId: '2',
-          election: '2'
-        }
-      ];
-      setCandidates(mockCandidates);
+      const all = [];
+      for (let election of elections) {
+        const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${election._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = res.data.map(c => ({
+          ...c,
+          description: "Candidate details",
+          votes: 0,
+          electionId: c.election
+        }));
+        all.push(...data);
+      }
+      setCandidates(all);
     } catch {
       showMessage("Failed to fetch candidates", "error");
     }
@@ -98,37 +76,45 @@ const CandidatesPage = () => {
     setCandidateForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    setCandidateForm(prev => ({ ...prev, image: file }));
-  };
+ const handleCreateCandidate = async () => {
+  if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
+    return showMessage("Please fill in all required fields", "error");
+  }
 
-  const handleCreateCandidate = async () => {
-    if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
-      return showMessage("Please fill in all required fields", "error");
-    }
+  const formData = new FormData();
+  formData.append("name", candidateForm.name);
+  formData.append("position", candidateForm.position);
+  formData.append("description", candidateForm.description);
+  formData.append("electionId", candidateForm.electionId);
+  if (candidateForm.image) {
+    formData.append("image", candidateForm.image);
+  }
 
-    try {
-      // Mock successful creation
-      const newCandidate = {
-        _id: Date.now().toString(),
-        name: candidateForm.name,
-        position: candidateForm.position,
-        description: candidateForm.description || 'No description provided',
-        image: candidateForm.image ? URL.createObjectURL(candidateForm.image) : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face',
-        votes: 0,
-        electionId: candidateForm.electionId,
-        election: candidateForm.electionId
-      };
+  try {
+    const res = await axios.post(`https://elections-backend-j8m8.onrender.com/api/candidates`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`
+      }
+    });
 
-      setCandidates(prev => [...prev, newCandidate]);
-      setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null });
-      setShowModal(false);
-      showMessage("Candidate added successfully!", "success");
-    } catch (err) {
-      showMessage("Error adding candidate", "error");
-    }
-  };
+    const newCandidate = res.data.candidate;
+    setCandidates(prev => [...prev, {
+      ...newCandidate,
+      description: candidateForm.description,
+      votes: 0,
+      electionId: newCandidate.election
+    }]);
+
+    setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null });
+    setShowModal(false);
+    showMessage("Candidate added successfully!", "success");
+  } catch (err) {
+    const msg = err.response?.data?.message || "Error adding candidate";
+    showMessage(msg, "error");
+  }
+};
+
 
   const handleDeleteCandidate = (id) => {
     setCandidates(prev => prev.filter(c => c._id !== id));
@@ -173,8 +159,10 @@ const CandidatesPage = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {message && (
-          <div
-            className={`mb-6 p-4 rounded-lg flex items-center gap-2 transition-all duration-300 ${
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
               message.type === "success"
                 ? "bg-green-50 text-green-800 border border-green-200"
                 : "bg-red-50 text-red-800 border border-red-200"
@@ -182,7 +170,7 @@ const CandidatesPage = () => {
           >
             {message.type === "success" ? <CheckCircle size={20} /> : <XCircle size={20} />}
             <span>{message.text}</span>
-          </div>
+          </motion.div>
         )}
 
         <div className="mb-8">
@@ -198,13 +186,28 @@ const CandidatesPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.1 }
+            }
+          }}
+        >
           {filteredCandidates.map((candidate) => {
             const election = elections.find(e => e._id === candidate.electionId);
             return (
-              <div
+              <motion.div
                 key={candidate._id}
                 className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 }
+                }}
               >
                 <div className="aspect-w-16 aspect-h-12">
                   <img
@@ -212,7 +215,7 @@ const CandidatesPage = () => {
                     alt={candidate.name}
                     className="w-full h-48 object-cover"
                     onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face';
+                      e.target.src = '/api/placeholder/300/300';
                     }}
                   />
                 </div>
@@ -266,10 +269,10 @@ const CandidatesPage = () => {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {filteredCandidates.length === 0 && (
           <div className="text-center py-12">
@@ -282,93 +285,32 @@ const CandidatesPage = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+          >
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">Add New Candidate</h3>
               <p className="text-sm text-gray-600 mt-1">Register a new candidate for an election</p>
             </div>
 
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  value={candidateForm.name} 
-                  onChange={handleInputChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                  placeholder="Enter candidate name" 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Position *</label>
-                <input 
-                  type="text" 
-                  name="position" 
-                  value={candidateForm.position} 
-                  onChange={handleInputChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                  placeholder="e.g., President, Senator" 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea 
-                  name="description" 
-                  value={candidateForm.description} 
-                  onChange={handleInputChange} 
-                  rows={3} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                  placeholder="Candidate description (optional)" 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Election *</label>
-                <select 
-                  name="electionId" 
-                  value={candidateForm.electionId} 
-                  onChange={handleInputChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select an election</option>
-                  {elections.filter(e => e.status !== 'completed').map(e => (
-                    <option key={e._id} value={e._id}>{e.title}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                />
-              </div>
+              <input type="text" name="name" value={candidateForm.name} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Enter candidate name" />
+              <input type="text" name="position" value={candidateForm.position} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="e.g., President" />
+              <textarea name="description" value={candidateForm.description} onChange={handleInputChange} rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Candidate description" />
+              <select name="electionId" value={candidateForm.electionId} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">Select an election</option>
+                {elections.filter(e => e.status !== 'completed').map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
+              </select>
+              <input type="file" accept="image/*" onChange={e => setCandidateForm(prev => ({ ...prev, image: e.target.files[0] }))} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
             </div>
 
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button 
-                onClick={() => { 
-                  setShowModal(false); 
-                  setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null }); 
-                }} 
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateCandidate} 
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Add Candidate
-              </button>
+              <button onClick={() => { setShowModal(false); setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null }); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+              <button onClick={handleCreateCandidate} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Add Candidate</button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>
