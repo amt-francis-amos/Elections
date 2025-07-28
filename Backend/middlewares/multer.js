@@ -1,8 +1,7 @@
+// middlewares/multer.js
 import multer from 'multer';
 
-
 const storage = multer.memoryStorage();
-
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif/;
@@ -15,7 +14,6 @@ const fileFilter = (req, file, cb) => {
     cb(new Error('Only image files are allowed!'));
   }
 };
-
 
 const upload = multer({
   storage,

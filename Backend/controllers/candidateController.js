@@ -3,30 +3,25 @@ import Election from '../models/electionModel.js';
 import cloudinary from '../config/cloudinary.js';
 import mongoose from 'mongoose';
 
-
 export const addCandidate = async (req, res) => {
   try {
     const { name, position, electionId } = req.body;
 
-  
     if (!name || !position || !electionId) {
       return res.status(400).json({ 
         message: 'Name, position, and electionId are required' 
       });
     }
 
-   
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
       return res.status(400).json({ message: 'Invalid election ID format' });
     }
 
-   
     const election = await Election.findById(electionId);
     if (!election) {
       return res.status(404).json({ message: 'Election not found' });
     }
 
-  
     let imageUrl = '';
     if (req.file) {
       try {
@@ -57,7 +52,6 @@ export const addCandidate = async (req, res) => {
       }
     }
 
-    
     const newCandidate = new Candidate({
       name: name.trim(),
       position: position.trim(),
@@ -80,7 +74,6 @@ export const addCandidate = async (req, res) => {
     });
   }
 };
-
 
 export const getCandidatesByElection = async (req, res) => {
   try {
