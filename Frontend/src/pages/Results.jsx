@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -37,16 +36,23 @@ const Results = () => {
           return;
         }
 
+        if (!electionId) {
+          alert('❌ Election ID is missing in the URL.');
+          return;
+        }
+
+        console.log("📌 Fetching results for election ID:", electionId);
+
         const { data } = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        console.log('💬 fetched results:', data);
+        console.log('💬 Fetched results:', data);
         setResults(data);
       } catch (err) {
-        console.error('Error fetching results:', err);
-        alert('❌ Failed to load results.');
+        console.error('❌ Error fetching results:', err.response?.data || err.message);
+        alert(`❌ Failed to load results: ${err.response?.data?.message || err.message}`);
       } finally {
         setLoading(false);
       }
@@ -96,7 +102,6 @@ const Results = () => {
             className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300"
             variants={cardVariants}
           >
-         
             <div className="h-56 bg-gray-200 flex items-center justify-center">
               <span className="text-gray-400 italic">No image</span>
             </div>
