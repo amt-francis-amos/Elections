@@ -110,9 +110,7 @@ const AdminDashboard = () => {
 
   const handleCreateElection = async () => {
     try {
-      // TODO: Implement actual API call
-      // await api.post('/admin/elections', formData);
-      // await fetchDashboardData(); // Refresh data
+     
       closeModal();
     } catch (error) {
       console.error('Error creating election:', error);
@@ -121,9 +119,7 @@ const AdminDashboard = () => {
 
   const handleUpdateElection = async () => {
     try {
-      // TODO: Implement actual API call
-      // await api.put(`/admin/elections/${selectedElection.id}`, formData);
-      // await fetchDashboardData(); // Refresh data
+      
       closeModal();
     } catch (error) {
       console.error('Error updating election:', error);
@@ -133,9 +129,7 @@ const AdminDashboard = () => {
   const handleDeleteElection = async (id) => {
     if (window.confirm('Are you sure you want to delete this election?')) {
       try {
-        // TODO: Implement actual API call
-        // await api.delete(`/admin/elections/${id}`);
-        // await fetchDashboardData(); // Refresh data
+        
       } catch (error) {
         console.error('Error deleting election:', error);
       }
@@ -144,9 +138,7 @@ const AdminDashboard = () => {
 
   const handleAddCandidate = async () => {
     try {
-      // TODO: Implement actual API call
-      // await api.post('/admin/candidates', formData);
-      // await fetchDashboardData(); // Refresh data
+     
       closeModal();
     } catch (error) {
       console.error('Error adding candidate:', error);
@@ -155,9 +147,7 @@ const AdminDashboard = () => {
 
   const handleUpdateCandidate = async () => {
     try {
-      // TODO: Implement actual API call
-      // await api.put(`/admin/candidates/${selectedCandidate.id}`, formData);
-      // await fetchDashboardData(); // Refresh data
+     
       closeModal();
     } catch (error) {
       console.error('Error updating candidate:', error);
@@ -167,9 +157,7 @@ const AdminDashboard = () => {
   const handleDeleteCandidate = async (id) => {
     if (window.confirm('Are you sure you want to delete this candidate?')) {
       try {
-        // TODO: Implement actual API call
-        // await api.delete(`/admin/candidates/${id}`);
-        // await fetchDashboardData(); // Refresh data
+       
       } catch (error) {
         console.error('Error deleting candidate:', error);
       }
@@ -178,9 +166,7 @@ const AdminDashboard = () => {
 
   const handleCreateUser = async () => {
     try {
-      // TODO: Implement actual API call
-      // await api.post('/admin/users', formData);
-      // await fetchDashboardData(); // Refresh data
+     
       closeModal();
     } catch (error) {
       console.error('Error creating user:', error);
@@ -189,9 +175,7 @@ const AdminDashboard = () => {
 
   const handleUpdateUser = async () => {
     try {
-      // TODO: Implement actual API call
-      // await api.put(`/admin/users/${selectedUser.id}`, formData);
-      // await fetchDashboardData(); // Refresh data
+     
       closeModal();
     } catch (error) {
       console.error('Error updating user:', error);
@@ -201,9 +185,7 @@ const AdminDashboard = () => {
   const handleDeleteUser = async (id) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        // TODO: Implement actual API call
-        // await api.delete(`/admin/users/${id}`);
-        // await fetchDashboardData(); // Refresh data
+        
       } catch (error) {
         console.error('Error deleting user:', error);
       }
@@ -212,9 +194,7 @@ const AdminDashboard = () => {
 
   const exportResults = async (format, electionId = null) => {
     try {
-      // TODO: Implement actual API call
-      // const response = await api.get(`/admin/export/${format}${electionId ? `?election=${electionId}` : ''}`);
-      // Download logic here
+      
     } catch (error) {
       console.error('Error exporting results:', error);
     }
