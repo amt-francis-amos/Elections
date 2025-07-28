@@ -32,7 +32,6 @@ import {
 import Dashboard from '../components/Dashboard.jsx';
 import Elections from '../components/Elections.jsx';
 import Candidates from '../components/Candidates.jsx';
-import Users from '../components/Users.jsx';
 import Reports from '../components/Reports.jsx';
 
 const AdminDashboard = () => {
@@ -322,7 +321,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+  
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex justify-between items-center">
@@ -341,7 +340,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-          {/* Navigation */}
+         
           <div className="mt-6 border-t pt-4">
             <nav className="flex space-x-8">
               {['dashboard', 'elections', 'candidates', 'users', 'reports'].map((tab) => (
@@ -362,7 +361,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+ 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === 'dashboard' && (
           <Dashboard
