@@ -30,35 +30,34 @@ const ElectionsPage = () => {
     status: "draft"
   })
 
-  useEffect(() => {
+   useEffect(() => {
     const fetchElections = async () => {
       try {
         const token = localStorage.getItem('userToken')
         if (!token) {
-          showMessage("You must be logged in to view elections", "error");
-          setLoading(false);
-          return;
+          showMessage("You must be logged in to view elections", "error")
+          setLoading(false)
+          return
         }
-
-        console.log("Token being sent:", token);
 
         const response = await axios.get("https://elections-backend-j8m8.onrender.com/api/elections", {
           headers: {
             Authorization: `Bearer ${token}`
           }
-        });
+        })
 
-        setElections(response.data);
+        setElections(response.data)
       } catch (error) {
-        const message = error.response?.data?.message || "Failed to load elections";
-        showMessage(message, "error");
+        const message = error.response?.data?.message || "Failed to load elections"
+        showMessage(message, "error")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
 
-    fetchElections();
-  }, []);
+    fetchElections()
+  }, [])
+
 
   const showMessage = (text, type = "success") => {
     setMessage({ text, type })
