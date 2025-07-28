@@ -1,16 +1,12 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, User, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
 import axios from 'axios';
-
-const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com';
-const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMTAgMTgwQzIxMCAxOTQuMzA3IDE5OC4zMDcgMjA2IDE4NCAyMDZIMTE2QzEwMS42OTMgMjA2IDkwIDE5NC4zMDcgOTAgMTgwVjE4MEg5MEMyMTAgMTgwIDIxMCAxODAiIGZpbGw9IiM5Q0EzQUYiLz4KPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTIwIiByPSI0MCIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
 
 const CandidatesPage = () => {
   const [candidates, setCandidates] = useState([]);
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [message, setMessage] = useState(null);
@@ -22,224 +18,107 @@ const CandidatesPage = () => {
     image: null
   });
 
-  const messageTimeoutRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const token = localStorage.getItem('token');
 
-  const showMessage = useCallback((text, type = "success") => {
-    if (messageTimeoutRef.current) {
-      clearTimeout(messageTimeoutRef.current);
-    }
+  const showMessage = (text, type = "success") => {
     setMessage({ text, type });
-  }, []);
+    setTimeout(() => setMessage(null), 4000);
+  };
 
-  useEffect(() => {
-    if (message) {
-      messageTimeoutRef.current = setTimeout(() => setMessage(null), 4000);
-      return () => {
-        if (messageTimeoutRef.current) {
-          clearTimeout(messageTimeoutRef.current);
-        }
-      };
-    }
-  }, [message]);
-
-  const validateForm = useCallback(() => {
-    if (!candidateForm.name.trim()) {
-      showMessage("Candidate name is required", "error");
-      return false;
-    }
-    if (!candidateForm.position.trim()) {
-      showMessage("Position is required", "error");
-      return false;
-    }
-    if (!candidateForm.electionId) {
-      showMessage("Please select an election", "error");
-      return false;
-    }
-    if (candidateForm.image && candidateForm.image.size > 5 * 1024 * 1024) {
-      showMessage("Image size must be less than 5MB", "error");
-      return false;
-    }
-    return true;
-  }, [candidateForm, showMessage]);
-
-  const fetchElections = useCallback(async () => {
+  const fetchElections = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        showMessage("Please login to continue", "error");
-        setLoading(false);
-        return;
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/api/elections`, {
+      const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setElections(response.data);
-    } catch (error) {
-      console.error("Error fetching elections:", error);
-      if (error.response?.status === 401) {
-        showMessage("Session expired. Please login again", "error");
-        localStorage.removeItem('token');
-      } else {
-        showMessage("Failed to fetch elections", "error");
-      }
+      setElections(res.data);
+    } catch {
+      showMessage("Failed to fetch elections", "error");
     }
-  }, [showMessage]);
+  };
 
-  const fetchCandidates = useCallback(async () => {
+  const fetchCandidates = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token || elections.length === 0) return;
-
-      const candidatePromises = elections.map(election =>
-        axios.get(`${API_BASE_URL}/api/candidates/${election._id}`, {
+      const all = [];
+      for (let election of elections) {
+        const res = await axios.get(`https://elections-backend-j8m8.onrender.com/api/candidates/${election._id}`, {
           headers: { Authorization: `Bearer ${token}` }
-        }).then(response => 
-          response.data.map(candidate => ({
-            ...candidate,
-            description: candidate.description || "No description available",
-            votes: candidate.votes || 0,
-            electionId: candidate.election
-          }))
-        ).catch(error => {
-          console.error(`Error fetching candidates for election ${election._id}:`, error);
-          return [];
-        })
-      );
-
-      const results = await Promise.all(candidatePromises);
-      const allCandidates = results.flat();
-      setCandidates(allCandidates);
-    } catch (error) {
-      console.error("Error fetching candidates:", error);
+        });
+        const data = res.data.map(c => ({
+          ...c,
+          description: "Candidate details",
+          votes: 0,
+          electionId: c.election
+        }));
+        all.push(...data);
+      }
+      setCandidates(all);
+    } catch {
       showMessage("Failed to fetch candidates", "error");
     }
-  }, [elections, showMessage]);
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
+    const load = async () => {
       await fetchElections();
       setLoading(false);
     };
-    loadData();
-  }, [fetchElections]);
+    load();
+  }, []);
 
   useEffect(() => {
     if (elections.length > 0) {
       fetchCandidates();
     }
-  }, [elections, fetchCandidates]);
+  }, [elections]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCandidateForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        showMessage("Please select a valid image file", "error");
-        e.target.value = '';
-        return;
-      }
-      
-      if (file.size > 5 * 1024 * 1024) {
-        showMessage("Image size must be less than 5MB", "error");
-        e.target.value = '';
-        return;
-      }
-    }
-    
-    setCandidateForm(prev => ({ ...prev, image: file }));
-  };
+ const handleCreateCandidate = async () => {
+  if (!candidateForm.name || !candidateForm.position || !candidateForm.electionId) {
+    return showMessage("Please fill in all required fields", "error");
+  }
 
-  const resetForm = useCallback(() => {
-    setCandidateForm({
-      name: "",
-      position: "",
-      description: "",
-      electionId: "",
-      image: null
+  const formData = new FormData();
+  formData.append("name", candidateForm.name);
+  formData.append("position", candidateForm.position);
+  formData.append("description", candidateForm.description);
+  formData.append("electionId", candidateForm.electionId);
+  if (candidateForm.image) {
+    formData.append("image", candidateForm.image);
+  }
+
+  try {
+    const res = await axios.post(`https://elections-backend-j8m8.onrender.com/api/candidates`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`
+      }
     });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, []);
 
-  const handleCreateCandidate = async () => {
-    if (!validateForm()) return;
-    
-    setSubmitting(true);
-    
-    const formData = new FormData();
-    formData.append("name", candidateForm.name.trim());
-    formData.append("position", candidateForm.position.trim());
-    formData.append("description", candidateForm.description.trim());
-    formData.append("electionId", candidateForm.electionId);
-    
-    if (candidateForm.image) {
-      formData.append("image", candidateForm.image);
-    }
+    const newCandidate = res.data.candidate;
+    setCandidates(prev => [...prev, {
+      ...newCandidate,
+      description: candidateForm.description,
+      votes: 0,
+      electionId: newCandidate.election
+    }]);
 
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/api/candidates`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      const newCandidate = response.data.candidate;
-      setCandidates(prev => [...prev, {
-        ...newCandidate,
-        description: candidateForm.description.trim() || "No description available",
-        votes: 0,
-        electionId: newCandidate.election
-      }]);
-
-      resetForm();
-      setShowModal(false);
-      showMessage("Candidate added successfully!", "success");
-    } catch (error) {
-      console.error("Error creating candidate:", error);
-      if (error.response?.status === 401) {
-        showMessage("Session expired. Please login again", "error");
-        localStorage.removeItem('token');
-        return;
-      }
-      const message = error.response?.data?.message || "Error adding candidate";
-      showMessage(message, "error");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteCandidate = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this candidate?")) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/api/candidates/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      setCandidates(prev => prev.filter(c => c._id !== id));
-      showMessage("Candidate deleted successfully", "success");
-    } catch (error) {
-      console.error("Error deleting candidate:", error);
-      showMessage("Failed to delete candidate", "error");
-    }
-  };
-
-  const handleModalClose = () => {
-    resetForm();
+    setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null });
     setShowModal(false);
+    showMessage("Candidate added successfully!", "success");
+  } catch (err) {
+    const msg = err.response?.data?.message || "Error adding candidate";
+    showMessage(msg, "error");
+  }
+};
+
+
+  const handleDeleteCandidate = (id) => {
+    setCandidates(prev => prev.filter(c => c._id !== id));
+    showMessage("Candidate removed successfully", "success");
   };
 
   const filteredCandidates = candidates.filter(candidate =>
@@ -269,8 +148,7 @@ const CandidatesPage = () => {
             </div>
             <button
               onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              aria-label="Add new candidate"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Plus size={20} />
               Add Candidate
@@ -289,7 +167,6 @@ const CandidatesPage = () => {
                 ? "bg-green-50 text-green-800 border border-green-200"
                 : "bg-red-50 text-red-800 border border-red-200"
             }`}
-            role="alert"
           >
             {message.type === "success" ? <CheckCircle size={20} /> : <XCircle size={20} />}
             <span>{message.text}</span>
@@ -305,7 +182,6 @@ const CandidatesPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              aria-label="Search candidates"
             />
           </div>
         </div>
@@ -335,11 +211,11 @@ const CandidatesPage = () => {
               >
                 <div className="aspect-w-16 aspect-h-12">
                   <img
-                    src={candidate.image || DEFAULT_AVATAR}
-                    alt={`${candidate.name} profile`}
+                    src={candidate.image}
+                    alt={candidate.name}
                     className="w-full h-48 object-cover"
                     onError={(e) => {
-                      e.target.src = DEFAULT_AVATAR;
+                      e.target.src = '/api/placeholder/300/300';
                     }}
                   />
                 </div>
@@ -379,22 +255,15 @@ const CandidatesPage = () => {
                   </div>
 
                   <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                    <button 
-                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      aria-label="View candidate details"
-                    >
+                    <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Eye size={18} />
                     </button>
-                    <button 
-                      className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
-                      aria-label="Edit candidate"
-                    >
+                    <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                       <Edit size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteCandidate(candidate._id)}
-                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                      aria-label="Delete candidate"
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -415,122 +284,31 @@ const CandidatesPage = () => {
       </div>
 
       {showModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={(e) => e.target === e.currentTarget && handleModalClose()}
-        >
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-            role="dialog"
-            aria-labelledby="modal-title"
-            aria-modal="true"
           >
             <div className="p-6 border-b border-gray-200">
-              <h3 id="modal-title" className="text-xl font-semibold text-gray-900">Add New Candidate</h3>
+              <h3 className="text-xl font-semibold text-gray-900">Add New Candidate</h3>
               <p className="text-sm text-gray-600 mt-1">Register a new candidate for an election</p>
             </div>
 
             <div className="p-6 space-y-4">
-              <div>
-                <label htmlFor="candidate-name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Candidate Name *
-                </label>
-                <input 
-                  id="candidate-name"
-                  type="text" 
-                  name="name" 
-                  value={candidateForm.name} 
-                  onChange={handleInputChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                  placeholder="Enter candidate name"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="candidate-position" className="block text-sm font-medium text-gray-700 mb-1">
-                  Position *
-                </label>
-                <input 
-                  id="candidate-position"
-                  type="text" 
-                  name="position" 
-                  value={candidateForm.position} 
-                  onChange={handleInputChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                  placeholder="e.g., President"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="candidate-description" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea 
-                  id="candidate-description"
-                  name="description" 
-                  value={candidateForm.description} 
-                  onChange={handleInputChange} 
-                  rows={3} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                  placeholder="Candidate description"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="candidate-election" className="block text-sm font-medium text-gray-700 mb-1">
-                  Election *
-                </label>
-                <select 
-                  id="candidate-election"
-                  name="electionId" 
-                  value={candidateForm.electionId} 
-                  onChange={handleInputChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select an election</option>
-                  {elections.filter(e => e.status !== 'completed').map(e => (
-                    <option key={e._id} value={e._id}>{e.title}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="candidate-image" className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Image
-                </label>
-                <input 
-                  id="candidate-image"
-                  ref={fileInputRef}
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleFileChange} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                />
-                <p className="text-xs text-gray-500 mt-1">Max size: 5MB. Supported formats: JPG, PNG, GIF</p>
-              </div>
+              <input type="text" name="name" value={candidateForm.name} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Enter candidate name" />
+              <input type="text" name="position" value={candidateForm.position} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="e.g., President" />
+              <textarea name="description" value={candidateForm.description} onChange={handleInputChange} rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Candidate description" />
+              <select name="electionId" value={candidateForm.electionId} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">Select an election</option>
+                {elections.filter(e => e.status !== 'completed').map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
+              </select>
+              <input type="file" accept="image/*" onChange={e => setCandidateForm(prev => ({ ...prev, image: e.target.files[0] }))} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
             </div>
 
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button 
-                onClick={handleModalClose} 
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateCandidate} 
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                disabled={submitting}
-              >
-                {submitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                {submitting ? 'Adding...' : 'Add Candidate'}
-              </button>
+              <button onClick={() => { setShowModal(false); setCandidateForm({ name: "", position: "", description: "", electionId: "", image: null }); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+              <button onClick={handleCreateCandidate} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Add Candidate</button>
             </div>
           </motion.div>
         </div>
