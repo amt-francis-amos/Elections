@@ -101,7 +101,7 @@ const Login = ({
         const { token, user } = data;
         if (!token || !user) throw new Error("Invalid login response");
 
-        // ←— store under "token" so ProtectedRoute sees it
+      
         localStorage.setItem("token", token);
         localStorage.setItem("userData", JSON.stringify(user));
 
