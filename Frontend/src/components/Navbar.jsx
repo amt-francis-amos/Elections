@@ -141,7 +141,7 @@ const Navbar = () => {
                       View Candidates
                     </Link>
                     <Link
-                      to="/result"
+                      to="/results/:electionId"
                       onClick={closeDropdown}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600"
                     >
@@ -323,7 +323,7 @@ const Navbar = () => {
                         View Candidates
                       </Link>
                       <Link
-                        to="/result"
+                        to="/results/:electionId"
                         onClick={closeMobileVote}
                         className="block px-6 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
                       >
