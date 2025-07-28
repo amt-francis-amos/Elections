@@ -22,7 +22,7 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidateId, setVotedCandidateId] = useState(null);
 
-  // 1) Fetch elections, filter on isActive
+
   useEffect(() => {
     const fetchElections = async () => {
       try {
