@@ -25,7 +25,12 @@ const Vote = () => {
   useEffect(() => {
     const fetchElections = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('userToken'); 
+        if (!token) {
+          alert('No token found. Please log in.');
+          return;
+        }
+
         const res = await axios.get('https://elections-backend-j8m8.onrender.com/api/elections', {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -49,7 +54,9 @@ const Vote = () => {
       if (!selectedElectionId) return;
 
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('userToken'); // ✅ Fixed here
+        if (!token) return;
+
         const res = await axios.get(
           `https://elections-backend-j8m8.onrender.com/api/candidates/${selectedElectionId}`,
           {
@@ -70,7 +77,7 @@ const Vote = () => {
   }, [selectedElectionId]);
 
   const handleVote = async (candidate) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('userToken'); // ✅ Fixed here
     if (!token) {
       alert('Please log in first to vote.');
       return;
