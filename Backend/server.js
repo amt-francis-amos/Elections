@@ -32,7 +32,7 @@ app.use('/api/', apiLimiter);
 
 
 app.use('/api/users', userRoutes);
-app.use('/api/elections', electionRoutes);
+app.use('/api', electionRoutes);
 app.use('/api', candidateRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/admin', adminRoutes);
