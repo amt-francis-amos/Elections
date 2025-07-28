@@ -16,24 +16,43 @@ const cardVariant = {
 };
 
 const Vote = () => {
+  const [elections, setElections] = useState([]);
+  const [selectedElectionId, setSelectedElectionId] = useState('');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [votedCandidateId, setVotedCandidateId] = useState(null);
 
-  // 🔧 Replace this with dynamic ID if needed
-  const electionId = '64ef1234abcd5678ef901234';
+  useEffect(() => {
+    const fetchElections = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('https://elections-backend-j8m8.onrender.com/api/elections', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const activeElections = res.data.filter(e => e.status === 'active');
+        setElections(activeElections);
+        if (activeElections.length > 0) {
+          setSelectedElectionId(activeElections[0]._id);
+        }
+      } catch (err) {
+        console.error('Error fetching elections:', err);
+        alert('Failed to load elections.');
+      }
+    };
+
+    fetchElections();
+  }, []);
+
 
   useEffect(() => {
     const fetchCandidates = async () => {
+      if (!selectedElectionId) return;
+
       try {
         const token = localStorage.getItem('token');
-        if (!token) {
-          alert('Please login to view candidates');
-          return;
-        }
-
         const res = await axios.get(
-          `https://elections-backend-j8m8.onrender.com/api/candidates/${electionId}`,
+          `https://elections-backend-j8m8.onrender.com/api/candidates/${selectedElectionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -49,11 +68,11 @@ const Vote = () => {
     };
 
     fetchCandidates();
-  }, [electionId]);
+  }, [selectedElectionId]);
+
 
   const handleVote = async (candidate) => {
     const token = localStorage.getItem('token');
-
     if (!token) {
       alert('Please log in first to vote.');
       return;
@@ -65,7 +84,7 @@ const Vote = () => {
       await axios.post(
         'https://elections-backend-j8m8.onrender.com/api/votes',
         {
-          electionId,
+          electionId: selectedElectionId,
           candidateId: candidate._id
         },
         {
@@ -97,6 +116,25 @@ const Vote = () => {
         >
           Vote for Your Leaders
         </motion.h1>
+
+        {elections.length > 0 ? (
+          <div className="mb-6 max-w-sm mx-auto">
+            <label className="block mb-2 font-medium text-gray-700">Select Election</label>
+            <select
+              value={selectedElectionId}
+              onChange={(e) => setSelectedElectionId(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            >
+              {elections.map((election) => (
+                <option key={election._id} value={election._id}>
+                  {election.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <p className="text-center text-gray-600">No active elections available.</p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {candidates.map((candidate, index) => (
