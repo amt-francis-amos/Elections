@@ -1,3 +1,4 @@
+
 import express from 'express';
 import { 
   createElection, 
@@ -11,11 +12,11 @@ import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();
 
+router.post('/elections', auth, authorizeRoles('admin'), createElection);
+router.get('/elections', auth, getAllElections);
+router.get('/elections/:id', auth, getElectionById);
+router.put('/elections/:id', auth, authorizeRoles('admin'), updateElection);
+router.delete('/elections/:id', auth, authorizeRoles('admin'), deleteElection);
 
-router.post('/', auth, authorizeRoles('admin'), createElection);
-router.get('/', auth, getAllElections);
-router.get('/:id', auth, getElectionById);
-router.put('/:id', auth, authorizeRoles('admin'), updateElection);
-router.delete('/:id', auth, authorizeRoles('admin'), deleteElection);
 
 export default router;
