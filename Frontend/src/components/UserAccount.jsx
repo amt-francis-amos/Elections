@@ -7,12 +7,12 @@ import {
   Users
 } from 'lucide-react';
 
-const UserAccount = ({ 
-  users, 
-  searchTerm, 
-  setSearchTerm, 
-  openModal, 
-  handleDeleteUser 
+const UserAccount = ({
+  users,
+  searchTerm,
+  setSearchTerm,
+  openModal,
+  handleDeleteUser
 }) => {
   const filteredUsers = users.filter(user => {
     return user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -32,7 +32,6 @@ const UserAccount = ({
           Create User Account
         </button>
       </div>
-
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <div className="relative">
@@ -46,7 +45,6 @@ const UserAccount = ({
             />
           </div>
         </div>
-
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -66,8 +64,8 @@ const UserAccount = ({
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                filteredUsers.map((user, index) => (
+                  <tr key={user.id || `user-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-4">
