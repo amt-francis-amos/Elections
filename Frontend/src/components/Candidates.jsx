@@ -12,14 +12,17 @@ import {
   X,
   Camera,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
+import axios from 'axios';
 
-const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null }) => {
+const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null, candidateId }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [preview, setPreview] = useState(currentImage);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
   const validateFile = (file) => {
@@ -93,10 +96,43 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
     }
   };
 
-  const handleSave = () => {
-    if (selectedFile) {
-      onImageSelect(selectedFile);
-      onClose();
+  const handleSave = async () => {
+    if (!selectedFile) return;
+
+    setUploading(true);
+    setUploadStatus({ type: 'info', message: 'Uploading image...' });
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}/image`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      
+      onImageSelect(candidateId, response.data.imageUrl || response.data.image);
+      setUploadStatus({ type: 'success', message: 'Image uploaded successfully!' });
+      
+      setTimeout(() => {
+        onClose();
+        resetModal();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Image upload error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to upload image. Please try again.';
+      setUploadStatus({ type: 'error', message: errorMessage });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -105,14 +141,17 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
     setSelectedFile(null);
     setUploadStatus(null);
     setDragActive(false);
+    setUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const handleClose = () => {
-    resetModal();
-    onClose();
+    if (!uploading) {
+      resetModal();
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -124,7 +163,8 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
           <h3 className="text-lg font-semibold text-gray-900">Upload Candidate Photo</h3>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={uploading}
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
           >
             <X size={20} />
           </button>
@@ -140,12 +180,14 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
                   className="w-full h-full object-cover"
                 />
               </div>
-              <button
-                onClick={removeImage}
-                className="absolute top-0 right-1/2 transform translate-x-16 -translate-y-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-              >
-                <X size={14} />
-              </button>
+              {!uploading && (
+                <button
+                  onClick={removeImage}
+                  className="absolute top-0 right-1/2 transform translate-x-16 -translate-y-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           ) : (
             <div
@@ -153,7 +195,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
                 dragActive
                   ? 'border-blue-400 bg-blue-50'
                   : 'border-gray-300 hover:border-gray-400'
-              }`}
+              } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -164,7 +206,8 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
                   Drop your image here, or{' '}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-blue-600 hover:text-blue-500"
+                    disabled={uploading}
+                    className="text-blue-600 hover:text-blue-500 disabled:opacity-50"
                   >
                     browse
                   </button>
@@ -181,6 +224,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
             onChange={handleFileSelect}
+            disabled={uploading}
             className="hidden"
           />
 
@@ -188,10 +232,14 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
             <div className={`flex items-center gap-2 p-3 rounded-lg ${
               uploadStatus.type === 'error' 
                 ? 'bg-red-50 text-red-700' 
+                : uploadStatus.type === 'info'
+                ? 'bg-blue-50 text-blue-700'
                 : 'bg-green-50 text-green-700'
             }`}>
               {uploadStatus.type === 'error' ? (
                 <AlertCircle size={16} />
+              ) : uploadStatus.type === 'info' ? (
+                <Loader2 size={16} className="animate-spin" />
               ) : (
                 <CheckCircle size={16} />
               )}
@@ -203,16 +251,24 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
         <div className="flex gap-3 p-6 border-t border-gray-200">
           <button
             onClick={handleClose}
-            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            disabled={uploading}
+            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            disabled={!selectedFile}
-            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            disabled={!selectedFile || uploading}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
           >
-            Save Photo
+            {uploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              'Save Photo'
+            )}
           </button>
         </div>
       </div>
@@ -223,8 +279,8 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
 const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
   const [showImageModal, setShowImageModal] = useState(false);
 
-  const handleImageSelect = (file) => {
-    onImageUpload(candidate.id, file);
+  const handleImageSelect = (candidateId, imageUrl) => {
+    onImageUpload(candidateId, imageUrl);
   };
 
   return (
@@ -263,7 +319,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
               <Edit size={16} />
             </button>
             <button
-              onClick={() => onDelete(candidate.id)}
+              onClick={() => onDelete(candidate.id || candidate._id)}
               className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
               title="Delete candidate"
             >
@@ -316,6 +372,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
         onClose={() => setShowImageModal(false)}
         onImageSelect={handleImageSelect}
         currentImage={candidate.image}
+        candidateId={candidate.id || candidate._id}
       />
     </>
   );
@@ -337,10 +394,10 @@ const Candidates = ({
            candidate.department?.toLowerCase().includes(searchLower);
   });
 
-  const handleImageUpload = (candidateId, file) => {
-    // Pass the file object to parent component for API upload
+  const handleImageUpload = (candidateId, imageUrl) => {
+    
     if (onImageUpload) {
-      onImageUpload(candidateId, file);
+      onImageUpload(candidateId, imageUrl);
     }
   };
 
@@ -408,7 +465,7 @@ const Candidates = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCandidates.map((candidate) => (
                 <CandidateCard
-                  key={candidate.id}
+                  key={candidate.id || candidate._id}
                   candidate={candidate}
                   onEdit={(candidate) => openModal('editCandidate', candidate)}
                   onDelete={handleDeleteCandidate}
