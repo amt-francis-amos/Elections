@@ -25,6 +25,8 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
+const BASE = "https://elections-backend-j8m8.onrender.com/api/admin";
+
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState({
@@ -57,24 +59,21 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     setLoading(true);
-    axios
-      .get("https://elections-backend-j8m8.onrender.com/api/admin/voters")
-      .then((res) => setUsers(res.data.voters))
-      .catch((err) => console.error(err))
+    axios.get(`${BASE}/voters`)
+      .then(res => setUsers(res.data.voters))
+      .catch(() => {})
       .finally(() => setLoading(false));
-
-    axios
-      .get("https://elections-backend-j8m8.onrender.com/api/admin/elections")
-      .then((res) => {
+    axios.get(`${BASE}/election`)
+      .then(res => {
         const list = res.data.elections || res.data;
         setElections(list);
-        setStats((s) => ({
+        setStats(s => ({
           ...s,
           totalElections: list.length,
-          activeElections: list.filter((e) => e.status === "active").length,
+          activeElections: list.filter(e => e.status === "active").length,
         }));
       })
-      .catch((err) => console.error(err));
+      .catch(() => {});
   }, []);
 
   const openModal = (type, data = null) => {
@@ -99,211 +98,164 @@ const AdminDashboard = () => {
       fd.append("image", file);
       fd.append("candidateId", candidateId);
       const resp = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${candidateId}/image`,
+        `${BASE}/candidates/${candidateId}/image`,
         fd
       );
-      setCandidates((cs) =>
-        cs.map((c) =>
+      setCandidates(cs =>
+        cs.map(c =>
           c._id === candidateId ? { ...c, image: resp.data.imageUrl } : c
         )
       );
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setImageUploadLoading(false);
-    }
+    } catch {}
+    setImageUploadLoading(false);
   };
 
   const handleCreateUser = async () => {
     try {
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/admin/create-voter",
-        { name: formData.name, email: formData.email }
-      );
-      setUsers((us) => [data.voter, ...us]);
-      setRecentActivity((a) => [
+      const { data } = await axios.post(`${BASE}/create-voter`, {
+        name: formData.name,
+        email: formData.email,
+      });
+      setUsers(us => [data.voter, ...us]);
+      setRecentActivity(a => [
         { id: Date.now(), type: "user", action: `Voter ${data.voter.name} created`, time: "Just now", status: "success" },
         ...a.slice(0, 4),
       ]);
       closeModal();
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handlePromoteUser = async (user) => {
     try {
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/admin/promote",
-        { userId: user._id }
-      );
-      setUsers((us) =>
-        us.map((u) => (u._id === data.user._id ? data.user : u))
-      );
-      setRecentActivity((a) => [
+      const { data } = await axios.post(`${BASE}/promote`, { userId: user._id });
+      setUsers(us => us.map(u => u._id === data.user._id ? data.user : u));
+      setRecentActivity(a => [
         { id: Date.now(), type: "user", action: `User ${data.user.name} promoted to admin`, time: "Just now", status: "success" },
         ...a.slice(0, 4),
       ]);
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      await axios.delete(
-        `https://elections-backend-j8m8.onrender.com/api/admin/users/${id}`
-      );
-      setUsers((us) => us.filter((u) => u._id !== id));
-      setRecentActivity((a) => [
+      await axios.delete(`${BASE}/users/${id}`);
+      setUsers(us => us.filter(u => u._id !== id));
+      setRecentActivity(a => [
         { id: Date.now(), type: "user", action: `User deleted`, time: "Just now", status: "completed" },
         ...a.slice(0, 4),
       ]);
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handleCreateElection = async () => {
     try {
-      const payload = {
+      const { data } = await axios.post(`${BASE}/election`, {
         title: formData.title,
         description: formData.description,
         startDate: formData.startDate,
         endDate: formData.endDate,
         eligibleVoters: formData.eligibleVoters,
-      };
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/admin/elections",
-        payload
-      );
-      setElections((es) => [data.election, ...es]);
-      setRecentActivity((a) => [
+      });
+      setElections(es => [data.election, ...es]);
+      setRecentActivity(a => [
         { id: Date.now(), type: "election", action: `New election "${data.election.title}" created`, time: "Just now", status: "success" },
         ...a.slice(0, 4),
       ]);
       closeModal();
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handleUpdateElection = async () => {
     try {
-      const electionId = selectedElection._id;
       const { data } = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`,
+        `${BASE}/election/${selectedElection._id}`,
         formData
       );
-      setElections((es) =>
-        es.map((e) => (e._id === data.election._id ? data.election : e))
-      );
-      setRecentActivity((a) => [
+      setElections(es => es.map(e => e._id === data.election._id ? data.election : e));
+      setRecentActivity(a => [
         { id: Date.now(), type: "election", action: `Election "${data.election.title}" updated`, time: "Just now", status: "info" },
         ...a.slice(0, 4),
       ]);
       closeModal();
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handleDeleteElection = async (id) => {
     if (!window.confirm("Delete this election?")) return;
     try {
-      await axios.delete(
-        `https://elections-backend-j8m8.onrender.com/api/admin/elections/${id}`
-      );
-      setElections((es) => es.filter((e) => e._id !== id));
-      setRecentActivity((a) => [
+      await axios.delete(`${BASE}/election/${id}`);
+      setElections(es => es.filter(e => e._id !== id));
+      setRecentActivity(a => [
         { id: Date.now(), type: "election", action: `Election deleted`, time: "Just now", status: "completed" },
         ...a.slice(0, 4),
       ]);
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handleAddCandidate = async () => {
+    if (!formData.name || !formData.position || !formData.electionId) {
+      alert("Please fill in all required fields (Name, Position, Election)");
+      return;
+    }
     try {
-      if (!formData.name || !formData.position || !formData.electionId) {
-        alert("Please fill in all required fields (Name, Position, Election)");
-        return;
-      }
-      const electionId = formData.electionId;
-      const payload = {
+      const { data } = await axios.post(`${BASE}/candidates`, {
         name: formData.name,
         position: formData.position,
-        electionId,
+        electionId: formData.electionId,
         email: formData.email,
         phone: formData.phone,
         department: formData.department,
         year: formData.year,
-      };
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
-        payload
-      );
-      setCandidates((cs) => [data.candidate, ...cs]);
-      setRecentActivity((a) => [
+      });
+      setCandidates(cs => [data.candidate, ...cs]);
+      setRecentActivity(a => [
         { id: Date.now(), type: "candidate", action: `${data.candidate.name} registered`, time: "Just now", status: "success" },
         ...a.slice(0, 4),
       ]);
       closeModal();
-    } catch (err) {
-      alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
+    } catch {
+      alert("Error adding candidate");
     }
   };
 
   const handleUpdateCandidate = async () => {
     try {
-      const candidateId = selectedCandidate._id;
       const { data } = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${candidateId}`,
+        `${BASE}/candidates/${selectedCandidate._id}`,
         formData
       );
-      setCandidates((cs) =>
-        cs.map((c) => (c._id === data.candidate._id ? data.candidate : c))
-      );
-      setRecentActivity((a) => [
+      setCandidates(cs => cs.map(c => c._id === data.candidate._id ? data.candidate : c));
+      setRecentActivity(a => [
         { id: Date.now(), type: "candidate", action: `Candidate ${data.candidate.name} updated`, time: "Just now", status: "info" },
         ...a.slice(0, 4),
       ]);
       closeModal();
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const handleDeleteCandidate = async (id) => {
     if (!window.confirm("Delete this candidate?")) return;
     try {
-      await axios.delete(
-        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${id}`
-      );
-      setCandidates((cs) => cs.filter((c) => c._id !== id));
-      setRecentActivity((a) => [
+      await axios.delete(`${BASE}/candidates/${id}`);
+      setCandidates(cs => cs.filter(c => c._id !== id));
+      setRecentActivity(a => [
         { id: Date.now(), type: "candidate", action: `Candidate removed`, time: "Just now", status: "completed" },
         ...a.slice(0, 4),
       ]);
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const exportResults = async (format, electionId = null) => {
     try {
       await axios.get(
-        `https://elections-backend-j8m8.onrender.com/api/admin/export?format=${format}&election=${electionId || ""}`
+        `${BASE}/export?format=${format}&election=${electionId || ""}`
       );
-      setRecentActivity((a) => [
+      setRecentActivity(a => [
         { id: Date.now(), type: "election", action: `Results exported as ${format.toUpperCase()}`, time: "Just now", status: "info" },
         ...a.slice(0, 4),
       ]);
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-    }
+    } catch {}
   };
 
   const getActivityIcon = (type) => {
@@ -346,7 +298,7 @@ const AdminDashboard = () => {
           </div>
         </div>
         <nav className="max-w-7xl mx-auto px-6 py-4 flex space-x-8">
-          {["dashboard", "elections", "candidates", "users", "reports"].map((tab) => (
+          {["dashboard", "elections", "candidates", "users", "reports"].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -408,7 +360,6 @@ const AdminDashboard = () => {
           />
         )}
       </div>
-
       <AnimatePresence>
         {showModal && (
           <motion.div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -422,30 +373,30 @@ const AdminDashboard = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Election Title</label>
-                      <input type="text" value={formData.title || ""} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter election title" />
+                      <input type="text" value={formData.title || ""} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter election title"/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea value={formData.description || ""} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="3" placeholder="Enter election description"></textarea>
+                      <textarea value={formData.description || ""} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="3" placeholder="Enter election description"></textarea>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                        <input type="date" value={formData.startDate || ""} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                        <input type="date" value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                        <input type="date" value={formData.endDate || ""} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                        <input type="date" value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Eligible Voters</label>
-                      <input type="number" value={formData.eligibleVoters || ""} onChange={(e) => setFormData({ ...formData, eligibleVoters: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter number of eligible voters" />
+                      <input type="number" value={formData.eligibleVoters || ""} onChange={e => setFormData({ ...formData, eligibleVoters: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter number of eligible voters"/>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button onClick={showModal === "createElection" ? handleCreateElection : handleUpdateElection} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"><Save size={16} />{showModal === "createElection" ? "Create Election" : "Update Election"}</button>
+                    <button onClick={showModal === "createElection" ? handleCreateElection : handleUpdateElection} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"><Save size={16}/>{showModal === "createElection" ? "Create Election" : "Update Election"}</button>
                   </div>
                 </div>
               )}
@@ -453,24 +404,24 @@ const AdminDashboard = () => {
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">{showModal === "addCandidate" ? "Add New Candidate" : "Edit Candidate"}</h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
                   </div>
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                        <input type="text" value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter candidate's full name" />
+                        <input type="text" value={formData.name || ""} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter candidate's full name"/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                        <input type="text" value={formData.position || ""} onChange={(e) => setFormData({ ...formData, position: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="President, Vice President, etc." />
+                        <input type="text" value={formData.position || ""} onChange={e => setFormData({ ...formData, position: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus_BORDER_TRANSPARENT" placeholder="President, Vice President, etc."/>
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Election</label>
-                      <select value={formData.electionId || ""} onChange={(e) => setFormData({ ...formData, electionId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      <select value={formData.electionId || ""} onChange={e => setFormData({ ...formData, electionId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">Select an election</option>
-                        {elections.map((e) => (
+                        {elections.map(e => (
                           <option key={e._id} value={e._id}>{e.title}</option>
                         ))}
                       </select>
@@ -478,27 +429,27 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" value={formData.email || ""} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="candidate@university.edu" />
+                        <input type="email" value={formData.email || ""} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="candidate@university.edu"/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                        <input type="text" value={formData.department || ""} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Computer Science" />
+                        <input type="text" value={formData.department || ""} onChange={e => setFormData({ ...formData, department: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus_BORDER_TRANSPARENT" placeholder="Computer Science"/>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                        <input type="tel" value={formData.phone || ""} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="+233 24 123 4567" />
+                        <input type="tel" value={formData.phone || ""} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus_RING_BLUE_500 focus_BORDER_TRANSPARENT" placeholder="+233 24 123 4567"/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                        <input type="text" value={formData.year || ""} onChange={(e) => setFormData({ ...formData, year: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="1st Year, 2nd Year, etc." />
+                        <input type="text" value={formData.year || ""} onChange={e => setFormData({ ...formData, year: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus_RING_BLUE_500 focus_BORDER_TRANSPARENT" placeholder="1st Year, 2nd Year, etc."/>
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button onClick={showModal === "addCandidate" ? handleAddCandidate : handleUpdateCandidate} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"><Save size={16} />{showModal === "addCandidate" ? "Add Candidate" : "Update Candidate"}</button>
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover_BG_GRAY_50">Cancel</button>
+                    <button onClick={showModal === "addCandidate" ? handleAddCandidate : handleUpdateCandidate} className="px-4 py-2 bg-green-600 text-white rounded-lg hover-bg-green-700 flex items-center gap-2"><Save size={16}/>{showModal === "addCandidate" ? "Add Candidate" : "Update Candidate"}</button>
                   </div>
                 </div>
               )}
@@ -506,21 +457,21 @@ const AdminDashboard = () => {
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">Create Voter Account</h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
                   </div>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                      <input type="text" value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="Enter voter's full name" />
+                      <input type="text" value={formData.name || ""} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus_RING_PURPLE_500 focus_BORDER_TRANSPARENT" placeholder="Enter voter's full name"/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
-                      <input type="email" value={formData.email || ""} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="Enter email (optional)" />
+                      <input type="email" value={formData.email || ""} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus_RING_PURPLE_500 focus_BORDER_TRANSPARENT" placeholder="Enter email (optional)"/>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button onClick={handleCreateUser} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"><Save size={16} />Create Voter</button>
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover_BG_GRAY_50">Cancel</button>
+                    <button onClick={handleCreateUser} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover_BG_PURPLE_700 flex items-center gap-2"><Save size={16}/>Create Voter</button>
                   </div>
                 </div>
               )}
