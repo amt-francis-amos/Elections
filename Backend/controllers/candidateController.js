@@ -3,58 +3,49 @@ import Election from '../models/electionModel.js';
 import cloudinary from '../config/cloudinary.js';
 import mongoose from 'mongoose';
 
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'image',
+        folder: 'candidates',
+        transformation: [
+          { width: 400, height: 400, crop: 'fill' },
+          { quality: 'auto' }
+        ]
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
 export const addCandidate = async (req, res) => {
   try {
     const { name, position, electionId, email, phone, department, year, bio } = req.body;
 
     if (!name || !position || !electionId) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Name, position, and electionId are required' 
-      });
+      return res.status(400).json({ success: false, message: 'Name, position, and electionId are required' });
     }
 
-  
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid election ID format' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid election ID format' });
     }
 
-    
     const election = await Election.findById(electionId);
     if (!election) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Election not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Election not found' });
     }
 
- 
     let imageUrl = '';
     if (req.file) {
       try {
-        const result = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            {
-              resource_type: 'image',
-              folder: 'candidates',
-              transformation: [
-                { width: 400, height: 400, crop: 'fill' },
-                { quality: 'auto' }
-              ]
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          stream.end(req.file.buffer);
-        });
+        const result = await uploadToCloudinary(req.file.buffer);
         imageUrl = result.secure_url;
       } catch (cloudinaryError) {
-        console.error('Cloudinary upload error:', cloudinaryError);
         return res.status(500).json({
           success: false,
           message: 'Error uploading image',
@@ -63,38 +54,30 @@ export const addCandidate = async (req, res) => {
       }
     }
 
-
     const candidateData = {
       name: name.trim(),
       position: position.trim(),
       election: electionId,
-      image: imageUrl
+      image: imageUrl,
+      ...(email && { email: email.trim() }),
+      ...(phone && { phone: phone.trim() }),
+      ...(department && { department: department.trim() }),
+      ...(year && { year: year.trim() }),
+      ...(bio && { bio: bio.trim() }),
     };
-
- 
-    if (email) candidateData.email = email.trim();
-    if (phone) candidateData.phone = phone.trim();
-    if (department) candidateData.department = department.trim();
-    if (year) candidateData.year = year.trim();
-    if (bio) candidateData.bio = bio.trim();
 
     const newCandidate = new Candidate(candidateData);
     await newCandidate.save();
 
-   
-    const populatedCandidate = await Candidate.findById(newCandidate._id)
-      .populate('election', 'title');
+    const populatedCandidate = await Candidate.findById(newCandidate._id).populate('election', 'title');
 
     res.status(201).json({
       success: true,
       message: 'Candidate added successfully',
       candidate: populatedCandidate
     });
-
   } catch (error) {
     console.error('Add candidate error:', error);
-    
-
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -102,8 +85,7 @@ export const addCandidate = async (req, res) => {
         error: error.message
       });
     }
-    
-  
+
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
@@ -126,25 +108,18 @@ export const getCandidatesByElection = async (req, res) => {
     const { electionId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid election ID format' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid election ID format' });
     }
 
     const election = await Election.findById(electionId);
     if (!election) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Election not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Election not found' });
     }
 
     const candidates = await Candidate.find({ election: electionId })
       .populate('election', 'title')
       .sort({ createdAt: -1 });
 
-  
     const candidatesWithElectionTitle = candidates.map(candidate => ({
       ...candidate.toObject(),
       electionTitle: candidate.election?.title || 'Unknown Election'
@@ -170,29 +145,23 @@ export const updateCandidate = async (req, res) => {
     const { name, position, email, phone, department, year, bio } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid candidate ID format' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid candidate ID format' });
     }
 
     const candidate = await Candidate.findById(id);
     if (!candidate) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Candidate not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Candidate not found' });
     }
 
- 
-    const updateData = {};
-    if (name) updateData.name = name.trim();
-    if (position) updateData.position = position.trim();
-    if (email !== undefined) updateData.email = email.trim();
-    if (phone !== undefined) updateData.phone = phone.trim();
-    if (department !== undefined) updateData.department = department.trim();
-    if (year !== undefined) updateData.year = year.trim();
-    if (bio !== undefined) updateData.bio = bio.trim();
+    const updateData = {
+      ...(name && { name: name.trim() }),
+      ...(position && { position: position.trim() }),
+      ...(email !== undefined && { email: email.trim() }),
+      ...(phone !== undefined && { phone: phone.trim() }),
+      ...(department !== undefined && { department: department.trim() }),
+      ...(year !== undefined && { year: year.trim() }),
+      ...(bio !== undefined && { bio: bio.trim() }),
+    };
 
     const updatedCandidate = await Candidate.findByIdAndUpdate(
       id,
@@ -221,18 +190,12 @@ export const updateCandidateImage = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid candidate ID format' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid candidate ID format' });
     }
 
     const candidate = await Candidate.findById(id);
     if (!candidate) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Candidate not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Candidate not found' });
     }
 
     if (!req.file) {
@@ -243,23 +206,7 @@ export const updateCandidateImage = async (req, res) => {
     }
 
     try {
-      const result = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: 'image',
-            folder: 'candidates',
-            transformation: [
-              { width: 400, height: 400, crop: 'fill' },
-              { quality: 'auto' }
-            ]
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        stream.end(req.file.buffer);
-      });
+      const result = await uploadToCloudinary(req.file.buffer);
 
       const updatedCandidate = await Candidate.findByIdAndUpdate(
         id,
@@ -275,7 +222,6 @@ export const updateCandidateImage = async (req, res) => {
       });
 
     } catch (cloudinaryError) {
-      console.error('Cloudinary upload error:', cloudinaryError);
       return res.status(500).json({
         success: false,
         message: 'Error uploading image',
@@ -298,18 +244,12 @@ export const deleteCandidate = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid candidate ID format' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid candidate ID format' });
     }
 
     const candidate = await Candidate.findById(id);
     if (!candidate) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Candidate not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Candidate not found' });
     }
 
     await Candidate.findByIdAndDelete(id);
@@ -329,16 +269,15 @@ export const deleteCandidate = async (req, res) => {
   }
 };
 
-
 export const getAllElections = async (req, res) => {
   try {
     const elections = await Election.find({})
-      .select('title description startDate endDate status isActive') // Add isActive field
+      .select('title description startDate endDate status isActive')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      elections: elections
+      elections
     });
   } catch (error) {
     console.error('Get all elections error:', error);
