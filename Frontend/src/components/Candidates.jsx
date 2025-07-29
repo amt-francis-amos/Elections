@@ -121,18 +121,31 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             
             let electionsData = [];
             
-            // Handle different response structures
+            // Handle different response structures more robustly
             if (response.data) {
-              if (response.data.success && response.data.elections) {
-                electionsData = response.data.elections;
-              } else if (response.data.success && response.data.data) {
-                electionsData = response.data.data;
-              } else if (Array.isArray(response.data)) {
+              // Check for nested success response
+              if (response.data.success === true) {
+                if (response.data.elections && Array.isArray(response.data.elections)) {
+                  electionsData = response.data.elections;
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                  electionsData = response.data.data;
+                } else if (response.data.election) {
+                  electionsData = [response.data.election];
+                }
+              }
+              // Check for direct array response
+              else if (Array.isArray(response.data)) {
                 electionsData = response.data;
-              } else if (response.data.elections) {
+              }
+              // Check for nested arrays without success flag
+              else if (response.data.elections && Array.isArray(response.data.elections)) {
                 electionsData = response.data.elections;
-              } else if (response.data.data) {
+              } else if (response.data.data && Array.isArray(response.data.data)) {
                 electionsData = response.data.data;
+              }
+              // Single election object
+              else if (response.data.title || response.data.name) {
+                electionsData = [response.data];
               }
             }
             
@@ -141,10 +154,15 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               electionsData = [];
             }
             
+            // Filter out any invalid election objects
+            electionsData = electionsData.filter(election => 
+              election && (election._id || election.id) && (election.title || election.name)
+            );
+            
             console.log('Processed elections data:', electionsData);
             
             // Cache the result
-            mainRateLimitCache.current.set(cacheKey, {
+            rateLimitCache.current.set(cacheKey, {
               data: electionsData,
               timestamp: now
             });
@@ -154,8 +172,10 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             if (electionsData.length === 0) {
               setErrors(prev => ({ 
                 ...prev, 
-                elections: 'No elections available. Please create an election first.' 
+                elections: 'No active elections found. Please create an election first.' 
               }));
+            } else {
+              setErrors(prev => ({ ...prev, elections: '' }));
             }
             
             break; // Success, exit retry loop
@@ -191,7 +211,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
                 errorMessage = 'Server error - please try again later';
                 shouldRetry = true;
               } else {
-                errorMessage = error.response.data?.message || errorMessage;
+                errorMessage = error.response.data?.message || `Server returned ${status} error`;
               }
             } else if (error.request) {
               errorMessage = 'Network error - please check your connection';
@@ -1017,6 +1037,25 @@ const Candidates = ({
   const [availableElections, setAvailableElections] = useState(elections);
   const [loadingElections, setLoadingElections] = useState(false);
 
+  // Rate limiting cache for main component
+  const mainRateLimitCache = useRef(new Map());
+  const mainLastRequestTime = useRef(0);
+  const MAIN_MIN_REQUEST_INTERVAL = 1000;
+
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const makeMainRateLimitedRequest = async (url, config) => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - mainLastRequestTime.current;
+    
+    if (timeSinceLastRequest < MAIN_MIN_REQUEST_INTERVAL) {
+      await sleep(MAIN_MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+    }
+    
+    mainLastRequestTime.current = Date.now();
+    return axios.get(url, config);
+  };
+
   useEffect(() => {
     setCandidatesList(candidates);
   }, [candidates]);
@@ -1049,7 +1088,7 @@ const Candidates = ({
               return;
             }
 
-            const response = await makeRateLimitedRequest(
+            const response = await makeMainRateLimitedRequest(
               `https://elections-backend-j8m8.onrender.com/api/elections`,
               {
                 headers: {
@@ -1061,19 +1100,33 @@ const Candidates = ({
             );
             
             let electionsData = [];
-            if (response.data.success && response.data.elections) {
-              electionsData = response.data.elections;
-            } else if (response.data.success && response.data.data) {
-              electionsData = response.data.data;
-            } else if (Array.isArray(response.data)) {
-              electionsData = response.data;
-            } else if (response.data) {
-              electionsData = [response.data];
+            
+            // Handle different response structures
+            if (response.data) {
+              if (response.data.success === true) {
+                if (response.data.elections && Array.isArray(response.data.elections)) {
+                  electionsData = response.data.elections;
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                  electionsData = response.data.data;
+                }
+              } else if (Array.isArray(response.data)) {
+                electionsData = response.data;
+              } else if (response.data.elections && Array.isArray(response.data.elections)) {
+                electionsData = response.data.elections;
+              } else if (response.data.data && Array.isArray(response.data.data)) {
+                electionsData = response.data.data;
+              } else if (response.data.title || response.data.name) {
+                electionsData = [response.data];
+              }
             }
             
+            // Filter out invalid elections
+            electionsData = electionsData.filter(election => 
+              election && (election._id || election.id) && (election.title || election.name)
+            );
+            
             // Cache the result
-                        // Cache the result
-            modalRateLimitCache.current.set(cacheKey, {
+            mainRateLimitCache.current.set(cacheKey, {
               data: electionsData,
               timestamp: now
             });
