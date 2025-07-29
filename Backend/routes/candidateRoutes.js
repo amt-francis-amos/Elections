@@ -9,7 +9,7 @@ import {
 } from '../controllers/candidateController.js';
 import auth from '../middlewares/auth.js';
 import { authorizeRoles } from '../middlewares/authorizeRoles.js';
-import upload from '../middlewares/upload.js'; 
+import upload from '../middlewares/multer.js'; 
 
 const router = express.Router();
 
