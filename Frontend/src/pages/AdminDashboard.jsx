@@ -384,73 +384,80 @@ const AdminDashboard = () => {
     }
   };
   const handleAddCandidate = async () => {
-    try {
-      if (!formData.name || !formData.position || !formData.electionId) {
-        console.error("Missing required fields");
-        alert("Please fill in all required fields (Name, Position, Election)");
-        return;
-      }
-
-      console.log("Looking for election with ID:", formData.electionId);
-      console.log("Available elections:", elections);
-
-      const selectedElection = elections.find(
-        (e) =>
-          e.id === formData.electionId ||
-          e._id === formData.electionId ||
-          e.id === parseInt(formData.electionId) ||
-          e._id === parseInt(formData.electionId)
-      );
-
-      if (!selectedElection) {
-        console.error("Selected election not found");
-        console.log("FormData electionId:", formData.electionId);
-        console.log(
-          "Available election IDs:",
-          elections.map((e) => ({ id: e.id, _id: e._id }))
-        );
-        alert("Please select a valid election");
-        return;
-      }
-
-      const electionId = selectedElection._id || selectedElection.id;
-
-      const payload = {
-        name: formData.name,
-        position: formData.position,
-        electionId: electionId,
-        email: formData.email,
-        phone: formData.phone,
-        department: formData.department,
-        year: formData.year,
-      };
-
-      console.log("Sending candidate payload:", payload);
-
-      const { data } = await axios.post(
-        "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
-        payload
-      );
-
-      setCandidates((cs) => [data.candidate, ...cs]);
-      setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "candidate",
-          action: `${data.candidate.name} registered`,
-          time: "Just now",
-          status: "success",
-        },
-        ...a.slice(0, 4),
-      ]);
-      closeModal();
-    } catch (err) {
-      console.error("Add candidate error:", err.response?.data || err.message);
-      alert(
-        `Error adding candidate: ${err.response?.data?.message || err.message}`
-      );
+  try {
+    // Debug: Log the current form data
+    console.log("Current formData:", formData);
+    
+    // Validate required fields with detailed checking
+    const missingFields = [];
+    if (!formData.name || formData.name.trim() === '') missingFields.push('Name');
+    if (!formData.position || formData.position.trim() === '') missingFields.push('Position');
+    if (!formData.electionId) missingFields.push('Election');
+    
+    if (missingFields.length > 0) {
+      console.error("Missing required fields:", missingFields);
+      alert(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+      return;
     }
-  };
+
+    // Debug: Log what we're looking for
+    console.log("Looking for election with ID:", formData.electionId);
+    console.log("Available elections:", elections);
+
+    // Find the selected election - check both id and _id fields
+    const selectedElection = elections.find(e => 
+      e.id === formData.electionId || 
+      e._id === formData.electionId ||
+      e.id === parseInt(formData.electionId) ||
+      e._id === parseInt(formData.electionId)
+    );
+
+    if (!selectedElection) {
+      console.error("Selected election not found");
+      console.log("FormData electionId:", formData.electionId);
+      console.log("Available election IDs:", elections.map(e => ({ id: e.id, _id: e._id })));
+      alert("Please select a valid election");
+      return;
+    }
+
+    // Use the backend ID format (_id)
+    const electionId = selectedElection._id || selectedElection.id;
+
+    const payload = {
+      name: formData.name,
+      position: formData.position,
+      electionId: electionId,
+      // Optional fields
+      email: formData.email,
+      phone: formData.phone,
+      department: formData.department,
+      year: formData.year,
+    };
+
+    console.log("Sending candidate payload:", payload);
+
+    const { data } = await axios.post(
+      "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
+      payload
+    );
+    
+    setCandidates((cs) => [data.candidate, ...cs]);
+    setRecentActivity((a) => [
+      {
+        id: Date.now(),
+        type: "candidate",
+        action: `${data.candidate.name} registered`,
+        time: "Just now",
+        status: "success",
+      },
+      ...a.slice(0, 4),
+    ]);
+    closeModal();
+  } catch (err) {
+    console.error("Add candidate error:", err.response?.data || err.message);
+    alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
+  }
+};
   const exportResults = async (format, electionId = null) => {
     try {
       await axios.get(
