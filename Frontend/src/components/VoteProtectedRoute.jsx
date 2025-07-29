@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
@@ -25,7 +24,7 @@ const getUserData = () => {
   return null;
 };
 
-const ProtectedRoute = ({ allowedRoles = [], children }) => {
+const VoteProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const user = getUserData();
   const location = useLocation();
@@ -37,15 +36,18 @@ const ProtectedRoute = ({ allowedRoles = [], children }) => {
     }
   }, [token, user]);
 
+ 
   if (!token || !user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
+  
+  if (user.role === 'admin') {
+    return <Navigate to="/admin" replace />;
   }
+
 
   return children;
 };
 
-export default ProtectedRoute;
+export default VoteProtectedRoute;
