@@ -378,55 +378,29 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Find the selected election
-    const selectedElection = elections.find(e => e.id === parseInt(formData.electionId));
+    // Find the selected election from local state
+    const selectedElection = elections.find(e => e.id === formData.electionId || e._id === formData.electionId);
     if (!selectedElection) {
       console.error("Selected election not found");
       alert("Please select a valid election");
       return;
     }
 
-    // Backend expects a MongoDB ObjectId for electionId
-    // Generate a temporary ObjectId or use the election's actual MongoDB ID
-    // For now, we'll need to get the real MongoDB ObjectId from the backend
-    let realElectionId;
     
-    try {
-      // First, get the real MongoDB ID for this election from the backend
-      const electionsResponse = await axios.get(
-        "https://elections-backend-j8m8.onrender.com/api/admin/elections"
-      );
-      
-      // Find the matching election by title (since frontend uses mock data)
-      const backendElection = electionsResponse.data.find(
-        e => e.title === selectedElection.title
-      );
-      
-      if (!backendElection) {
-        alert("Election not found in backend. Please refresh and try again.");
-        return;
-      }
-      
-      realElectionId = backendElection._id;
-    } catch (fetchError) {
-      console.error("Error fetching elections:", fetchError);
-      alert("Error connecting to server. Please try again.");
-      return;
-    }
+    const electionId = selectedElection._id || selectedElection.id;
 
-   
     const payload = {
       name: formData.name,
       position: formData.position,
-      electionId: realElectionId, 
-     
+      electionId: electionId, 
+    
       email: formData.email,
       phone: formData.phone,
       department: formData.department,
       year: formData.year,
     };
 
-    console.log("Sending candidate payload:", payload); 
+    console.log("Sending candidate payload:", payload);
 
     const { data } = await axios.post(
       "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
@@ -447,61 +421,9 @@ const AdminDashboard = () => {
     closeModal();
   } catch (err) {
     console.error("Add candidate error:", err.response?.data || err.message);
- 
     alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
   }
 };
-  const handleUpdateCandidate = async () => {
-    try {
-      const { data } = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${selectedCandidate.id}`,
-        formData
-      );
-      setCandidates((cs) =>
-        cs.map((c) => (c.id === data.candidate.id ? data.candidate : c))
-      );
-      setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "candidate",
-          action: `Candidate ${data.candidate.name} updated`,
-          time: "Just now",
-          status: "info",
-        },
-        ...a.slice(0, 4),
-      ]);
-      closeModal();
-    } catch (err) {
-      console.error(
-        "Update candidate error:",
-        err.response?.data || err.message
-      );
-    }
-  };
-  const handleDeleteCandidate = async (id) => {
-    if (!window.confirm("Delete this candidate?")) return;
-    try {
-      await axios.delete(
-        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${id}`
-      );
-      setCandidates((cs) => cs.filter((c) => c.id !== id));
-      setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "candidate",
-          action: `Candidate removed`,
-          time: "Just now",
-          status: "completed",
-        },
-        ...a.slice(0, 4),
-      ]);
-    } catch (err) {
-      console.error(
-        "Delete candidate error:",
-        err.response?.data || err.message
-      );
-    }
-  };
 
   const exportResults = async (format, electionId = null) => {
     try {
