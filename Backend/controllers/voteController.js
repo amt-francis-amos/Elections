@@ -68,7 +68,7 @@ export const getCandidates = async (req, res) => {
   try {
     const { electionId } = req.params;
 
-    // Validate election ID
+
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
       return res.status(400).json({ message: 'Invalid election ID' });
     }
@@ -92,5 +92,63 @@ export const getCandidates = async (req, res) => {
   } catch (error) {
     console.error('❌ Error in getCandidates:', error);
     res.status(500).json({ message: 'Error fetching candidates', error });
+  }
+};
+
+
+
+export const getUserVote = async (req, res) => {
+  try {
+    const { electionId } = req.params;
+    const userId = req.user.id || req.user._id; // Get user ID from auth middleware
+
+    if (!mongoose.Types.ObjectId.isValid(electionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid election ID format'
+      });
+    }
+
+    // Check if election exists
+    const election = await Election.findById(electionId);
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found'
+      });
+    }
+
+    // Find if user has already voted in this election
+    const existingVote = await Vote.findOne({
+      election: electionId,
+      voter: userId
+    }).populate('candidate', 'name position');
+
+    if (existingVote) {
+      return res.status(200).json({
+        success: true,
+        hasVoted: true,
+        vote: {
+          candidate: existingVote.candidate._id,
+          candidateName: existingVote.candidate.name,
+          candidatePosition: existingVote.candidate.position,
+          votedAt: existingVote.createdAt
+        }
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        hasVoted: false,
+        message: 'No vote found for this user in this election'
+      });
+    }
+
+  } catch (error) {
+    console.error('Get user vote error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking user vote',
+      error: error.message
+    });
   }
 };
