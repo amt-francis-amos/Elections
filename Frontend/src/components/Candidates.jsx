@@ -51,7 +51,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       } catch (error) {
         if (i === retries) throw error;
         
-        // Exponential backoff
+       
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
@@ -70,7 +70,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             throw new Error('No authentication token found');
           }
 
-          // Fixed endpoint - now using /api/elections instead of /api/candidates/elections
+        
           const response = await makeRequest(
             `${API_BASE_URL}/elections`,
             {
@@ -85,7 +85,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
           
           let electionsData = [];
           
-          // Handle different response structures
+         
           if (response.data) {
             if (response.data.success === true) {
               electionsData = response.data.elections || response.data.data || [];
