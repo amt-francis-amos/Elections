@@ -189,110 +189,55 @@ const AdminDashboard = () => {
     setFormData({});
   };
 
- // Updated handleCandidateImageUpload function for AdminDashboard component
-const handleCandidateImageUpload = async (candidateId, imageUrl) => {
-  try {
-    // Update the candidates state with the new image URL
-    setCandidates((prevCandidates) =>
-      prevCandidates.map((candidate) =>
-        (candidate.id === candidateId || candidate._id === candidateId)
-          ? { ...candidate, image: imageUrl }
-          : candidate
-      )
-    );
+  const handleCandidateImageUpload = async (candidateId, file) => {
+    setImageUploadLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      fd.append("candidateId", candidateId);
 
-    // Add to recent activity
-    setRecentActivity((prevActivity) => [
-      {
-        id: Date.now(),
-        type: "candidate",
-        action: `Candidate image updated successfully`,
-        time: "Just now",
-        status: "success",
-      },
-      ...prevActivity.slice(0, 4),
-    ]);
+      const resp = await axios.put(
+        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${candidateId}/image`,
+        fd
+      );
+      setCandidates((cs) =>
+        cs.map((c) =>
+          c.id === candidateId ? { ...c, image: resp.data.imageUrl } : c
+        )
+      );
+    } catch (err) {
+      console.error("Image upload error:", err);
+    } finally {
+      setImageUploadLoading(false);
+    }
+  };
 
-    console.log("Candidate image updated successfully:", { candidateId, imageUrl });
-  } catch (error) {
-    console.error("Error updating candidate image:", error);
-    
-    // Add error to recent activity
-    setRecentActivity((prevActivity) => [
-      {
-        id: Date.now(),
-        type: "candidate",
-        action: `Failed to update candidate image`,
-        time: "Just now",
-        status: "error",
-      },
-      ...prevActivity.slice(0, 4),
-    ]);
-  }
-};
-
-// Alternative implementation if you want to make an additional API call to confirm the update
-const handleCandidateImageUploadWithVerification = async (candidateId, imageUrl) => {
-  setImageUploadLoading(true);
-  
-  try {
-    // Verify the upload by fetching the updated candidate data
-    const token = localStorage.getItem('token');
-    const response = await axios.get(
-      `https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    );
-
-    // Update the candidates state with the verified data
-    setCandidates((prevCandidates) =>
-      prevCandidates.map((candidate) =>
-        (candidate.id === candidateId || candidate._id === candidateId)
-          ? { ...candidate, image: response.data.image || imageUrl }
-          : candidate
-      )
-    );
-
-    // Add to recent activity
-    setRecentActivity((prevActivity) => [
-      {
-        id: Date.now(),
-        type: "candidate",
-        action: `Candidate image updated successfully`,
-        time: "Just now",
-        status: "success",
-      },
-      ...prevActivity.slice(0, 4),
-    ]);
-
-  } catch (error) {
-    console.error("Error verifying candidate image upload:", error);
-    
-    // Fallback: still update the local state with the provided imageUrl
-    setCandidates((prevCandidates) =>
-      prevCandidates.map((candidate) =>
-        (candidate.id === candidateId || candidate._id === candidateId)
-          ? { ...candidate, image: imageUrl }
-          : candidate
-      )
-    );
-
-    // Add error to recent activity
-    setRecentActivity((prevActivity) => [
-      {
-        id: Date.now(),
-        type: "candidate",
-        action: `Image uploaded but verification failed`,
-        time: "Just now",
-        status: "info",
-      },
-      ...prevActivity.slice(0, 4),
-    ]);
-  } finally {
-    setImageUploadLoading(false);
-  }
-};
+  const handleCreateUser = async () => {
+    try {
+      const { data } = await axios.post(
+        "https://elections-backend-j8m8.onrender.com/api/admin/create-voter",
+        {
+          name: formData.name,
+          email: formData.email,
+        }
+      );
+      setUsers((us) => [data.voter, ...us]);
+      setRecentActivity((a) => [
+        {
+          id: Date.now(),
+          type: "user",
+          action: `Voter ${data.voter.name} created`,
+          time: "Just now",
+          status: "success",
+        },
+        ...a.slice(0, 4),
+      ]);
+      console.log("New credentials:", data.credentials);
+      closeModal();
+    } catch (err) {
+      console.error("Create voter error:", err.response?.data || err.message);
+    }
+  };
 
   const handlePromoteUser = async (user) => {
     try {
