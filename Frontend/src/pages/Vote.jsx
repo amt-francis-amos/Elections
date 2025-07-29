@@ -46,8 +46,8 @@ const cardVariants = {
     }
   },
   hover: {
-    y: -5,
-    scale: 1.02,
+    y: -3,
+    scale: 1.01,
     transition: {
       duration: 0.2,
       ease: "easeInOut"
@@ -68,8 +68,8 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
       whileHover={!hasVoted ? "hover" : {}}
       whileTap={!hasVoted ? "tap" : {}}
       className={`
-        relative bg-white rounded-2xl shadow-lg overflow-hidden border-2 transition-all duration-300
-        ${votedForThis ? 'border-green-500 ring-4 ring-green-200' : 'border-gray-200 hover:border-blue-300'}
+        relative bg-white rounded-xl shadow-md hover:shadow-lg overflow-hidden border transition-all duration-300
+        ${votedForThis ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200 hover:border-blue-300'}
         ${hasVoted && !votedForThis ? 'opacity-60' : ''}
       `}
     >
@@ -78,125 +78,125 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          className="absolute top-4 right-4 z-10 bg-green-500 text-white rounded-full p-2 shadow-lg"
+          className="absolute top-3 right-3 z-10 bg-green-500 text-white rounded-full p-1.5 shadow-lg"
         >
-          <CheckCircle size={20} />
+          <CheckCircle size={16} />
         </motion.div>
       )}
 
-      {/* Candidate Image */}
-      <div className="relative h-64 bg-gradient-to-br from-blue-50 to-purple-50">
-        {candidate.image ? (
-          <img 
-            src={candidate.image} 
-            alt={candidate.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-        ) : null}
-        <div 
-          className="w-full h-full flex items-center justify-center"
-          style={{ display: candidate.image ? 'none' : 'flex' }}
-        >
-          <div className="bg-white rounded-full p-6 shadow-lg">
-            <User size={48} className="text-gray-400" />
+      <div className="p-5">
+        {/* Header with Avatar and Basic Info */}
+        <div className="flex items-start gap-4 mb-4">
+          {/* Avatar */}
+          <div className="flex-shrink-0">
+            {candidate.image ? (
+              <img 
+                src={candidate.image} 
+                alt={candidate.name}
+                className="w-16 h-16 rounded-full object-cover border-2 border-gray-100"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className="w-16 h-16 bg-gradient-to-br from-blue-50 to-purple-50 rounded-full flex items-center justify-center border-2 border-gray-100"
+              style={{ display: candidate.image ? 'none' : 'flex' }}
+            >
+              <User size={24} className="text-gray-400" />
+            </div>
+          </div>
+
+          {/* Name and Position */}
+          <div className="flex-grow min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
+              {candidate.name}
+            </h3>
+            <div className="inline-block bg-blue-100 text-blue-700 px-2.5 py-1 rounded-md text-xs font-medium mb-2">
+              {candidate.position}
+            </div>
+            
+            {/* Vote Count */}
+            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+              <Trophy size={14} className="text-yellow-500" />
+              <span className="font-medium">{candidate.votes || 0} votes</span>
+            </div>
           </div>
         </div>
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-      </div>
 
-      {/* Candidate Info */}
-      <div className="p-6 space-y-4">
-        <div className="text-center">
-          <h3 className="text-xl font-bold text-gray-900 mb-1">{candidate.name}</h3>
-          <div className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-            {candidate.position}
-          </div>
-        </div>
-
-        {/* Details */}
-        <div className="space-y-2 text-sm">
+        {/* Contact Info - Compact */}
+        <div className="space-y-1.5 mb-4 text-sm">
           {candidate.email && (
             <div className="flex items-center gap-2 text-gray-600">
-              <Mail size={14} className="text-blue-500" />
+              <Mail size={12} className="text-blue-500 flex-shrink-0" />
               <span className="truncate">{candidate.email}</span>
             </div>
           )}
           
           {candidate.phone && (
             <div className="flex items-center gap-2 text-gray-600">
-              <Phone size={14} className="text-green-500" />
+              <Phone size={12} className="text-green-500 flex-shrink-0" />
               <span>{candidate.phone}</span>
             </div>
           )}
           
           {candidate.department && (
             <div className="flex items-center gap-2 text-gray-600">
-              <MapPin size={14} className="text-purple-500" />
-              <span>{candidate.department} {candidate.year && `• ${candidate.year}`}</span>
+              <MapPin size={12} className="text-purple-500 flex-shrink-0" />
+              <span className="truncate">
+                {candidate.department} {candidate.year && `• ${candidate.year}`}
+              </span>
             </div>
           )}
         </div>
 
-        {/* Bio */}
+        {/* Bio - Condensed */}
         {candidate.bio && (
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              {candidate.bio.length > 100 
-                ? `${candidate.bio.substring(0, 100)}...` 
+          <div className="bg-gray-50 rounded-lg p-3 mb-4">
+            <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
+              {candidate.bio.length > 80 
+                ? `${candidate.bio.substring(0, 80)}...` 
                 : candidate.bio
               }
             </p>
           </div>
         )}
 
-        {/* Vote Count */}
-        <div className="flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-          <Trophy size={16} className="text-yellow-500" />
-          <span className="font-semibold text-gray-700">
-            {candidate.votes || 0} votes
-          </span>
-        </div>
-
         {/* Vote Button */}
-        <div className="pt-2">
+        <div className="mt-auto">
           {hasVoted ? (
             votedForThis ? (
               <motion.div 
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="w-full py-3 bg-green-500 text-white rounded-xl font-semibold text-center flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-green-500 text-white rounded-lg font-medium text-center flex items-center justify-center gap-2 text-sm"
               >
-                <CheckCircle size={18} />
+                <CheckCircle size={16} />
                 Your Vote
               </motion.div>
             ) : (
-              <div className="w-full py-3 bg-gray-200 text-gray-500 rounded-xl font-medium text-center">
+              <div className="w-full py-2.5 bg-gray-200 text-gray-500 rounded-lg font-medium text-center text-sm">
                 Vote Cast
               </div>
             )
           ) : (
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => onVote(candidate)}
               disabled={isVoting}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg disabled:shadow-none"
+              className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:shadow-none text-sm"
             >
               {isVoting ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Casting Vote...
+                  <Loader2 size={16} className="animate-spin" />
+                  Voting...
                 </>
               ) : (
                 <>
-                  <ThumbsUp size={18} />
-                  Vote for {candidate.name}
+                  <ThumbsUp size={16} />
+                  Vote
                 </>
               )}
             </motion.button>
@@ -212,28 +212,28 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted }) => {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200"
+      className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200"
     >
       <div className="text-center mb-6">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
           {election.title}
         </h1>
-        <p className="text-gray-600 text-lg">
+        <p className="text-gray-600">
           {election.description || 'Choose your preferred candidate'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
         <div className="bg-blue-50 rounded-xl p-4">
-          <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-          <div className="text-2xl font-bold text-blue-900">{candidatesCount}</div>
+          <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+          <div className="text-xl font-bold text-blue-900">{candidatesCount}</div>
           <div className="text-sm text-blue-700">Candidates</div>
         </div>
         
         <div className="bg-green-50 rounded-xl p-4">
-          <Calendar className="w-8 h-8 text-green-600 mx-auto mb-2" />
-          <div className="text-sm text-green-700">Election Period</div>
-          <div className="text-sm font-medium text-green-900">
+          <Calendar className="w-6 h-6 text-green-600 mx-auto mb-2" />
+          <div className="text-sm text-green-700 mb-1">Election Period</div>
+          <div className="text-xs font-medium text-green-900">
             {election.startDate ? new Date(election.startDate).toLocaleDateString() : 'Active'}
             {election.endDate && ` - ${new Date(election.endDate).toLocaleDateString()}`}
           </div>
@@ -241,11 +241,11 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted }) => {
 
         <div className={`rounded-xl p-4 ${hasVoted ? 'bg-green-50' : 'bg-yellow-50'}`}>
           {hasVoted ? (
-            <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+            <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
           ) : (
-            <Clock className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+            <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
           )}
-          <div className={`text-2xl font-bold ${hasVoted ? 'text-green-900' : 'text-yellow-900'}`}>
+          <div className={`text-xl font-bold ${hasVoted ? 'text-green-900' : 'text-yellow-900'}`}>
             {hasVoted ? 'Voted' : 'Pending'}
           </div>
           <div className={`text-sm ${hasVoted ? 'text-green-700' : 'text-yellow-700'}`}>
@@ -261,9 +261,9 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted }) => {
           transition={{ delay: 0.5 }}
           className="mt-6 bg-green-100 border border-green-300 rounded-xl p-4 flex items-center gap-3"
         >
-          <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
+          <CheckCircle className="text-green-600 flex-shrink-0" size={18} />
           <div>
-            <p className="font-semibold text-green-800">Thank you for voting!</p>
+            <p className="font-medium text-green-800">Thank you for voting!</p>
             <p className="text-sm text-green-700">Your vote has been successfully recorded.</p>
           </div>
         </motion.div>
@@ -513,7 +513,7 @@ const Vote = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center"
+            className="bg-red-50 border border-red-200 rounded-xl p-8 text-center"
           >
             <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
@@ -525,7 +525,7 @@ const Vote = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Election Selection */}
         {elections.length > 1 && (
@@ -612,7 +612,7 @@ const Vote = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
             <AnimatePresence>
               {candidates.map((candidate) => (
@@ -636,12 +636,12 @@ const Vote = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="mt-12 bg-blue-50 border border-blue-200 rounded-2xl p-6"
+            className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-5"
           >
             <div className="flex items-start gap-3">
-              <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+              <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-semibold text-blue-900 mb-2">Voting Instructions</h4>
+                <h4 className="font-medium text-blue-900 mb-2">Voting Instructions</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• Review all candidates carefully before making your choice</li>
                   <li>• You can only vote once per election</li>
