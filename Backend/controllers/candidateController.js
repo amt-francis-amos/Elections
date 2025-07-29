@@ -288,3 +288,31 @@ export const getAllElections = async (req, res) => {
     });
   }
 };
+
+
+export const getAllCandidates = async (req, res) => {
+  try {
+    const candidates = await Candidate.find()
+      .populate('electionId', 'title')
+      .sort({ createdAt: -1 });
+
+    const formattedCandidates = candidates.map(candidate => ({
+      ...candidate.toObject(),
+      id: candidate._id,
+      electionTitle: candidate.electionId?.title || 'Unknown Election',
+      votes: candidate.votes || 0
+    }));
+
+    res.status(200).json({
+      success: true,
+      candidates: formattedCandidates
+    });
+  } catch (error) {
+    console.error('Error fetching all candidates:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch candidates',
+      error: error.message
+    });
+  }
+};
