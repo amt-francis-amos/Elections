@@ -132,45 +132,51 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchCandidates = async () => {
-    try {
-      const  {data}  = await axios.get(`${API_BASE_URL}/candidates`);
-      console.log("Fetched candidates:", data);
+const fetchCandidates = async () => {
+  try {
+    const { data } = await axios.get(`${API_BASE_URL}/candidates`);
+    console.log("Fetched candidates:", data);
 
-      let candidatesData = [];
-      
+    let candidatesData = [];
     
-      if (data.success && data.candidates) {
-        candidatesData = data.candidates;
-      } else if (data.candidates) {
-        candidatesData = data.candidates;
-      } else if (Array.isArray(data)) {
-        candidatesData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        candidatesData = data.data;
-      }
-
-    
-      const formattedCandidates = candidatesData.map(candidate => ({
-        ...candidate,
-        id: candidate._id || candidate.id,
-        votes: candidate.votes || 0,
-        image: candidate.image || null,
-      }));
-
-      setCandidates(formattedCandidates);
-
-     
-      setStats(prevStats => ({
-        ...prevStats,
-        totalCandidates: formattedCandidates.length,
-      }));
-
-    } catch (err) {
-      console.error("Error fetching candidates:", err);
-     
+   
+    if (data.success && data.candidates) {
+      candidatesData = data.candidates;
+    } else if (data.candidates) {
+      candidatesData = data.candidates;
+    } else if (Array.isArray(data)) {
+      candidatesData = data;
+    } else if (data.data && Array.isArray(data.data)) {
+      candidatesData = data.data;
     }
-  };
+
+  
+    const formattedCandidates = candidatesData.map(candidate => ({
+      ...candidate,
+      id: candidate._id || candidate.id,
+      votes: candidate.votes || 0,
+      image: candidate.image || null,
+    }));
+
+    setCandidates(formattedCandidates);
+
+  
+    setStats(prevStats => ({
+      ...prevStats,
+      totalCandidates: formattedCandidates.length,
+    }));
+
+  } catch (err) {
+    console.error("Error fetching candidates:", err);
+  
+    if (err.response?.status === 404) {
+      console.error("Candidates endpoint not found. Make sure backend route exists.");
+    }
+    
+  
+    setCandidates([]);
+  }
+};
 
   const fetchUsers = async () => {
     try {
