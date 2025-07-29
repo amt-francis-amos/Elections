@@ -325,10 +325,17 @@ const Vote = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
+        console.log('Elections API Response:', data);
+        
         let electionsArray = [];
-        if (data && data.success && Array.isArray(data.elections)) {
+        if (data && Array.isArray(data.elections)) {
+          // Response format: { elections: [...], message: "..." }
+          electionsArray = data.elections;
+        } else if (data && data.success && Array.isArray(data.elections)) {
+          // Response format: { success: true, elections: [...] }
           electionsArray = data.elections;
         } else if (Array.isArray(data)) {
+          // Response is directly an array
           electionsArray = data;
         } else {
           console.error('Unexpected response format:', data);
