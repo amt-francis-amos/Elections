@@ -92,7 +92,7 @@ const Login = ({
       
       if (!token || !user) throw new Error("Invalid login response");
 
-      // Store auth data in memory instead of localStorage
+      
       window.authData = { token, user };
 
       showNotification("Login successful!", "success");
@@ -126,7 +126,7 @@ const Login = ({
             Election System Login
           </h2>
 
-          {/* Notification */}
+         
           {notification.message && (
             <div className={`mb-4 p-3 rounded-md text-sm ${
               notification.type === "error" ? "bg-red-100 text-red-700 border border-red-300" :
