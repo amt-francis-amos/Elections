@@ -355,80 +355,70 @@ const AdminDashboard = () => {
       );
     }
   };
-const handleDeleteElection = async (id) => {
-  if (!window.confirm("Delete this election?")) return;
-  try {
-    // Find the election to get the correct _id
-    const election = elections.find(e => e.id === id || e._id === id);
-    const electionId = election?._id || id;
-    
-    await axios.delete(
-      `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`
-    );
-    
-    setElections((es) => es.filter((e) => e.id !== id && e._id !== id));
-    setRecentActivity((a) => [
-      {
-        id: Date.now(),
-        type: "election",
-        action: `Election deleted`,
-        time: "Just now",
-        status: "completed",
-      },
-      ...a.slice(0, 4),
-    ]);
-  } catch (err) {
-    console.error(
-      "Delete election error:",
-      err.response?.data || err.message
-    );
-  }
-};
+  const handleDeleteElection = async (id) => {
+    if (!window.confirm("Delete this election?")) return;
+    try {
+      const election = elections.find((e) => e.id === id || e._id === id);
+      const electionId = election?._id || id;
+
+      await axios.delete(
+        `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`
+      );
+
+      setElections((es) => es.filter((e) => e.id !== id && e._id !== id));
+      setRecentActivity((a) => [
+        {
+          id: Date.now(),
+          type: "election",
+          action: `Election deleted`,
+          time: "Just now",
+          status: "completed",
+        },
+        ...a.slice(0, 4),
+      ]);
+    } catch (err) {
+      console.error(
+        "Delete election error:",
+        err.response?.data || err.message
+      );
+    }
+  };
   const handleAddCandidate = async () => {
   try {
-    // Debug: Log the current form data
-    console.log("Current formData:", formData);
-    
-    // Validate required fields with detailed checking
-    const missingFields = [];
-    if (!formData.name || formData.name.trim() === '') missingFields.push('Name');
-    if (!formData.position || formData.position.trim() === '') missingFields.push('Position');
-    if (!formData.electionId) missingFields.push('Election');
-    
-    if (missingFields.length > 0) {
-      console.error("Missing required fields:", missingFields);
-      alert(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+    if (!formData.name || !formData.position || !formData.electionId) {
+      console.error("Missing required fields");
+      alert("Please fill in all required fields (Name, Position, Election)");
       return;
     }
 
-    // Debug: Log what we're looking for
     console.log("Looking for election with ID:", formData.electionId);
     console.log("Available elections:", elections);
 
-    // Find the selected election - check both id and _id fields
-    const selectedElection = elections.find(e => 
-      e.id === formData.electionId || 
-      e._id === formData.electionId ||
-      e.id === parseInt(formData.electionId) ||
-      e._id === parseInt(formData.electionId)
+    const selectedElection = elections.find(
+      (e) =>
+        e.id === formData.electionId ||
+        e._id === formData.electionId ||
+        e.id === parseInt(formData.electionId) ||
+        e._id === parseInt(formData.electionId)
     );
 
     if (!selectedElection) {
       console.error("Selected election not found");
       console.log("FormData electionId:", formData.electionId);
-      console.log("Available election IDs:", elections.map(e => ({ id: e.id, _id: e._id })));
+      console.log(
+        "Available election IDs:",
+        elections.map((e) => ({ id: e.id, _id: e._id }))
+      );
       alert("Please select a valid election");
       return;
     }
 
-    // Use the backend ID format (_id)
     const electionId = selectedElection._id || selectedElection.id;
 
     const payload = {
       name: formData.name,
       position: formData.position,
       electionId: electionId,
-      // Optional fields
       email: formData.email,
       phone: formData.phone,
       department: formData.department,
@@ -441,7 +431,7 @@ const handleDeleteElection = async (id) => {
       "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
       payload
     );
-    
+
     setCandidates((cs) => [data.candidate, ...cs]);
     setRecentActivity((a) => [
       {
@@ -456,7 +446,70 @@ const handleDeleteElection = async (id) => {
     closeModal();
   } catch (err) {
     console.error("Add candidate error:", err.response?.data || err.message);
-    alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
+    alert(
+      `Error adding candidate: ${err.response?.data?.message || err.message}`
+    );
+  }
+};
+
+const handleUpdateCandidate = async () => {
+  try {
+    const candidateId = selectedCandidate._id || selectedCandidate.id;
+    
+    const { data } = await axios.put(
+      `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${candidateId}`,
+      formData
+    );
+    
+    setCandidates((cs) =>
+      cs.map((c) => 
+        (c.id === data.candidate.id || c._id === data.candidate._id ||
+         c.id === data.candidate._id || c._id === data.candidate.id)
+        ? data.candidate : c
+      )
+    );
+    
+    setRecentActivity((a) => [
+      {
+        id: Date.now(),
+        type: "candidate",
+        action: `Candidate ${data.candidate.name} updated`,
+        time: "Just now",
+        status: "info",
+      },
+      ...a.slice(0, 4),
+    ]);
+    closeModal();
+  } catch (err) {
+    console.error(
+      "Update candidate error:",
+      err.response?.data || err.message
+    );
+  }
+};
+
+const handleDeleteCandidate = async (id) => {
+  if (!window.confirm("Delete this candidate?")) return;
+  try {
+    await axios.delete(
+      `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${id}`
+    );
+    setCandidates((cs) => cs.filter((c) => c.id !== id && c._id !== id));
+    setRecentActivity((a) => [
+      {
+        id: Date.now(),
+        type: "candidate",
+        action: `Candidate removed`,
+        time: "Just now",
+        status: "completed",
+      },
+      ...a.slice(0, 4),
+    ]);
+  } catch (err) {
+    console.error(
+      "Delete candidate error:",
+      err.response?.data || err.message
+    );
   }
 };
   const exportResults = async (format, electionId = null) => {
