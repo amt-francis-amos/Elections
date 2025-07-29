@@ -1,3 +1,4 @@
+// Dashboard.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -105,7 +106,7 @@ const Dashboard = ({ stats, recentActivity, elections, quickActions, getActivity
             const Icon = action.icon;
             return (
               <button
-                key={index}
+                key={action.label}
                 onClick={action.action}
                 className={`${action.color} text-white p-4 rounded-lg flex flex-col items-center gap-2 transition-colors`}
               >
@@ -168,21 +169,24 @@ const Dashboard = ({ stats, recentActivity, elections, quickActions, getActivity
               {elections.filter(e => e.status === 'active' || e.status === 'upcoming').length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No active elections</p>
               ) : (
-                elections.filter(e => e.status === 'active' || e.status === 'upcoming').slice(0, 3).map((election) => (
-                  <div key={election.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{election.title}</h4>
-                      <p className="text-sm text-gray-600">
-                        {election.totalVotes} votes • {election.totalCandidates} candidates
-                      </p>
+                elections
+                  .filter(e => e.status === 'active' || e.status === 'upcoming')
+                  .slice(0, 3)
+                  .map((election) => (
+                    <div key={election._id || election.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{election.title}</h4>
+                        <p className="text-sm text-gray-600">
+                          {election.totalVotes} votes • {election.totalCandidates} candidates
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
+                          {election.status}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
-                        {election.status}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>

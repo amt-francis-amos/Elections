@@ -1,3 +1,4 @@
+// Elections.jsx
 import React from 'react';
 import {
   Plus,
@@ -7,20 +8,21 @@ import {
   Trash2
 } from 'lucide-react';
 
-const Elections = ({ 
-  elections, 
-  searchTerm, 
-  setSearchTerm, 
-  filterStatus, 
-  setFilterStatus, 
-  openModal, 
-  handleDeleteElection, 
-  exportResults, 
-  getStatusColor 
+const Elections = ({
+  elections,
+  searchTerm,
+  setSearchTerm,
+  filterStatus,
+  setFilterStatus,
+  openModal,
+  handleDeleteElection,
+  exportResults,
+  getStatusColor
 }) => {
   const filteredElections = elections.filter(election => {
-    const matchesSearch = election.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         election.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      election.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      election.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || election.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -47,14 +49,14 @@ const Elections = ({
                 type="text"
                 placeholder="Search elections..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="flex gap-2">
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={e => setFilterStatus(e.target.value)}
                 className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>
@@ -77,11 +79,21 @@ const Elections = ({
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Election</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Election
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Duration
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Progress
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -92,8 +104,8 @@ const Elections = ({
                   </td>
                 </tr>
               ) : (
-                filteredElections.map((election) => (
-                  <tr key={election.id} className="hover:bg-gray-50">
+                filteredElections.map(election => (
+                  <tr key={election._id || election.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{election.title}</div>
@@ -101,26 +113,41 @@ const Elections = ({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(election.status)}`}>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          election.status
+                        )}`}
+                      >
                         {election.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       <div>{new Date(election.startDate).toLocaleDateString()}</div>
-                      <div className="text-gray-500">to {new Date(election.endDate).toLocaleDateString()}</div>
+                      <div className="text-gray-500">
+                        to {new Date(election.endDate).toLocaleDateString()}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
                         {election.totalVotes} / {election.eligibleVoters} votes
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ width: `${election.eligibleVoters > 0 ? (election.totalVotes / election.eligibleVoters) * 100 : 0}%` }}
-                        ></div>
+                        <div
+                          className="h-2 rounded-full"
+                          style={{
+                            width: `${
+                              election.eligibleVoters > 0
+                                ? (election.totalVotes / election.eligibleVoters) * 100
+                                : 0
+                            }%`
+                          }}
+                        />
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {election.eligibleVoters > 0 ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1) : 0}% turnout
+                        {election.eligibleVoters > 0
+                          ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1)
+                          : 0}
+                        % turnout
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -132,13 +159,13 @@ const Elections = ({
                           <Edit size={16} />
                         </button>
                         <button
-                          onClick={() => exportResults('csv', election.id)}
+                          onClick={() => exportResults('csv', election._id || election.id)}
                           className="text-green-600 hover:text-green-900"
                         >
                           <Download size={16} />
                         </button>
                         <button
-                          onClick={() => handleDeleteElection(election.id)}
+                          onClick={() => handleDeleteElection(election._id || election.id)}
                           className="text-red-600 hover:text-red-900"
                         >
                           <Trash2 size={16} />
