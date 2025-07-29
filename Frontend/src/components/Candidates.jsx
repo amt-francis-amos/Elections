@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   UserPlus,
@@ -18,7 +19,9 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
+// Add Candidate Modal Component
 const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -58,7 +61,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
       ...prev,
       [name]: value
     }));
-   
+    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -95,7 +98,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
     if (!formData.position.trim()) newErrors.position = 'Position is required';
     if (!formData.electionId) newErrors.electionId = 'Please select an election';
     
-    
+    // Optional email validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
@@ -114,20 +117,21 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
     try {
       const formDataToSend = new FormData();
       
-     
+      // Add all form fields
       Object.keys(formData).forEach(key => {
         if (formData[key]) {
           formDataToSend.append(key, formData[key]);
         }
       });
-     
+      
+      // Add image if selected
       if (image) {
         formDataToSend.append('image', image);
       }
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `https://elections-backend-j8m8.onrender.com/api/candidates`,
+        `${API_BASE_URL}/candidates`,
         formDataToSend,
         {
           headers: {
@@ -175,7 +179,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        
+          {/* Image Upload */}
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -209,7 +213,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
             )}
           </div>
 
-    
+          {/* Required Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -274,7 +278,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
             )}
           </div>
 
-          
+          {/* Optional Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -394,7 +398,388 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
   );
 };
 
+// Image Upload Modal Component
+const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null, candidateId }) => {
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState(null);
+  const [preview, setPreview] = useState(currentImage);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
+  const validateFile = (file) => {
+    const maxSize = 5 * 1024 * 1024; 
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      return 'Please upload a valid image file (JPEG, PNG, or WebP)';
+    }
+    
+    if (file.size > maxSize) {
+      return 'File size must be less than 5MB';
+    }
+    
+    return null;
+  };
+
+  const handleFile = (file) => {
+    const error = validateFile(file);
+    if (error) {
+      setUploadStatus({ type: 'error', message: error });
+      return;
+    }
+
+    setUploadStatus({ type: 'success', message: 'Image selected successfully!' });
+    setSelectedFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleFile(files[0]);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleFileSelect = (e) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      handleFile(files[0]);
+    }
+  };
+
+  const removeImage = () => {
+    setPreview(null);
+    setSelectedFile(null);
+    setUploadStatus(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedFile) return;
+
+    setUploading(true);
+    setUploadStatus({ type: 'info', message: 'Uploading image...' });
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `${API_BASE_URL}/candidates/${candidateId}/image`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        onImageSelect(candidateId, response.data.imageUrl || response.data.image);
+        setUploadStatus({ type: 'success', message: 'Image uploaded successfully!' });
+        
+        setTimeout(() => {
+          onClose();
+          resetModal();
+        }, 1500);
+      }
+
+    } catch (error) {
+      console.error('Image upload error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to upload image. Please try again.';
+      setUploadStatus({ type: 'error', message: errorMessage });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetModal = () => {
+    setPreview(currentImage);
+    setSelectedFile(null);
+    setUploadStatus(null);
+    setDragActive(false);
+    setUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClose = () => {
+    if (!uploading) {
+      resetModal();
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Upload Candidate Photo</h3>
+          <button
+            onClick={handleClose}
+            disabled={uploading}
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {preview ? (
+            <div className="relative">
+              <div className="w-32 h-32 mx-auto rounded-full overflow-hidden bg-gray-100">
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {!uploading && (
+                <button
+                  onClick={removeImage}
+                  className="absolute top-0 right-1/2 transform translate-x-16 -translate-y-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                dragActive
+                  ? 'border-blue-400 bg-blue-50'
+                  : 'border-gray-300 hover:border-gray-400'
+              } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <Camera className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-900">
+                  Drop your image here, or{' '}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="text-blue-600 hover:text-blue-500 disabled:opacity-50"
+                  >
+                    browse
+                  </button>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Supports: JPEG, PNG, WebP (max 5MB)
+                </p>
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            onChange={handleFileSelect}
+            disabled={uploading}
+            className="hidden"
+          />
+
+          {uploadStatus && (
+            <div className={`flex items-center gap-2 p-3 rounded-lg ${
+              uploadStatus.type === 'error' 
+                ? 'bg-red-50 text-red-700' 
+                : uploadStatus.type === 'info'
+                ? 'bg-blue-50 text-blue-700'
+                : 'bg-green-50 text-green-700'
+            }`}>
+              {uploadStatus.type === 'error' ? (
+                <AlertCircle size={16} />
+              ) : uploadStatus.type === 'info' ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <CheckCircle size={16} />
+              )}
+              <span className="text-sm">{uploadStatus.message}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 p-6 border-t border-gray-200">
+          <button
+            onClick={handleClose}
+            disabled={uploading}
+            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!selectedFile || uploading}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            {uploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              'Save Photo'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Candidate Card Component
+const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
+  const [showImageModal, setShowImageModal] = useState(false);
+
+  const handleImageSelect = (candidateId, imageUrl) => {
+    onImageUpload(candidateId, imageUrl);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete ${candidate.name}?`)) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_BASE_URL}/candidates/${candidate.id || candidate._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        onDelete(candidate.id || candidate._id);
+      } catch (error) {
+        console.error('Error deleting candidate:', error);
+        alert('Failed to delete candidate. Please try again.');
+      }
+    }
+  };
+
+  return (
+    <>
+      <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white">
+        <div className="flex items-start justify-between mb-4">
+          <div className="relative group">
+            <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center">
+              {candidate.image ? (
+                <img
+                  src={candidate.image}
+                  alt={candidate.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = '/api/placeholder/64/64';
+                  }}
+                />
+              ) : (
+                <Users size={24} className="text-gray-400" />
+              )}
+            </div>
+            <button
+              onClick={() => setShowImageModal(true)}
+              className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+              title="Upload photo"
+            >
+              <Camera size={16} className="text-white" />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onEdit(candidate)}
+              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+              title="Edit candidate"
+            >
+              <Edit size={16} />
+            </button>
+            <button
+              onClick={handleDelete}
+              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+              title="Delete candidate"
+            >
+              <UserMinus size={16} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="space-y-3">
+          <div>
+            <h3 className="font-semibold text-gray-900 text-lg">{candidate.name}</h3>
+            <p className="text-sm text-blue-600 font-medium">{candidate.position}</p>
+            <p className="text-sm text-gray-600">{candidate.electionTitle}</p>
+          </div>
+          
+          <div className="space-y-2">
+            {candidate.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Mail size={14} />
+                <span className="truncate">{candidate.email}</span>
+              </div>
+            )}
+            
+            {candidate.phone && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Phone size={14} />
+                <span>{candidate.phone}</span>
+              </div>
+            )}
+            
+            {candidate.department && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <MapPin size={14} />
+                <span>{candidate.department} {candidate.year && `• ${candidate.year}`}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Votes Received</span>
+              <span className="text-lg font-bold text-blue-600">{candidate.votes || 0}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ImageUploadModal
+        isOpen={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        onImageSelect={handleImageSelect}
+        currentImage={candidate.image}
+        candidateId={candidate.id || candidate._id}
+      />
+    </>
+  );
+};
+
+// Update your main Candidates component
 const Candidates = ({ 
   candidates, 
   searchTerm, 
@@ -402,7 +787,7 @@ const Candidates = ({
   openModal, 
   handleDeleteCandidate,
   onImageUpload,
-  elections = [] 
+  elections = [] // Add elections prop
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [candidatesList, setCandidatesList] = useState(candidates);
