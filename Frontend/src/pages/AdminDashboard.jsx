@@ -36,7 +36,7 @@ import Candidates from "../components/Candidates.jsx";
 import Reports from "../components/Reports.jsx";
 import UserAccount from "../components/UserAccount.jsx";
 
-// Define API_BASE_URL constant
+
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
 axios.interceptors.request.use((config) => {
@@ -79,7 +79,7 @@ const AdminDashboard = () => {
     { icon: BarChart3, label: "View Reports", color: "bg-orange-500 hover:bg-orange-600", action: () => setActiveTab("reports") },
   ];
 
-  // Fetch all data on component mount
+
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -133,44 +133,51 @@ const AdminDashboard = () => {
   };
 
   const fetchCandidates = async () => {
-    try {
-      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
-      console.log("Fetched candidates:", data);
-
-      let candidatesData = [];
-      
-      // Handle different response structures
-      if (data.success && data.candidates) {
-        candidatesData = data.candidates;
-      } else if (data.candidates) {
-        candidatesData = data.candidates;
-      } else if (Array.isArray(data)) {
-        candidatesData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        candidatesData = data.data;
+  try {
+    const token = localStorage.getItem('token'); // or however you store the token
+    const { data } = await axios.get(
+      `${API_BASE_URL}/candidates/election/${electionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
+    );
 
-      // Ensure each candidate has required fields and format the data
-      const formattedCandidates = candidatesData.map(candidate => ({
-        ...candidate,
-        id: candidate._id || candidate.id,
-        votes: candidate.votes || 0,
-        image: candidate.image || null,
-      }));
+    console.log('Fetched candidates:', data);
 
-      setCandidates(formattedCandidates);
+    let candidatesData = [];
 
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        totalCandidates: formattedCandidates.length,
-      }));
-
-    } catch (err) {
-      console.error("Error fetching candidates:", err);
-      // Don't show alert on component mount, just log the error
+    // Handle different response structures
+    if (data.success && data.candidates) {
+      candidatesData = data.candidates;
+    } else if (data.candidates) {
+      candidatesData = data.candidates;
+    } else if (Array.isArray(data)) {
+      candidatesData = data;
+    } else if (data.data && Array.isArray(data.data)) {
+      candidatesData = data.data;
     }
-  };
+
+    // Ensure each candidate has required fields and format the data
+    const formattedCandidates = candidatesData.map((candidate) => ({
+      ...candidate,
+      id: candidate._id || candidate.id,
+      votes: candidate.votes || 0,
+      image: candidate.image || null,
+    }));
+
+    setCandidates(formattedCandidates);
+
+    // Update stats
+    setStats((prevStats) => ({
+      ...prevStats,
+      totalCandidates: formattedCandidates.length,
+    }));
+  } catch (err) {
+    console.error('Error fetching candidates:', err.response?.data || err.message);
+  }
+};
 
   const fetchUsers = async () => {
     try {
