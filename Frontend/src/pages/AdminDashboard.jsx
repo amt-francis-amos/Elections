@@ -79,7 +79,7 @@ const AdminDashboard = () => {
     { icon: BarChart3, label: "View Reports", color: "bg-orange-500 hover:bg-orange-600", action: () => setActiveTab("reports") },
   ];
 
-  // Fetch all data on component mount
+  
   useEffect(() => {
     fetchAllData();
   }, []);
