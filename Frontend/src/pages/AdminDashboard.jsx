@@ -134,9 +134,9 @@ const AdminDashboard = () => {
 
   const fetchCandidates = async () => {
   try {
-    const token = localStorage.getItem('token'); // or however you store the token
+    const token = localStorage.getItem('token'); 
     const { data } = await axios.get(
-      `${API_BASE_URL}/candidates/election/${electionId}`,
+      `${API_BASE_URL}/candidates/election/${elections}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
