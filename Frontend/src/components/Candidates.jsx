@@ -23,7 +23,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null 
   const fileInputRef = useRef(null);
 
   const validateFile = (file) => {
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024; 
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     
     if (!allowedTypes.includes(file.type)) {
