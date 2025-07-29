@@ -465,7 +465,7 @@ const fetchElections = async () => {
   try {
     setLoading(true);
     const { data } = await axios.get(
-      "https://elections-backend-j8m8.onrender.com/api/admin/elections"
+      "https://elections-backend-j8m8.onrender.com/api/elections"
     );
 
     console.log("Fetched elections:", data);
