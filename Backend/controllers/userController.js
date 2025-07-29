@@ -1,6 +1,7 @@
 import User from '../models/userModel.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from '../config/nodemailer.js';
 
 const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -14,8 +15,6 @@ function generateUserId() {
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    
-    console.log("Registration request body:", req.body);
 
     if (!name || !email || !password) {
       return res.status(400).json({ 
@@ -74,21 +73,16 @@ export const registerUser = async (req, res) => {
                   normalizedEmail.includes('admin@') || 
                   name.toLowerCase().includes('admin')) ? 'admin' : 'voter';
 
-    console.log("✅ Creating user with role:", role); 
-
     const userData = {
       name: name.trim(),
-      email: email.toLowerCase().trim(), 
+      email: normalizedEmail,
       password: hashed,
       userId,
       role,
     };
 
-    console.log("User data to create:", { ...userData, password: '[HIDDEN]' });
-
     const user = await User.create(userData);
 
-    
     const token = generateToken({
       id: user._id,
       name: user.name,
@@ -96,7 +90,29 @@ export const registerUser = async (req, res) => {
       role: user.role,
     });
 
-    console.log("✅ User created successfully:", user.name);
+    if (email && email.trim()) {
+      const mailOptions = {
+        from: `"Election Platform" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: "Your Voter Account Credentials",
+        html: `
+          <h2>Welcome, ${user.name}</h2>
+          <p>Your voter account has been created. Use the following credentials to log in:</p>
+          <ul>
+            <li><strong>User ID:</strong> ${userId}</li>
+            <li><strong>Password:</strong> ${password}</li>
+          </ul>
+          <p>Please keep your credentials safe and secure.</p>
+          <p>Thank you.</p>
+        `
+      };
+
+      try {
+        await nodemailer.sendMail(mailOptions);
+      } catch (emailError) {
+        console.error("Email sending error:", emailError);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -113,8 +129,6 @@ export const registerUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Register error:", error);
-
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       const fieldName = field === 'email' ? 'Email' : field;
@@ -146,7 +160,6 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ userId: id });
 
     if (!user) {
-      console.log("User not found with ID:", id);
       return res.status(400).json({ 
         success: false, 
         message: "Invalid credentials" 
@@ -155,22 +168,18 @@ export const loginUser = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log("Password mismatch for user:", id);
       return res.status(400).json({ 
         success: false, 
         message: "Invalid credentials" 
       });
     }
 
-  
     const token = generateToken({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
     });
-
-    console.log("✅ Login successful for user:", user.name, "Role:", user.role);
 
     res.status(200).json({
       success: true,
@@ -179,14 +188,13 @@ export const loginUser = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
-        email: user.email, 
+        email: user.email,
         userId: user.userId,
         role: user.role,
       }
     });
 
   } catch (error) {
-    console.error("Login error:", error);
     res.status(500).json({
       success: false,
       message: "Server error during login",
@@ -209,7 +217,6 @@ export const getAllUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Get all users error:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching users",
