@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-// Define API_BASE_URL constant
+
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
 const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }) => {
