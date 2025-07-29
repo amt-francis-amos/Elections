@@ -317,83 +317,108 @@ const AdminDashboard = () => {
       );
     }
   };
-  const handleUpdateElection = async () => {
-    try {
-      const { data } = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/admin/elections/${selectedElection.id}`,
-        formData
-      );
-      setElections((es) =>
-        es.map((e) => (e.id === data.election.id ? data.election : e))
-      );
-      setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "election",
-          action: `Election "${data.election.title}" updated`,
-          time: "Just now",
-          status: "info",
-        },
-        ...a.slice(0, 4),
-      ]);
-      closeModal();
-    } catch (err) {
-      console.error(
-        "Update election error:",
-        err.response?.data || err.message
-      );
-    }
-  };
+ const handleUpdateElection = async () => {
+  try {
+  
+    const electionId = selectedElection._id || selectedElection.id;
+    
+    const { data } = await axios.put(
+      `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`,
+      formData
+    );
+    
+   
+    setElections((es) =>
+      es.map((e) => 
+        (e.id === data.election.id || e._id === data.election._id || 
+         e.id === data.election._id || e._id === data.election.id) 
+        ? data.election : e
+      )
+    );
+    
+    setRecentActivity((a) => [
+      {
+        id: Date.now(),
+        type: "election",
+        action: `Election "${data.election.title}" updated`,
+        time: "Just now",
+        status: "info",
+      },
+      ...a.slice(0, 4),
+    ]);
+    closeModal();
+  } catch (err) {
+    console.error(
+      "Update election error:",
+      err.response?.data || err.message
+    );
+  }
+};
   const handleDeleteElection = async (id) => {
-    if (!window.confirm("Delete this election?")) return;
-    try {
-      await axios.delete(
-        `https://elections-backend-j8m8.onrender.com/api/admin/elections/${id}`
-      );
-      setElections((es) => es.filter((e) => e.id !== id));
-      setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "election",
-          action: `Election deleted`,
-          time: "Just now",
-          status: "completed",
-        },
-        ...a.slice(0, 4),
-      ]);
-    } catch (err) {
-      console.error(
-        "Delete election error:",
-        err.response?.data || err.message
-      );
-    }
-  };
-
+  if (!window.confirm("Delete this election?")) return;
+  try {
+   
+    const election = elections.find(e => e.id === id || e._id === id);
+    const electionId = election?._id || id;
+    
+    await axios.delete(
+      `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`
+    );
+    
+    setElections((es) => es.filter((e) => e.id !== id && e._id !== id));
+    setRecentActivity((a) => [
+      {
+        id: Date.now(),
+        type: "election",
+        action: `Election deleted`,
+        time: "Just now",
+        status: "completed",
+      },
+      ...a.slice(0, 4),
+    ]);
+  } catch (err) {
+    console.error(
+      "Delete election error:",
+      err.response?.data || err.message
+    );
+  }
+};
   const handleAddCandidate = async () => {
   try {
-    // Validate required fields
+  
     if (!formData.name || !formData.position || !formData.electionId) {
       console.error("Missing required fields");
       alert("Please fill in all required fields (Name, Position, Election)");
       return;
     }
 
-    // Find the selected election from local state
-    const selectedElection = elections.find(e => e.id === formData.electionId || e._id === formData.electionId);
+
+    console.log("Looking for election with ID:", formData.electionId);
+    console.log("Available elections:", elections);
+
+   
+    const selectedElection = elections.find(e => 
+      e.id === formData.electionId || 
+      e._id === formData.electionId ||
+      e.id === parseInt(formData.electionId) ||
+      e._id === parseInt(formData.electionId)
+    );
+
     if (!selectedElection) {
       console.error("Selected election not found");
+      console.log("FormData electionId:", formData.electionId);
+      console.log("Available election IDs:", elections.map(e => ({ id: e.id, _id: e._id })));
       alert("Please select a valid election");
       return;
     }
 
-    
+  
     const electionId = selectedElection._id || selectedElection.id;
 
     const payload = {
       name: formData.name,
       position: formData.position,
-      electionId: electionId, 
-    
+      electionId: electionId,
       email: formData.email,
       phone: formData.phone,
       department: formData.department,
@@ -424,7 +449,6 @@ const AdminDashboard = () => {
     alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
   }
 };
-
   const exportResults = async (format, electionId = null) => {
     try {
       await axios.get(
