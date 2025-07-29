@@ -134,7 +134,7 @@ const AdminDashboard = () => {
 
   const fetchCandidates = async () => {
     try {
-      const  data  = await axios.get(`${API_BASE_URL}/candidates`);
+      const  {data}  = await axios.get(`${API_BASE_URL}/candidates`);
       console.log("Fetched candidates:", data);
 
       let candidatesData = [];
