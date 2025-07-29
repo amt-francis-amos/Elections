@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   UserPlus,
   Search,
@@ -37,10 +37,10 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
-  
+  // Rate limiting helper
   const rateLimitCache = useRef(new Map());
   const lastRequestTime = useRef(0);
-  const MIN_REQUEST_INTERVAL = 1000;
+  const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
 
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -59,12 +59,12 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   useEffect(() => {
     const fetchElections = async () => {
       if (isOpen && (!elections || elections.length === 0)) {
-        
+        // Check cache first
         const cacheKey = 'elections_data';
         const cached = rateLimitCache.current.get(cacheKey);
         const now = Date.now();
         
-        if (cached && now - cached.timestamp < 30000) { 
+        if (cached && now - cached.timestamp < 30000) { // Use cache for 30 seconds
           setAvailableElections(cached.data);
           if (cached.data.length === 0) {
             setErrors(prev => ({ 
@@ -89,22 +89,39 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               throw new Error('No authentication token found');
             }
 
-            const response = await makeRateLimitedRequest(
+            // Try multiple possible endpoints
+            let response;
+            const endpoints = [
+              `https://elections-backend-j8m8.onrender.com/api/admin/elections`,
               `https://elections-backend-j8m8.onrender.com/api/elections`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                timeout: 15000 
+              `https://elections-backend-j8m8.onrender.com/api/candidates/elections`
+            ];
+
+            for (const endpoint of endpoints) {
+              try {
+                response = await makeRateLimitedRequest(endpoint, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  timeout: 15000
+                });
+                console.log(`Successfully fetched elections from: ${endpoint}`);
+                break; // Success, exit loop
+              } catch (endpointError) {
+                console.log(`Failed to fetch from ${endpoint}:`, endpointError.response?.status);
+                if (endpoint === endpoints[endpoints.length - 1]) {
+                  throw endpointError; // Last endpoint failed, throw error
+                }
+                continue; // Try next endpoint
               }
-            );
+            }
             
             console.log('Elections API Response:', response.data);
             
             let electionsData = [];
             
-         
+            // Handle different response structures
             if (response.data) {
               if (response.data.success && response.data.elections) {
                 electionsData = response.data.elections;
@@ -119,15 +136,15 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               }
             }
             
-           
+            // Ensure we have an array
             if (!Array.isArray(electionsData)) {
               electionsData = [];
             }
             
             console.log('Processed elections data:', electionsData);
             
-           
-            rateLimitCache.current.set(cacheKey, {
+            // Cache the result
+            mainRateLimitCache.current.set(cacheKey, {
               data: electionsData,
               timestamp: now
             });
@@ -141,7 +158,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               }));
             }
             
-            break; 
+            break; // Success, exit retry loop
             
           } catch (error) {
             console.error(`Error fetching elections (attempt ${retryCount + 1}):`, error);
@@ -155,8 +172,8 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             } else if (error.response) {
               const status = error.response.status;
               if (status === 429) {
-        
-                const waitTime = Math.pow(2, retryCount) * 2000;
+                // Rate limited - wait longer before retry
+                const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
                 errorMessage = `Too many requests. Retrying in ${waitTime/1000} seconds...`;
                 shouldRetry = true;
                 
@@ -191,9 +208,9 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               break;
             }
             
-           
+            // Wait before retry (except for rate limit which has its own wait)
             if (error.response?.status !== 429 && retryCount < maxRetries) {
-              await sleep(1000 * retryCount); 
+              await sleep(1000 * retryCount); // Progressive delay
             }
           }
         }
@@ -331,13 +348,13 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     setLoadingElections(true);
     setErrors(prev => ({ ...prev, elections: '' }));
     
-
+    // Clear cache to force fresh request
     rateLimitCache.current.delete('elections_data');
     
-   
+    // Add a small delay to avoid immediate rate limit
     await sleep(2000);
     
- 
+    // Trigger useEffect by changing state
     setAvailableElections([]);
   };
 
@@ -358,7 +375,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-      
+          {/* Image Upload Section */}
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -392,7 +409,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-       
+          {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -433,6 +450,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             </div>
           </div>
 
+          {/* Election Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Election <span className="text-red-500">*</span>
@@ -486,7 +504,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-  
+          {/* Contact Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1006,12 +1024,12 @@ const Candidates = ({
   useEffect(() => {
     const fetchElections = async () => {
       if (!elections || elections.length === 0) {
-       
+        // Check cache first
         const cacheKey = 'elections_list';
-        const cached = rateLimitCache.current.get(cacheKey);
+        const cached = mainRateLimitCache.current.get(cacheKey);
         const now = Date.now();
         
-        if (cached && now - cached.timestamp < 60000) { 
+        if (cached && now - cached.timestamp < 60000) { // Use cache for 1 minute
           setAvailableElections(cached.data);
           return;
         }
@@ -1053,8 +1071,9 @@ const Candidates = ({
               electionsData = [response.data];
             }
             
-            
-            rateLimitCache.current.set(cacheKey, {
+            // Cache the result
+                        // Cache the result
+            modalRateLimitCache.current.set(cacheKey, {
               data: electionsData,
               timestamp: now
             });
@@ -1067,7 +1086,7 @@ const Candidates = ({
             retryCount++;
             
             if (error.response?.status === 429 && retryCount < maxRetries) {
-              
+              // Wait longer for rate limit
               await sleep(3000 * retryCount);
             } else if (retryCount < maxRetries) {
               await sleep(1000 * retryCount);
