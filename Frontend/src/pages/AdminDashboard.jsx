@@ -197,7 +197,7 @@ const AdminDashboard = () => {
       fd.append("candidateId", candidateId);
 
       const resp = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${candidateId}/image`,
+        `https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}/image`,
         fd
       );
       setCandidates((cs) =>
