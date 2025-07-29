@@ -133,51 +133,44 @@ const AdminDashboard = () => {
   };
 
   const fetchCandidates = async () => {
-  try {
-    const token = localStorage.getItem('token'); 
-    const { data } = await axios.get(
-      `${API_BASE_URL}/candidates/${elections}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
+      console.log("Fetched candidates:", data);
+
+      let candidatesData = [];
+      
+      // Handle different response structures
+      if (data.success && data.candidates) {
+        candidatesData = data.candidates;
+      } else if (data.candidates) {
+        candidatesData = data.candidates;
+      } else if (Array.isArray(data)) {
+        candidatesData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        candidatesData = data.data;
       }
-    );
 
-    console.log('Fetched candidates:', data);
+      // Ensure each candidate has required fields and format the data
+      const formattedCandidates = candidatesData.map(candidate => ({
+        ...candidate,
+        id: candidate._id || candidate.id,
+        votes: candidate.votes || 0,
+        image: candidate.image || null,
+      }));
 
-    let candidatesData = [];
+      setCandidates(formattedCandidates);
 
-    // Handle different response structures
-    if (data.success && data.candidates) {
-      candidatesData = data.candidates;
-    } else if (data.candidates) {
-      candidatesData = data.candidates;
-    } else if (Array.isArray(data)) {
-      candidatesData = data;
-    } else if (data.data && Array.isArray(data.data)) {
-      candidatesData = data.data;
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        totalCandidates: formattedCandidates.length,
+      }));
+
+    } catch (err) {
+      console.error("Error fetching candidates:", err);
+      // Don't show alert on component mount, just log the error
     }
-
-    // Ensure each candidate has required fields and format the data
-    const formattedCandidates = candidatesData.map((candidate) => ({
-      ...candidate,
-      id: candidate._id || candidate.id,
-      votes: candidate.votes || 0,
-      image: candidate.image || null,
-    }));
-
-    setCandidates(formattedCandidates);
-
-    // Update stats
-    setStats((prevStats) => ({
-      ...prevStats,
-      totalCandidates: formattedCandidates.length,
-    }));
-  } catch (err) {
-    console.error('Error fetching candidates:', err.response?.data || err.message);
-  }
-};
+  };
 
   const fetchUsers = async () => {
     try {
