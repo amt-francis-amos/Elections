@@ -392,15 +392,39 @@ const AdminDashboard = () => {
     }
 
     console.log("Looking for election with ID:", formData.electionId);
+    console.log("FormData electionId type:", typeof formData.electionId);
     console.log("Available elections:", elections);
 
-    const selectedElection = elections.find(
+    let selectedElection = elections.find(
       (e) =>
         e.id === formData.electionId ||
         e._id === formData.electionId ||
         e.id === parseInt(formData.electionId) ||
-        e._id === parseInt(formData.electionId)
+        e._id === parseInt(formData.electionId) ||
+        String(e.id) === String(formData.electionId) ||
+        String(e._id) === String(formData.electionId)
     );
+
+    if (!selectedElection) {
+      try {
+        const electionsResponse = await axios.get(
+          "https://elections-backend-j8m8.onrender.com/api/admin/elections"
+        );
+        console.log("Fresh elections from server:", electionsResponse.data);
+        
+        selectedElection = electionsResponse.data.find(
+          (e) =>
+            e.id === formData.electionId ||
+            e._id === formData.electionId ||
+            e.id === parseInt(formData.electionId) ||
+            e._id === parseInt(formData.electionId) ||
+            String(e.id) === String(formData.electionId) ||
+            String(e._id) === String(formData.electionId)
+        );
+      } catch (fetchError) {
+        console.error("Error fetching fresh elections:", fetchError);
+      }
+    }
 
     if (!selectedElection) {
       console.error("Selected election not found");
@@ -414,6 +438,7 @@ const AdminDashboard = () => {
     }
 
     const electionId = selectedElection._id || selectedElection.id;
+    console.log("Using electionId for backend:", electionId);
 
     const payload = {
       name: formData.name,
