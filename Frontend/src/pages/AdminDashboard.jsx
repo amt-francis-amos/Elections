@@ -179,6 +179,23 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteCandidate = async (id) => {
+  if (!window.confirm("Are you sure you want to delete this candidate?")) return;
+  try {
+    await axios.delete(
+      `https://elections-backend-j8m8.onrender.com/api/admin/candidates/${id}`
+    );
+    setCandidates((cs) => cs.filter((c) => c.id !== id && c._id !== id));
+    setRecentActivity((a) => [
+      { id: Date.now(), type: "candidate", action: `Candidate deleted`, time: "Just now", status: "completed" },
+      ...a.slice(0, 4),
+    ]);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+
   const handleCreateElection = async () => {
     try {
       const payload = {
