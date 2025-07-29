@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
+import VoteProtectedRoute from './components/VoteProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Vote from './pages/Vote';
@@ -20,13 +21,20 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/vote" element={<Vote />} />
+        <Route 
+          path="/vote" 
+          element={
+            <VoteProtectedRoute>
+              <Vote />
+            </VoteProtectedRoute>
+          } 
+        />
         <Route path="/candidate" element={<CandidatesPage />} />
-       <Route path="/results/:electionId" element={<Results />} />
+        <Route path="/results/:electionId" element={<Results />} />
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
             </ProtectedRoute>
           }
