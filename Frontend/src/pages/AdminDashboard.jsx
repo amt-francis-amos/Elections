@@ -136,7 +136,7 @@ const AdminDashboard = () => {
   try {
     const token = localStorage.getItem('token'); 
     const { data } = await axios.get(
-      `${API_BASE_URL}/admin/candidates`,
+      `${API_BASE_URL}/admin/candidates/${elections}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
