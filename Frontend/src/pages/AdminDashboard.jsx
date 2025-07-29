@@ -132,14 +132,14 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchCandidates = async ({candidateId }) => {
+  const fetchCandidates = async () => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/candidates${candidateId}`);
+      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
       console.log("Fetched candidates:", data);
 
       let candidatesData = [];
       
-      // Handle different response structures
+
       if (data.success && data.candidates) {
         candidatesData = data.candidates;
       } else if (data.candidates) {
@@ -150,7 +150,7 @@ const AdminDashboard = () => {
         candidatesData = data.data;
       }
 
-      // Ensure each candidate has required fields and format the data
+    
       const formattedCandidates = candidatesData.map(candidate => ({
         ...candidate,
         id: candidate._id || candidate.id,
@@ -160,7 +160,7 @@ const AdminDashboard = () => {
 
       setCandidates(formattedCandidates);
 
-      // Update stats
+      
       setStats(prevStats => ({
         ...prevStats,
         totalCandidates: formattedCandidates.length,
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
 
     } catch (err) {
       console.error("Error fetching candidates:", err);
-      // Don't show alert on component mount, just log the error
+      
     }
   };
 
