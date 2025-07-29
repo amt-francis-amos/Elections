@@ -52,30 +52,34 @@ const Vote = () => {
 
  
   useEffect(() => {
-    if (!selectedElectionId) return;
-
-    const fetchCandidates = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem('userToken');
-        if (!token) return;
-
-        const { data } = await axios.get(
-          `https://elections-backend-j8m8.onrender.com/api/candidates/${selectedElectionId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log(`💬 candidates for ${selectedElectionId}:`, data);
-        setCandidates(data);
-      } catch (err) {
-        console.error('Error loading candidates:', err);
-        alert('❌ Failed to load candidates.');
-      } finally {
-        setLoading(false);
+  const fetchElections = async () => {
+    try {
+      const token = localStorage.getItem('userToken');
+      if (!token) {
+        alert('🚨 No token found. Please log in.');
+        return;
       }
-    };
-    fetchCandidates();
-  }, [selectedElectionId]);
 
+      const { data } = await axios.get(
+        'https://elections-backend-j8m8.onrender.com/api/elections',
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log('💬 fetched elections:', data);
+
+   
+      const electionsArray = data.elections || data; 
+      
+      
+      const active = electionsArray.filter(e => e.isActive || e.status === 'active');
+      setElections(active);
+      if (active.length) setSelectedElectionId(active[0]._id);
+    } catch (err) {
+      console.error('Error fetching elections:', err);
+      alert('❌ Failed to load elections.');
+    }
+  };
+  fetchElections();
+}, []);
  
   const handleVote = async candidate => {
     const token = localStorage.getItem('userToken');
