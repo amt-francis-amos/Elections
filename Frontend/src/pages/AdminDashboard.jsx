@@ -166,6 +166,8 @@ const AdminDashboard = () => {
   ];
 
  
+
+
 useEffect(() => {
   setLoading(true);
   
@@ -179,9 +181,9 @@ useEffect(() => {
       
       setUsers(votersRes.data.voters || votersRes.data);
       
-    
+      // Transform backend elections to match frontend format
       const backendElections = electionsRes.data.map(election => ({
-        id: election._id, 
+        id: election._id, // Use MongoDB ObjectId as id
         title: election.title,
         description: election.description,
         status: election.status,
@@ -190,11 +192,11 @@ useEffect(() => {
         totalVotes: election.totalVotes || 0,
         eligibleVoters: election.eligibleVoters,
         totalCandidates: election.totalCandidates || 0,
-        _id: election._id 
+        _id: election._id // Keep original _id for backend operations
       }));
       setElections(backendElections);
       
-
+      // Transform backend candidates to match frontend format
       const backendCandidates = candidatesRes.data.map(candidate => ({
         id: candidate._id,
         name: candidate.name,
@@ -206,13 +208,13 @@ useEffect(() => {
         year: candidate.year || "",
         votes: candidate.votes || 0,
         image: candidate.image,
-        _id: candidate._id 
+        _id: candidate._id // Keep original _id for backend operations
       }));
       setCandidates(backendCandidates);
       
     } catch (err) {
       console.error("Fetch error:", err);
-    
+      // Keep mock data as fallback if backend fails
     } finally {
       setLoading(false);
     }
@@ -221,52 +223,29 @@ useEffect(() => {
   fetchData();
 }, []);
 
-
+// Fixed handleAddCandidate function
 const handleAddCandidate = async () => {
   try {
-  
     if (!formData.name || !formData.position || !formData.electionId) {
-      alert("Please fill in all required fields (Name, Position, Election)");
       return;
     }
 
-   
-    const selectedElection = elections.find(e => e.id === formData.electionId);
+    const selectedElection = elections.find(e => e.id == formData.electionId);
     if (!selectedElection) {
-      alert("Please select a valid election");
       return;
     }
 
-  
     const payload = {
-      name: formData.name.trim(),
-      position: formData.position.trim(),
-      electionId: selectedElection.id,
+      name: formData.name,
+      position: formData.position,
+      electionId: formData.electionId
     };
-
-    console.log("Sending candidate payload:", payload);
 
     const { data } = await axios.post(
       "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
       payload
     );
-    
-    
-    const newCandidate = {
-      id: data.candidate._id,
-      name: data.candidate.name,
-      position: data.candidate.position,
-      electionTitle: selectedElection.title,
-      email: data.candidate.email || "",
-      phone: data.candidate.phone || "",
-      department: data.candidate.department || "",
-      year: data.candidate.year || "",
-      votes: data.candidate.votes || 0,
-      image: data.candidate.image,
-      _id: data.candidate._id
-    };
-    
-    setCandidates((cs) => [newCandidate, ...cs]);
+    setCandidates((cs) => [data.candidate, ...cs]);
     setRecentActivity((a) => [
       {
         id: Date.now(),
@@ -280,11 +259,10 @@ const handleAddCandidate = async () => {
     closeModal();
   } catch (err) {
     console.error("Add candidate error:", err.response?.data || err.message);
-    alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
   }
 };
 
-
+// Fixed handleUpdateCandidate function
 const handleUpdateCandidate = async () => {
   try {
     if (!formData.name || !formData.position) {
@@ -301,7 +279,7 @@ const handleUpdateCandidate = async () => {
       year: formData.year,
     };
 
-   
+    // If electionId is being changed, include it
     if (formData.electionId && formData.electionId !== selectedCandidate.electionId) {
       const selectedElection = elections.find(e => e.id === formData.electionId);
       if (selectedElection) {
@@ -314,7 +292,7 @@ const handleUpdateCandidate = async () => {
       payload
     );
     
- 
+    // Transform the response
     const updatedCandidate = {
       ...selectedCandidate,
       name: data.candidate.name,
@@ -345,7 +323,7 @@ const handleUpdateCandidate = async () => {
   }
 };
 
-
+// Fixed handleDeleteCandidate function
 const handleDeleteCandidate = async (candidateId) => {
   if (!window.confirm("Delete this candidate?")) return;
   
