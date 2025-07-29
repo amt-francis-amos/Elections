@@ -11,33 +11,29 @@ import candidateRoutes from './routes/candidateRoutes.js';
 import voteRoutes from './routes/voteRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 connectDb();
 
-app.use(helmet()); 
+app.use(helmet());
 app.use(cors({credentials: true}));
 app.use(express.json());
-app.use(morgan('dev')); 
-
+app.use(morgan('dev'));
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 100, 
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', apiLimiter);
 
-
 app.use('/api/users', userRoutes);
 app.use('/api/elections', electionRoutes);
-app.use('/api', candidateRoutes);
+app.use('/api/candidates', candidateRoutes); 
 app.use('/api/votes', voteRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/admin', candidateRoutes);
- 
+
 app.get('/', (req, res) => {
   res.send('🎉 Voting System API is running!');
 });
@@ -48,7 +44,6 @@ app.use((err, req, res, next) => {
     message: err.message || 'Something went wrong!',
   });
 });
-
 
 app.listen(PORT, () => {
   console.log(`✅ Server is running on http://localhost:${PORT}`);
