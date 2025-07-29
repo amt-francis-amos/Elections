@@ -368,29 +368,112 @@ const Vote = () => {
       
       try {
         const token = localStorage.getItem('userToken');
-        if (!token) return;
+        if (!token) {
+          setError('Authentication token not found. Please log in.');
+          return;
+        }
 
-        const { data } = await axios.get(
-          `${API_BASE_URL}/candidates/${selectedElectionId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        console.log('Fetching candidates for election ID:', selectedElectionId);
+        
+        // Try different possible endpoints
+        let response;
+        try {
+          // First try: /api/candidates/:electionId
+          response = await axios.get(
+            `${API_BASE_URL}/candidates/${selectedElectionId}`,
+            { 
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 10000
+            }
+          );
+        } catch (firstError) {
+          if (firstError.response?.status === 404) {
+            try {
+              // Second try: /api/candidates?electionId=:id
+              response = await axios.get(
+                `${API_BASE_URL}/candidates?electionId=${selectedElectionId}`,
+                { 
+                  headers: { Authorization: `Bearer ${token}` },
+                  timeout: 10000
+                }
+              );
+            } catch (secondError) {
+              if (secondError.response?.status === 404) {
+                try {
+                  // Third try: /api/elections/:id/candidates
+                  response = await axios.get(
+                    `${API_BASE_URL}/elections/${selectedElectionId}/candidates`,
+                    { 
+                      headers: { Authorization: `Bearer ${token}` },
+                      timeout: 10000
+                    }
+                  );
+                } catch (thirdError) {
+                  // If all attempts fail, throw the original error
+                  throw firstError;
+                }
+              } else {
+                throw secondError;
+              }
+            }
+          } else {
+            throw firstError;
+          }
+        }
+        
+        const data = response.data;
+        
+        console.log('Candidates API Response:', data);
         
         let candidatesArray = [];
-        if (data && data.success && Array.isArray(data.candidates)) {
+        if (data && Array.isArray(data.candidates)) {
+          // Response format: { candidates: [...], message: "..." }
+          candidatesArray = data.candidates;
+        } else if (data && data.success && Array.isArray(data.candidates)) {
+          // Response format: { success: true, candidates: [...] }
           candidatesArray = data.candidates;
         } else if (Array.isArray(data)) {
+          // Response is directly an array
           candidatesArray = data;
         } else {
           console.error('Unexpected candidates response format:', data);
           candidatesArray = [];
         }
         
+        console.log('Processed candidates:', candidatesArray);
         setCandidates(candidatesArray);
         await checkExistingVote(selectedElectionId);
         
       } catch (err) {
         console.error('Error loading candidates:', err);
-        setError('Failed to load candidates.');
+        
+        let errorMessage = 'Failed to load candidates.';
+        
+        if (err.response) {
+          const status = err.response.status;
+          switch (status) {
+            case 404:
+              errorMessage = 'Candidates endpoint not found. Please check your backend routes.';
+              break;
+            case 401:
+              errorMessage = 'Authentication failed. Please log in again.';
+              break;
+            case 403:
+              errorMessage = 'Access denied. You may not have permission to view candidates.';
+              break;
+            case 500:
+              errorMessage = 'Server error. Please try again later.';
+              break;
+            default:
+              errorMessage = `Server returned ${status} error: ${err.response.data?.message || 'Unknown error'}`;
+          }
+        } else if (err.request) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Request timeout. Please try again.';
+        }
+        
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
