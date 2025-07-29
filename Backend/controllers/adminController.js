@@ -1,6 +1,6 @@
 import User from '../models/userModel.js';
 import bcrypt from 'bcrypt';
-import nodemailer from '../config/nodemailer.js';
+import transporter from '../config/nodemailer.js'; 
 
 function generateVoterId() {
   const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -80,22 +80,28 @@ export const createVoter = async (req, res) => {
         to: normalizedEmail,
         subject: "Voter Account Credentials",
         html: `
-          <h2>Hello ${voter.name},</h2>
-          <p>Your voter account has been successfully created. Below are your login credentials:</p>
-          <ul>
-            <li><strong>User ID:</strong> ${voterId}</li>
-            <li><strong>Password:</strong> ${plainPassword}</li>
-          </ul>
-          <p>Please keep this information secure.</p>
-          <p>Regards,<br/>Admin Team</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333;">Hello ${voter.name},</h2>
+            <p>Your voter account has been successfully created. Below are your login credentials:</p>
+            <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>User ID:</strong> <span style="font-family: monospace; background-color: #e8e8e8; padding: 2px 6px; border-radius: 3px;">${voterId}</span></p>
+              <p><strong>Password:</strong> <span style="font-family: monospace; background-color: #e8e8e8; padding: 2px 6px; border-radius: 3px;">${plainPassword}</span></p>
+            </div>
+            <p style="color: #d9534f;"><strong>Important:</strong> Please keep this information secure and do not share it with anyone.</p>
+            <p>You can now use these credentials to log into the voting system.</p>
+            <p>Best regards,<br/>
+            <strong>Admin Team</strong></p>
+          </div>
         `
       };
 
       try {
-        await nodemailer.sendMail(mailOptions);
-        console.log("✅ Email sent to:", normalizedEmail);
+        await transporter.sendMail(mailOptions);
+        console.log("✅ Email sent successfully to:", normalizedEmail);
       } catch (emailError) {
         console.error("❌ Error sending email:", emailError.message);
+        // Continue with success response even if email fails
+        // You might want to add a flag to indicate email status
       }
     }
 
@@ -103,7 +109,7 @@ export const createVoter = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Voter created successfully",
+      message: "Voter created successfully" + (email && email.trim() ? " and credentials sent to email" : ""),
       voter: {
         _id: voter._id,
         name: voter.name,
