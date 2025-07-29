@@ -1,12 +1,11 @@
 import User from '../models/userModel.js';
 import bcrypt from 'bcrypt';
-
+import nodemailer from '../config/nodemailer.js';
 
 function generateVoterId() {
   const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `VTR-${randomStr}`;
 }
-
 
 function generateVoterPassword() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -17,12 +16,10 @@ function generateVoterPassword() {
   return password;
 }
 
-
 export const createVoter = async (req, res) => {
   try {
     const { name, email } = req.body;
 
-  
     if (!name || name.trim().length < 2) {
       return res.status(400).json({
         success: false,
@@ -30,7 +27,6 @@ export const createVoter = async (req, res) => {
       });
     }
 
-    
     if (email && email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
@@ -40,7 +36,6 @@ export const createVoter = async (req, res) => {
         });
       }
 
-  
       const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
       if (existingEmail) {
         return res.status(400).json({
@@ -50,7 +45,6 @@ export const createVoter = async (req, res) => {
       }
     }
 
-   
     const existingName = await User.findOne({ name: name.trim() });
     if (existingName) {
       return res.status(400).json({
@@ -59,31 +53,54 @@ export const createVoter = async (req, res) => {
       });
     }
 
-   
     let voterId = generateVoterId();
     while (await User.findOne({ userId: voterId })) {
       voterId = generateVoterId();
     }
 
-   
     const plainPassword = generateVoterPassword();
     const hashedPassword = await bcrypt.hash(plainPassword, 12);
 
-  
+    const normalizedEmail = email ? email.toLowerCase().trim() : `${voterId.toLowerCase()}@voter.local`;
+
     const voterData = {
       name: name.trim(),
-      email: email ? email.toLowerCase().trim() : `${voterId.toLowerCase()}@voter.local`,
+      email: normalizedEmail,
       password: hashedPassword,
       userId: voterId,
       role: 'voter'
     };
 
-  
     const voter = await User.create(voterData);
+
+    // ✅ Send email if real email is provided
+    if (email && email.trim()) {
+      const mailOptions = {
+        from: `"Voting App" <${process.env.EMAIL_USER}>`,
+        to: normalizedEmail,
+        subject: "Voter Account Credentials",
+        html: `
+          <h2>Hello ${voter.name},</h2>
+          <p>Your voter account has been successfully created. Below are your login credentials:</p>
+          <ul>
+            <li><strong>User ID:</strong> ${voterId}</li>
+            <li><strong>Password:</strong> ${plainPassword}</li>
+          </ul>
+          <p>Please keep this information secure.</p>
+          <p>Regards,<br/>Admin Team</p>
+        `
+      };
+
+      try {
+        await nodemailer.sendMail(mailOptions);
+        console.log("✅ Email sent to:", normalizedEmail);
+      } catch (emailError) {
+        console.error("❌ Error sending email:", emailError.message);
+      }
+    }
 
     console.log(`✅ Voter created by admin ${req.user.name}:`, voter.name);
 
-  
     res.status(201).json({
       success: true,
       message: "Voter created successfully",
@@ -120,7 +137,6 @@ export const createVoter = async (req, res) => {
   }
 };
 
-
 export const getAllVoters = async (req, res) => {
   try {
     const voters = await User.find(
@@ -144,7 +160,6 @@ export const getAllVoters = async (req, res) => {
     });
   }
 };
-
 
 export const promoteToAdmin = async (req, res) => {
   try {
@@ -197,7 +212,6 @@ export const promoteToAdmin = async (req, res) => {
   }
 };
 
-
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -209,7 +223,6 @@ export const deleteUser = async (req, res) => {
         message: "User not found"
       });
     }
-
 
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
