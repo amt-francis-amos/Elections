@@ -73,7 +73,7 @@ export const createVoter = async (req, res) => {
 
     const voter = await User.create(voterData);
 
-    // ✅ Send email if real email is provided
+  
     if (email && email.trim()) {
       const mailOptions = {
         from: `"Voting App" <${process.env.EMAIL_USER}>`,
@@ -100,8 +100,7 @@ export const createVoter = async (req, res) => {
         console.log("✅ Email sent successfully to:", normalizedEmail);
       } catch (emailError) {
         console.error("❌ Error sending email:", emailError.message);
-        // Continue with success response even if email fails
-        // You might want to add a flag to indicate email status
+    
       }
     }
 
