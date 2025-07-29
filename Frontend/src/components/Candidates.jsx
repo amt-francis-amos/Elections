@@ -37,11 +37,44 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
+  // Rate limiting helper
+  const rateLimitCache = useRef(new Map());
+  const lastRequestTime = useRef(0);
+  const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
+
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const makeRateLimitedRequest = async (url, config) => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime.current;
+    
+    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+      await sleep(MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+    }
+    
+    lastRequestTime.current = Date.now();
+    return axios.get(url, config);
+  };
 
   useEffect(() => {
     const fetchElections = async () => {
       if (isOpen && (!elections || elections.length === 0)) {
+        // Check cache first
+        const cacheKey = 'elections_data';
+        const cached = rateLimitCache.current.get(cacheKey);
+        const now = Date.now();
+        
+        if (cached && now - cached.timestamp < 30000) { // Use cache for 30 seconds
+          setAvailableElections(cached.data);
+          if (cached.data.length === 0) {
+            setErrors(prev => ({ 
+              ...prev, 
+              elections: 'No elections available. Please create an election first.' 
+            }));
+          }
+          return;
+        }
+
         setLoadingElections(true);
         setErrors(prev => ({ ...prev, elections: '' }));
         
@@ -66,7 +99,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
 
             for (const endpoint of endpoints) {
               try {
-                response = await axios.get(endpoint, {
+                response = await makeRateLimitedRequest(endpoint, {
                   headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -127,6 +160,12 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             );
             
             console.log('Processed elections data:', electionsData);
+            
+            // Cache the result
+            rateLimitCache.current.set(cacheKey, {
+              data: electionsData,
+              timestamp: now
+            });
             
             setAvailableElections(electionsData);
             
@@ -328,6 +367,9 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const retryFetchElections = async () => {
     setLoadingElections(true);
     setErrors(prev => ({ ...prev, elections: '' }));
+    
+    // Clear cache to force fresh request
+    rateLimitCache.current.delete('elections_data');
     
     // Add a small delay to avoid immediate rate limit
     await sleep(2000);
@@ -995,7 +1037,24 @@ const Candidates = ({
   const [availableElections, setAvailableElections] = useState(elections);
   const [loadingElections, setLoadingElections] = useState(false);
 
+  // Rate limiting cache for main component
+  const mainRateLimitCache = useRef(new Map());
+  const mainLastRequestTime = useRef(0);
+  const MAIN_MIN_REQUEST_INTERVAL = 1000;
+
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const makeMainRateLimitedRequest = async (url, config) => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - mainLastRequestTime.current;
+    
+    if (timeSinceLastRequest < MAIN_MIN_REQUEST_INTERVAL) {
+      await sleep(MAIN_MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+    }
+    
+    mainLastRequestTime.current = Date.now();
+    return axios.get(url, config);
+  };
 
   useEffect(() => {
     setCandidatesList(candidates);
@@ -1004,6 +1063,16 @@ const Candidates = ({
   useEffect(() => {
     const fetchElections = async () => {
       if (!elections || elections.length === 0) {
+        // Check cache first
+        const cacheKey = 'elections_list';
+        const cached = mainRateLimitCache.current.get(cacheKey);
+        const now = Date.now();
+        
+        if (cached && now - cached.timestamp < 60000) { // Use cache for 1 minute
+          setAvailableElections(cached.data);
+          return;
+        }
+
         setLoadingElections(true);
         
         let retryCount = 0;
@@ -1019,7 +1088,7 @@ const Candidates = ({
               return;
             }
 
-            const response = await axios.get(
+            const response = await makeMainRateLimitedRequest(
               `https://elections-backend-j8m8.onrender.com/api/elections`,
               {
                 headers: {
@@ -1055,6 +1124,12 @@ const Candidates = ({
             electionsData = electionsData.filter(election => 
               election && (election._id || election.id) && (election.title || election.name)
             );
+            
+            // Cache the result
+            mainRateLimitCache.current.set(cacheKey, {
+              data: electionsData,
+              timestamp: now
+            });
             
             setAvailableElections(electionsData);
             break;
