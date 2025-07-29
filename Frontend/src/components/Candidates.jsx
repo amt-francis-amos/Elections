@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
+
 const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -37,205 +39,128 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
-  // Rate limiting helper
-  const rateLimitCache = useRef(new Map());
-  const lastRequestTime = useRef(0);
-  const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
-
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const makeRateLimitedRequest = async (url, config) => {
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime.current;
-    
-    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-      await sleep(MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+  // Simple request with retry logic
+  const makeRequest = async (url, config, retries = 2) => {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const response = await axios.get(url, {
+          ...config,
+          timeout: 10000
+        });
+        return response;
+      } catch (error) {
+        if (i === retries) throw error;
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+      }
     }
-    
-    lastRequestTime.current = Date.now();
-    return axios.get(url, config);
   };
 
   useEffect(() => {
     const fetchElections = async () => {
       if (isOpen && (!elections || elections.length === 0)) {
-        // Check cache first
-        const cacheKey = 'elections_data';
-        const cached = rateLimitCache.current.get(cacheKey);
-        const now = Date.now();
-        
-        if (cached && now - cached.timestamp < 30000) { // Use cache for 30 seconds
-          setAvailableElections(cached.data);
-          if (cached.data.length === 0) {
-            setErrors(prev => ({ 
-              ...prev, 
-              elections: 'No elections available. Please create an election first.' 
-            }));
-          }
-          return;
-        }
-
         setLoadingElections(true);
         setErrors(prev => ({ ...prev, elections: '' }));
         
-        let retryCount = 0;
-        const maxRetries = 3;
-        
-        while (retryCount < maxRetries) {
-          try {
-            const token = localStorage.getItem('token');
-            
-            if (!token) {
-              throw new Error('No authentication token found');
-            }
+        try {
+          const token = localStorage.getItem('token');
+          
+          if (!token) {
+            throw new Error('No authentication token found');
+          }
 
-            // Try multiple possible endpoints
-            let response;
-            const endpoints = [
-              `https://elections-backend-j8m8.onrender.com/api/admin/elections`,
-              `https://elections-backend-j8m8.onrender.com/api/elections`,
-              `https://elections-backend-j8m8.onrender.com/api/candidates/elections`
-            ];
-
-            for (const endpoint of endpoints) {
-              try {
-                response = await makeRateLimitedRequest(endpoint, {
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  timeout: 15000
-                });
-                console.log(`Successfully fetched elections from: ${endpoint}`);
-                break; // Success, exit loop
-              } catch (endpointError) {
-                console.log(`Failed to fetch from ${endpoint}:`, endpointError.response?.status);
-                if (endpoint === endpoints[endpoints.length - 1]) {
-                  throw endpointError; // Last endpoint failed, throw error
-                }
-                continue; // Try next endpoint
+          // Use the primary elections endpoint
+          const response = await makeRequest(
+            `${API_BASE_URL}/elections`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
               }
             }
-            
-            console.log('Elections API Response:', response.data);
-            
-            let electionsData = [];
-            
-            // Handle different response structures more robustly
-            if (response.data) {
-              // Check for nested success response
-              if (response.data.success === true) {
-                if (response.data.elections && Array.isArray(response.data.elections)) {
-                  electionsData = response.data.elections;
-                } else if (response.data.data && Array.isArray(response.data.data)) {
-                  electionsData = response.data.data;
-                } else if (response.data.election) {
-                  electionsData = [response.data.election];
-                }
-              }
-              // Check for direct array response
-              else if (Array.isArray(response.data)) {
-                electionsData = response.data;
-              }
-              // Check for nested arrays without success flag
-              else if (response.data.elections && Array.isArray(response.data.elections)) {
-                electionsData = response.data.elections;
-              } else if (response.data.data && Array.isArray(response.data.data)) {
-                electionsData = response.data.data;
-              }
-              // Single election object
-              else if (response.data.title || response.data.name) {
-                electionsData = [response.data];
-              }
-            }
-            
-            // Ensure we have an array
-            if (!Array.isArray(electionsData)) {
-              electionsData = [];
-            }
-            
-            // Filter out any invalid election objects
-            electionsData = electionsData.filter(election => 
-              election && (election._id || election.id) && (election.title || election.name)
-            );
-            
-            console.log('Processed elections data:', electionsData);
-            
-            // Cache the result
-            rateLimitCache.current.set(cacheKey, {
-              data: electionsData,
-              timestamp: now
-            });
-            
-            setAvailableElections(electionsData);
-            
-            if (electionsData.length === 0) {
-              setErrors(prev => ({ 
-                ...prev, 
-                elections: 'No active elections found. Please create an election first.' 
-              }));
-            } else {
-              setErrors(prev => ({ ...prev, elections: '' }));
-            }
-            
-            break; // Success, exit retry loop
-            
-          } catch (error) {
-            console.error(`Error fetching elections (attempt ${retryCount + 1}):`, error);
-            
-            let errorMessage = 'Failed to load elections';
-            let shouldRetry = false;
-            
-            if (error.code === 'ECONNABORTED') {
-              errorMessage = 'Request timeout - please try again';
-              shouldRetry = true;
-            } else if (error.response) {
-              const status = error.response.status;
-              if (status === 429) {
-                // Rate limited - wait longer before retry
-                const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
-                errorMessage = `Too many requests. Retrying in ${waitTime/1000} seconds...`;
-                shouldRetry = true;
-                
-                if (retryCount < maxRetries - 1) {
-                  setErrors(prev => ({ ...prev, elections: errorMessage }));
-                  await sleep(waitTime);
-                }
-              } else if (status === 401) {
-                errorMessage = 'Authentication failed - please login again';
-              } else if (status === 403) {
-                errorMessage = 'Access denied - insufficient permissions';
-              } else if (status === 404) {
-                errorMessage = 'Elections endpoint not found';
-              } else if (status >= 500) {
-                errorMessage = 'Server error - please try again later';
-                shouldRetry = true;
-              } else {
-                errorMessage = error.response.data?.message || `Server returned ${status} error`;
-              }
-            } else if (error.request) {
-              errorMessage = 'Network error - please check your connection';
-              shouldRetry = true;
-            } else if (error.message) {
-              errorMessage = error.message;
-            }
-            
-            retryCount++;
-            
-            if (retryCount >= maxRetries || !shouldRetry) {
-              setErrors(prev => ({ ...prev, elections: errorMessage }));
-              setAvailableElections([]);
-              break;
-            }
-            
-            // Wait before retry (except for rate limit which has its own wait)
-            if (error.response?.status !== 429 && retryCount < maxRetries) {
-              await sleep(1000 * retryCount); // Progressive delay
+          );
+          
+          console.log('Elections API Response:', response.data);
+          
+          let electionsData = [];
+          
+          // Handle different response structures
+          if (response.data) {
+            if (response.data.success === true) {
+              electionsData = response.data.elections || response.data.data || [];
+            } else if (Array.isArray(response.data)) {
+              electionsData = response.data;
+            } else if (response.data.elections && Array.isArray(response.data.elections)) {
+              electionsData = response.data.elections;
+            } else if (response.data.data && Array.isArray(response.data.data)) {
+              electionsData = response.data.data;
+            } else if (response.data.title || response.data.name) {
+              electionsData = [response.data];
             }
           }
+          
+          // Ensure we have an array and filter valid elections
+          if (!Array.isArray(electionsData)) {
+            electionsData = [];
+          }
+          
+          electionsData = electionsData.filter(election => 
+            election && (election._id || election.id) && (election.title || election.name)
+          );
+          
+          console.log('Processed elections data:', electionsData);
+          
+          setAvailableElections(electionsData);
+          
+          if (electionsData.length === 0) {
+            setErrors(prev => ({ 
+              ...prev, 
+              elections: 'No active elections found. Please create an election first.' 
+            }));
+          }
+          
+        } catch (error) {
+          console.error('Error fetching elections:', error);
+          
+          let errorMessage = 'Failed to load elections';
+          
+          if (error.code === 'ECONNABORTED') {
+            errorMessage = 'Request timeout - please try again';
+          } else if (error.response) {
+            const status = error.response.status;
+            switch (status) {
+              case 401:
+                errorMessage = 'Authentication failed - please login again';
+                break;
+              case 403:
+                errorMessage = 'Access denied - insufficient permissions';
+                break;
+              case 404:
+                errorMessage = 'Elections endpoint not found';
+                break;
+              case 429:
+                errorMessage = 'Too many requests - please wait a moment';
+                break;
+              case 500:
+              case 502:
+              case 503:
+                errorMessage = 'Server error - please try again later';
+                break;
+              default:
+                errorMessage = error.response.data?.message || `Server returned ${status} error`;
+            }
+          } else if (error.request) {
+            errorMessage = 'Network error - please check your connection';
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          setErrors(prev => ({ ...prev, elections: errorMessage }));
+          setAvailableElections([]);
+        } finally {
+          setLoadingElections(false);
         }
-        
-        setLoadingElections(false);
       } else if (elections && elections.length > 0) {
         setAvailableElections(elections);
         setErrors(prev => ({ ...prev, elections: '' }));
@@ -333,7 +258,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `https://elections-backend-j8m8.onrender.com/api/candidates`,
+        `${API_BASE_URL}/candidates`,
         formDataToSend,
         {
           headers: {
@@ -364,18 +289,9 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     }
   };
 
-  const retryFetchElections = async () => {
-    setLoadingElections(true);
-    setErrors(prev => ({ ...prev, elections: '' }));
-    
-    // Clear cache to force fresh request
-    rateLimitCache.current.delete('elections_data');
-    
-    // Add a small delay to avoid immediate rate limit
-    await sleep(2000);
-    
-    // Trigger useEffect by changing state
+  const retryFetchElections = () => {
     setAvailableElections([]);
+    // This will trigger the useEffect to refetch
   };
 
   if (!isOpen) return null;
@@ -516,11 +432,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
                   Try again
                 </button>
               </div>
-            )}
-            {!loadingElections && availableElections.length === 0 && !errors.elections && (
-              <p className="text-amber-600 text-sm mt-1">
-                No elections available. Please create an election first.
-              </p>
             )}
           </div>
 
@@ -735,7 +646,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
 
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}/image`,
+        `${API_BASE_URL}/candidates/${candidateId}/image`,
         formData,
         {
           headers: {
@@ -915,7 +826,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
     if (window.confirm(`Are you sure you want to delete ${candidate.name}?`)) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`https://elections-backend-j8m8.onrender.com/api/candidates/${candidate.id || candidate._id}`, {
+        await axios.delete(`${API_BASE_URL}/candidates/${candidate.id || candidate._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -1035,127 +946,15 @@ const Candidates = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [candidatesList, setCandidatesList] = useState(candidates);
   const [availableElections, setAvailableElections] = useState(elections);
-  const [loadingElections, setLoadingElections] = useState(false);
-
-  // Rate limiting cache for main component
-  const mainRateLimitCache = useRef(new Map());
-  const mainLastRequestTime = useRef(0);
-  const MAIN_MIN_REQUEST_INTERVAL = 1000;
-
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const makeMainRateLimitedRequest = async (url, config) => {
-    const now = Date.now();
-    const timeSinceLastRequest = now - mainLastRequestTime.current;
-    
-    if (timeSinceLastRequest < MAIN_MIN_REQUEST_INTERVAL) {
-      await sleep(MAIN_MIN_REQUEST_INTERVAL - timeSinceLastRequest);
-    }
-    
-    mainLastRequestTime.current = Date.now();
-    return axios.get(url, config);
-  };
 
   useEffect(() => {
     setCandidatesList(candidates);
   }, [candidates]);
 
   useEffect(() => {
-    const fetchElections = async () => {
-      if (!elections || elections.length === 0) {
-        // Check cache first
-        const cacheKey = 'elections_list';
-        const cached = mainRateLimitCache.current.get(cacheKey);
-        const now = Date.now();
-        
-        if (cached && now - cached.timestamp < 60000) { // Use cache for 1 minute
-          setAvailableElections(cached.data);
-          return;
-        }
-
-        setLoadingElections(true);
-        
-        let retryCount = 0;
-        const maxRetries = 2;
-        
-        while (retryCount < maxRetries) {
-          try {
-            const token = localStorage.getItem('token');
-            
-            if (!token) {
-              setAvailableElections([]);
-              setLoadingElections(false);
-              return;
-            }
-
-            const response = await makeMainRateLimitedRequest(
-              `https://elections-backend-j8m8.onrender.com/api/elections`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                timeout: 15000
-              }
-            );
-            
-            let electionsData = [];
-            
-            // Handle different response structures
-            if (response.data) {
-              if (response.data.success === true) {
-                if (response.data.elections && Array.isArray(response.data.elections)) {
-                  electionsData = response.data.elections;
-                } else if (response.data.data && Array.isArray(response.data.data)) {
-                  electionsData = response.data.data;
-                }
-              } else if (Array.isArray(response.data)) {
-                electionsData = response.data;
-              } else if (response.data.elections && Array.isArray(response.data.elections)) {
-                electionsData = response.data.elections;
-              } else if (response.data.data && Array.isArray(response.data.data)) {
-                electionsData = response.data.data;
-              } else if (response.data.title || response.data.name) {
-                electionsData = [response.data];
-              }
-            }
-            
-            // Filter out invalid elections
-            electionsData = electionsData.filter(election => 
-              election && (election._id || election.id) && (election.title || election.name)
-            );
-            
-            // Cache the result
-            mainRateLimitCache.current.set(cacheKey, {
-              data: electionsData,
-              timestamp: now
-            });
-            
-            setAvailableElections(electionsData);
-            break;
-            
-          } catch (error) {
-            console.error(`Error fetching elections for main component (attempt ${retryCount + 1}):`, error);
-            retryCount++;
-            
-            if (error.response?.status === 429 && retryCount < maxRetries) {
-              // Wait longer for rate limit
-              await sleep(3000 * retryCount);
-            } else if (retryCount < maxRetries) {
-              await sleep(1000 * retryCount);
-            } else {
-              setAvailableElections([]);
-            }
-          }
-        }
-        
-        setLoadingElections(false);
-      } else {
-        setAvailableElections(elections);
-      }
-    };
-
-    fetchElections();
+    if (elections && elections.length > 0) {
+      setAvailableElections(elections);
+    }
   }, [elections]);
 
   const filteredCandidates = candidatesList.filter(candidate => {
