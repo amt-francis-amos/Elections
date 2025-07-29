@@ -292,7 +292,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
 
   const retryFetchElections = () => {
     setAvailableElections([]);
-    // This will trigger the useEffect to refetch
+   
   };
 
   if (!isOpen) return null;
