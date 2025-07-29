@@ -355,34 +355,35 @@ const AdminDashboard = () => {
       );
     }
   };
-  const handleDeleteElection = async (id) => {
-    if (!window.confirm("Delete this election?")) return;
-    try {
-      const election = elections.find((e) => e.id === id || e._id === id);
-      const electionId = election?._id || id;
-
-      await axios.delete(
-        `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`
-      );
-
-      setElections((es) => es.filter((e) => e.id !== id && e._id !== id));
-      setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "election",
-          action: `Election deleted`,
-          time: "Just now",
-          status: "completed",
-        },
-        ...a.slice(0, 4),
-      ]);
-    } catch (err) {
-      console.error(
-        "Delete election error:",
-        err.response?.data || err.message
-      );
-    }
-  };
+const handleDeleteElection = async (id) => {
+  if (!window.confirm("Delete this election?")) return;
+  try {
+    // Find the election to get the correct _id
+    const election = elections.find(e => e.id === id || e._id === id);
+    const electionId = election?._id || id;
+    
+    await axios.delete(
+      `https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`
+    );
+    
+    setElections((es) => es.filter((e) => e.id !== id && e._id !== id));
+    setRecentActivity((a) => [
+      {
+        id: Date.now(),
+        type: "election",
+        action: `Election deleted`,
+        time: "Just now",
+        status: "completed",
+      },
+      ...a.slice(0, 4),
+    ]);
+  } catch (err) {
+    console.error(
+      "Delete election error:",
+      err.response?.data || err.message
+    );
+  }
+};
   const handleAddCandidate = async () => {
   try {
     // Debug: Log the current form data
