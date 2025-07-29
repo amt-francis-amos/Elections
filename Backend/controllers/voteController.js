@@ -63,3 +63,34 @@ export const getResults = async (req, res) => {
     res.status(500).json({ message: 'Error fetching results', error });
   }
 };
+
+export const getCandidates = async (req, res) => {
+  try {
+    const { electionId } = req.params;
+
+    // Validate election ID
+    if (!mongoose.Types.ObjectId.isValid(electionId)) {
+      return res.status(400).json({ message: 'Invalid election ID' });
+    }
+
+
+    const candidates = await Candidate.find({ 
+      election: new mongoose.Types.ObjectId(electionId),
+      
+    }).select('name party description profileImage'); 
+
+    if (!candidates || candidates.length === 0) {
+      return res.status(404).json({ message: 'No candidates found for this election' });
+    }
+
+    res.json({
+      success: true,
+      candidates,
+      count: candidates.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error in getCandidates:', error);
+    res.status(500).json({ message: 'Error fetching candidates', error });
+  }
+};
