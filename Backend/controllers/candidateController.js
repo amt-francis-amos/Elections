@@ -293,13 +293,13 @@ export const getAllElections = async (req, res) => {
 export const getAllCandidates = async (req, res) => {
   try {
     const candidates = await Candidate.find()
-      .populate('electionId', 'title')
+      .populate('election', 'title')  
       .sort({ createdAt: -1 });
 
     const formattedCandidates = candidates.map(candidate => ({
       ...candidate.toObject(),
       id: candidate._id,
-      electionTitle: candidate.electionId?.title || 'Unknown Election',
+      electionTitle: candidate.election?.title || 'Unknown Election',  
       votes: candidate.votes || 0
     }));
 
