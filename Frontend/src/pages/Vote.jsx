@@ -375,25 +375,15 @@ const Vote = () => {
 
         console.log('Fetching candidates for election ID:', selectedElectionId);
         
-        // Use the correct backend route: /api/candidates/election/:electionId
-        let response;
-        try {
-          response = await axios.get(
-            `${API_BASE_URL}/candidates/election/${selectedElectionId}`,
-            { 
-              headers: { Authorization: `Bearer ${token}` },
-              timeout: 10000
-            }
-          );
-        } catch (firstError) {
-          // If we get a 403 (Forbidden) error, it might be due to admin role requirement
-          if (firstError.response?.status === 403) {
-            console.warn('Access denied to candidates endpoint. You may need admin privileges or a public voting endpoint.');
-            setError('Access denied. This may require admin privileges. Please contact your administrator.');
-            return;
+        // FIXED: Use the public route for voters
+        const response = await axios.get(
+          `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
+          { 
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 10000
           }
-          throw firstError;
-        }
+        );
+        
         const data = response.data;
         
         console.log('Candidates API Response:', data);
@@ -426,13 +416,13 @@ const Vote = () => {
           const status = err.response.status;
           switch (status) {
             case 404:
-              errorMessage = 'Candidates endpoint not found. Please check your backend routes.';
+              errorMessage = 'No candidates found for this election or election not found.';
               break;
             case 401:
               errorMessage = 'Authentication failed. Please log in again.';
               break;
             case 403:
-              errorMessage = 'Access denied. You may not have permission to view candidates.';
+              errorMessage = 'Access denied. Please check your permissions.';
               break;
             case 500:
               errorMessage = 'Server error. Please try again later.';
