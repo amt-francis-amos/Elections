@@ -107,11 +107,11 @@ const Login = () => {
     <>
       {/* Blurred Background Overlay */}
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md px-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md px-4 py-8"
         onClick={handleBackgroundClick}
       >
         {/* Login Form Container */}
-        <div className="bg-white p-8 sm:p-10 rounded-3xl w-full max-w-md shadow-2xl border border-gray-100 relative">
+        <div className="bg-white p-8 sm:p-10 rounded-3xl w-full max-w-md shadow-2xl border border-gray-100 relative max-h-[90vh] overflow-y-auto">
           
           {/* Close Button */}
           <button
@@ -123,23 +123,23 @@ const Login = () => {
           </button>
 
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center mb-6">
+            <div className="mx-auto h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mb-3">
+              <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
               Welcome Back
             </h2>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               Sign in to access the Election System
             </p>
           </div>
 
           {/* Notification */}
           {notification.message && (
-            <div className={`mb-6 p-4 rounded-lg text-sm font-medium ${
+            <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
               notification.type === "error" ? "bg-red-50 text-red-800 border border-red-200" :
               notification.type === "success" ? "bg-green-50 text-green-800 border border-green-200" :
               notification.type === "warning" ? "bg-yellow-50 text-yellow-800 border border-yellow-200" :
@@ -167,7 +167,7 @@ const Login = () => {
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* User ID Field */}
             <div className="relative">
               <input
@@ -177,7 +177,7 @@ const Login = () => {
                 onChange={handleChange}
                 placeholder=" "
                 required
-                className="peer w-full px-4 pt-6 pb-2 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                className="peer w-full px-4 pt-5 pb-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-600 transition-all duration-200 font-medium">
                 User ID
@@ -193,17 +193,17 @@ const Login = () => {
                 onChange={handleChange}
                 placeholder=" "
                 required
-                className="peer w-full px-4 pt-6 pb-2 pr-12 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                className="peer w-full px-4 pt-5 pb-2 pr-10 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-600 transition-all duration-200 font-medium">
                 Password
               </label>
               <button
                 type="button"
-                className="absolute top-1/2 right-4 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1"
+                className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
 
@@ -211,7 +211,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 px-4 rounded-xl font-semibold text-base hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-2.5 px-4 rounded-lg font-semibold text-sm hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
@@ -228,13 +228,13 @@ const Login = () => {
           </form>
 
           {/* Footer Note */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="flex items-start space-x-3">
-              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="flex items-start space-x-2">
+              <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
               <div>
-                <p className="text-sm text-gray-700 font-medium mb-1">
+                <p className="text-xs text-gray-700 font-medium mb-0.5">
                   Access Information
                 </p>
                 <p className="text-xs text-gray-600 leading-relaxed">
@@ -245,7 +245,7 @@ const Login = () => {
           </div>
 
           {/* Alternative Login Info */}
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <p className="text-xs text-gray-500">
               Having trouble? Contact your system administrator
             </p>
