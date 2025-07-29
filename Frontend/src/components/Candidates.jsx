@@ -37,10 +37,10 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
-  // Rate limiting helper
+  
   const rateLimitCache = useRef(new Map());
   const lastRequestTime = useRef(0);
-  const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
+  const MIN_REQUEST_INTERVAL = 1000;
 
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -59,12 +59,12 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   useEffect(() => {
     const fetchElections = async () => {
       if (isOpen && (!elections || elections.length === 0)) {
-        // Check cache first
+        
         const cacheKey = 'elections_data';
         const cached = rateLimitCache.current.get(cacheKey);
         const now = Date.now();
         
-        if (cached && now - cached.timestamp < 30000) { // Use cache for 30 seconds
+        if (cached && now - cached.timestamp < 30000) { 
           setAvailableElections(cached.data);
           if (cached.data.length === 0) {
             setErrors(prev => ({ 
@@ -96,7 +96,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
                   'Authorization': `Bearer ${token}`,
                   'Content-Type': 'application/json'
                 },
-                timeout: 15000 // 15 second timeout
+                timeout: 15000 
               }
             );
             
@@ -104,7 +104,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             
             let electionsData = [];
             
-            // Handle different response structures
+         
             if (response.data) {
               if (response.data.success && response.data.elections) {
                 electionsData = response.data.elections;
@@ -119,14 +119,14 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               }
             }
             
-            // Ensure we have an array
+           
             if (!Array.isArray(electionsData)) {
               electionsData = [];
             }
             
             console.log('Processed elections data:', electionsData);
             
-            // Cache the result
+           
             rateLimitCache.current.set(cacheKey, {
               data: electionsData,
               timestamp: now
@@ -141,7 +141,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               }));
             }
             
-            break; // Success, exit retry loop
+            break; 
             
           } catch (error) {
             console.error(`Error fetching elections (attempt ${retryCount + 1}):`, error);
@@ -155,8 +155,8 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             } else if (error.response) {
               const status = error.response.status;
               if (status === 429) {
-                // Rate limited - wait longer before retry
-                const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
+        
+                const waitTime = Math.pow(2, retryCount) * 2000;
                 errorMessage = `Too many requests. Retrying in ${waitTime/1000} seconds...`;
                 shouldRetry = true;
                 
@@ -191,9 +191,9 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               break;
             }
             
-            // Wait before retry (except for rate limit which has its own wait)
+           
             if (error.response?.status !== 429 && retryCount < maxRetries) {
-              await sleep(1000 * retryCount); // Progressive delay
+              await sleep(1000 * retryCount); 
             }
           }
         }
@@ -331,13 +331,13 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     setLoadingElections(true);
     setErrors(prev => ({ ...prev, elections: '' }));
     
-    // Clear cache to force fresh request
+
     rateLimitCache.current.delete('elections_data');
     
-    // Add a small delay to avoid immediate rate limit
+   
     await sleep(2000);
     
-    // Trigger useEffect by changing state
+ 
     setAvailableElections([]);
   };
 
@@ -358,7 +358,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Image Upload Section */}
+      
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -392,7 +392,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-          {/* Basic Information */}
+       
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -433,7 +433,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             </div>
           </div>
 
-          {/* Election Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Election <span className="text-red-500">*</span>
@@ -487,7 +486,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-          {/* Contact Information */}
+  
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1007,12 +1006,12 @@ const Candidates = ({
   useEffect(() => {
     const fetchElections = async () => {
       if (!elections || elections.length === 0) {
-        // Check cache first
+       
         const cacheKey = 'elections_list';
         const cached = rateLimitCache.current.get(cacheKey);
         const now = Date.now();
         
-        if (cached && now - cached.timestamp < 60000) { // Use cache for 1 minute
+        if (cached && now - cached.timestamp < 60000) { 
           setAvailableElections(cached.data);
           return;
         }
@@ -1054,7 +1053,7 @@ const Candidates = ({
               electionsData = [response.data];
             }
             
-            // Cache the result
+            
             rateLimitCache.current.set(cacheKey, {
               data: electionsData,
               timestamp: now
@@ -1068,7 +1067,7 @@ const Candidates = ({
             retryCount++;
             
             if (error.response?.status === 429 && retryCount < maxRetries) {
-              // Wait longer for rate limit
+              
               await sleep(3000 * retryCount);
             } else if (retryCount < maxRetries) {
               await sleep(1000 * retryCount);
