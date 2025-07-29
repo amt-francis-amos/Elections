@@ -333,7 +333,7 @@ export const deleteCandidate = async (req, res) => {
 export const getAllElections = async (req, res) => {
   try {
     const elections = await Election.find({})
-      .select('title description startDate endDate status')
+      .select('title description startDate endDate status isActive') // Add isActive field
       .sort({ createdAt: -1 });
 
     res.status(200).json({
