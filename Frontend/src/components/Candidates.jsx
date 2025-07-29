@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+// Define API_BASE_URL constant
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
 const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }) => {
   const [formData, setFormData] = useState({
@@ -38,7 +40,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
-
   const makeRequest = async (url, config, retries = 2) => {
     for (let i = 0; i <= retries; i++) {
       try {
@@ -50,7 +51,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       } catch (error) {
         if (i === retries) throw error;
         
-       
+        // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
@@ -69,8 +70,9 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             throw new Error('No authentication token found');
           }
 
+          // Fixed endpoint - now using /api/elections instead of /api/candidates/elections
           const response = await makeRequest(
-            `https://elections-backend-j8m8.onrender.com/api/elections`,
+            `${API_BASE_URL}/elections`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -83,7 +85,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
           
           let electionsData = [];
           
-      
+          // Handle different response structures
           if (response.data) {
             if (response.data.success === true) {
               electionsData = response.data.elections || response.data.data || [];
@@ -98,7 +100,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             }
           }
           
-         
+          // Ensure electionsData is an array
           if (!Array.isArray(electionsData)) {
             electionsData = [];
           }
@@ -190,7 +192,8 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       ...prev,
       [name]: value
     }));
- 
+    
+    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -289,7 +292,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
 
   const retryFetchElections = () => {
     setAvailableElections([]);
-   
+    // This will trigger the useEffect to refetch
   };
 
   if (!isOpen) return null;
@@ -309,7 +312,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        
+          {/* Profile Picture Upload */}
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -431,7 +434,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-          
+          {/* Contact Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -560,7 +563,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
   const fileInputRef = useRef(null);
 
   const validateFile = (file) => {
-    const maxSize = 5 * 1024 * 1024; 
+    const maxSize = 5 * 1024 * 1024; // 5MB
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     
     if (!allowedTypes.includes(file.type)) {
@@ -642,7 +645,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
 
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}/image`,
+        `${API_BASE_URL}/candidates/${candidateId}/image`,
         formData,
         {
           headers: {
@@ -822,7 +825,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
     if (window.confirm(`Are you sure you want to delete ${candidate.name}?`)) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`https://elections-backend-j8m8.onrender.com/api/candidates/${candidate.id || candidate._id}`, {
+        await axios.delete(`${API_BASE_URL}/candidates/${candidate.id || candidate._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
