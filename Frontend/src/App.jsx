@@ -11,7 +11,6 @@ import Login from './pages/Login';
 import Vote from './pages/Vote';
 import Results from './pages/Results';
 import AdminDashboard from './pages/AdminDashboard';
-import ElectionsPage from './pages/ElectionPage';
 import CandidatesPage from './pages/CandidatePage';
 
 const App = () => (
@@ -22,7 +21,6 @@ const App = () => (
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/vote" element={<Vote />} />
-        <Route path="/election" element={<ElectionsPage />} />
         <Route path="/candidate" element={<CandidatesPage />} />
        <Route path="/results/:electionId" element={<Results />} />
         <Route
