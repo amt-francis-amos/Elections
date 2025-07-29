@@ -316,3 +316,68 @@ export const getAllCandidates = async (req, res) => {
     });
   }
 };
+
+export const getPublicCandidatesForElection = async (req, res) => {
+  try {
+    const { electionId } = req.params;
+
+    if (!electionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Election ID is required"
+      });
+    }
+
+   
+    const election = await Election.findById(electionId);
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: "Election not found"
+      });
+    }
+
+    if (!election.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Election is not currently active"
+      });
+    }
+
+    
+    const candidates = await Candidate.find({ election: electionId })
+      .populate('election', 'title')
+      .sort({ createdAt: -1 });
+
+
+    const publicCandidates = candidates.map(candidate => ({
+      _id: candidate._id,
+      name: candidate.name,
+      position: candidate.position,
+      email: candidate.email,
+      phone: candidate.phone,
+      department: candidate.department,
+      year: candidate.year,
+      bio: candidate.bio,
+      image: candidate.image,
+      votes: candidate.votes || 0,
+      election: candidate.election,
+      createdAt: candidate.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Candidates retrieved successfully",
+      candidates: publicCandidates,
+      total: publicCandidates.length
+    });
+
+  } catch (error) {
+    console.error("Get public candidates error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching candidates",
+      error: error.message
+    });
+  }
+};

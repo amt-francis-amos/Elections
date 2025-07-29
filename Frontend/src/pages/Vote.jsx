@@ -375,38 +375,65 @@ const Vote = () => {
 
         console.log('Fetching candidates for election ID:', selectedElectionId);
         
-        // Use the correct backend route: /api/candidates/election/:electionId
+        // Try multiple endpoints with fallback strategy
         let response;
-        try {
-          response = await axios.get(
-            `${API_BASE_URL}/candidates/election/${selectedElectionId}`,
-            { 
+        let successfulEndpoint = '';
+        
+        // List of possible endpoints to try (add your public voting endpoint here when ready)
+        const candidateEndpoints = [
+          // Primary: Public voting endpoint (when you implement it)
+          `${API_BASE_URL}/voting/candidates/${selectedElectionId}`,
+          `${API_BASE_URL}/candidates/voting/${selectedElectionId}`,
+          // Fallback: Existing admin endpoint
+          `${API_BASE_URL}/candidates/election/${selectedElectionId}`,
+          // Additional fallbacks
+          `${API_BASE_URL}/candidates?electionId=${selectedElectionId}`,
+          `${API_BASE_URL}/public/candidates/${selectedElectionId}`
+        ];
+
+        let lastError = null;
+        
+        for (const endpoint of candidateEndpoints) {
+          try {
+            console.log(`Trying endpoint: ${endpoint}`);
+            response = await axios.get(endpoint, { 
               headers: { Authorization: `Bearer ${token}` },
               timeout: 10000
+            });
+            successfulEndpoint = endpoint;
+            console.log(`✅ Success with endpoint: ${endpoint}`);
+            break; // Success, exit loop
+          } catch (error) {
+            console.log(`❌ Failed endpoint: ${endpoint}`, error.response?.status, error.response?.data?.message);
+            lastError = error;
+            
+            // If it's a 403 error with role-based message, continue trying other endpoints
+            if (error.response?.status === 403 && error.response?.data?.message?.includes('Required roles: admin')) {
+              console.log('Admin role required, trying next endpoint...');
+              continue;
             }
-          );
-        } catch (firstError) {
-          // If we get a 403 (Forbidden) error, it might be due to admin role requirement
-          if (firstError.response?.status === 403) {
-            console.warn('Access denied to candidates endpoint. You may need admin privileges or a public voting endpoint.');
-            setError('Access denied. This may require admin privileges. Please contact your administrator.');
-            return;
+            
+            // For other types of errors, continue trying
+            continue;
           }
-          throw firstError;
         }
+
+        // If no endpoint worked, throw the last error
+        if (!response) {
+          console.error('All candidate endpoints failed');
+          throw lastError || new Error('All candidate endpoints failed');
+        }
+
         const data = response.data;
-        
         console.log('Candidates API Response:', data);
+        console.log('Successful endpoint:', successfulEndpoint);
         
         let candidatesArray = [];
         if (data && Array.isArray(data.candidates)) {
-          // Response format: { candidates: [...], message: "..." }
           candidatesArray = data.candidates;
         } else if (data && data.success && Array.isArray(data.candidates)) {
-          // Response format: { success: true, candidates: [...] }
           candidatesArray = data.candidates;
         } else if (Array.isArray(data)) {
-          // Response is directly an array
           candidatesArray = data;
         } else {
           console.error('Unexpected candidates response format:', data);
@@ -424,21 +451,34 @@ const Vote = () => {
         
         if (err.response) {
           const status = err.response.status;
+          const responseData = err.response.data;
+          
           switch (status) {
             case 404:
-              errorMessage = 'Candidates endpoint not found. Please check your backend routes.';
+              errorMessage = 'No candidates found for this election or endpoint not available.';
               break;
             case 401:
               errorMessage = 'Authentication failed. Please log in again.';
               break;
             case 403:
-              errorMessage = 'Access denied. You may not have permission to view candidates.';
+              if (responseData?.message?.includes('Required roles: admin')) {
+                errorMessage = 'This appears to be an admin-only endpoint. A public voting endpoint needs to be implemented on the backend. Please contact your administrator.';
+              } else {
+                errorMessage = 'Access denied. You may not have permission to view candidates.';
+              }
+              break;
+            case 400:
+              if (responseData?.message?.includes('not currently active')) {
+                errorMessage = 'This election is not currently active for voting.';
+              } else {
+                errorMessage = responseData?.message || 'Invalid request.';
+              }
               break;
             case 500:
               errorMessage = 'Server error. Please try again later.';
               break;
             default:
-              errorMessage = `Server returned ${status} error: ${err.response.data?.message || 'Unknown error'}`;
+              errorMessage = responseData?.message || `Server returned ${status} error`;
           }
         } else if (err.request) {
           errorMessage = 'Network error. Please check your internet connection.';
@@ -518,6 +558,10 @@ const Vote = () => {
             <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
             <p className="text-red-700">{error}</p>
+            <div className="mt-6 text-sm text-red-600">
+              <p><strong>Debug Info:</strong> The system tried multiple endpoints but couldn't access candidate data.</p>
+              <p>Check the browser console (F12) for detailed error logs.</p>
+            </div>
           </motion.div>
         </div>
       </div>
