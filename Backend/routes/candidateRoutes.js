@@ -19,4 +19,4 @@ router.put('/:id/image', auth, authorizeRoles('admin'), upload.single('image'), 
 router.delete('/:id', auth, authorizeRoles('admin'), deleteCandidate);
 
 
-export default router;
+export default router; 
