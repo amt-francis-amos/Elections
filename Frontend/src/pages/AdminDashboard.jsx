@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import {
   Calendar,
   Users,
@@ -33,6 +32,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+// API base URL - adjust this to match your server
+const API_BASE_URL = 'http://localhost:5000/api'; // Change this to your server URL
+
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({
@@ -58,48 +60,48 @@ const AdminDashboard = () => {
   const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [notification, setNotification] = useState(null);
 
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('token');
+  };
 
-  useEffect(() => {
-    
-    const requestInterceptor = axios.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
-
- 
-    const responseInterceptor = axios.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          window.location.href = '/login';
-        }
-        return Promise.reject(error);
-      }
-    );
-
-    
-    return () => {
-      axios.interceptors.request.eject(requestInterceptor);
-      axios.interceptors.response.eject(responseInterceptor);
+  // API call helper function
+  const apiCall = async (endpoint, options = {}) => {
+    const token = getAuthToken();
+    const defaultHeaders = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
     };
-  }, []);
 
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Something went wrong');
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`API call failed for ${endpoint}:`, error);
+      throw error;
+    }
+  };
+
+  // Show notification
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
 
-  
+  // Load initial data
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -109,9 +111,12 @@ const AdminDashboard = () => {
     try {
       await Promise.all([
         loadVoters(),
+        // Add other data loading functions when you have more endpoints
+        // loadElections(),
+        // loadCandidates(),
       ]);
       
-   
+      // Update stats based on loaded data
       updateStats();
     } catch (error) {
       showNotification('Failed to load dashboard data', 'error');
@@ -122,19 +127,17 @@ const AdminDashboard = () => {
 
   const loadVoters = async () => {
     try {
-      const response = await axios.get('https://elections-backend-j8m8.onrender.com/api/admin/voters');
-      
-      if (response.data.success) {
-        setVoters(response.data.voters);
-        setUsers(response.data.voters); 
+      const response = await apiCall('/admin/voters');
+      if (response.success) {
+        setVoters(response.voters);
+        setUsers(response.voters); // For now, using voters as users
         
-        
+        // Add to recent activity
         addToRecentActivity('system', 'Voters data refreshed', 'info');
       }
     } catch (error) {
       console.error('Failed to load voters:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to load voters';
-      showNotification(errorMessage, 'error');
+      showNotification('Failed to load voters', 'error');
     }
   };
 
@@ -160,32 +163,26 @@ const AdminDashboard = () => {
     setRecentActivity(prev => [newActivity, ...prev.slice(0, 4)]);
   };
 
-
+  // User Management Functions
   const handleCreateVoter = async () => {
     try {
       setLoading(true);
-      
-      const requestData = {
-        name: formData.name,
-        ...(formData.email && { email: formData.email })
-      };
+      const response = await apiCall('/admin/create-voter', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email || undefined
+        })
+      });
 
-      const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/admin/create-voter', requestData);
-
-      if (response.data.success) {
-        const { credentials } = response.data;
-        showNotification(
-          `Voter created successfully! Credentials: ID: ${credentials.userId}, Password: ${credentials.password}`, 
-          'success'
-        );
+      if (response.success) {
+        showNotification(`Voter created successfully! Credentials: ID: ${response.credentials.userId}, Password: ${response.credentials.password}`, 'success');
         addToRecentActivity('user', `New voter account created for ${formData.name}`, 'success');
-        await loadVoters();
+        await loadVoters(); // Refresh the voters list
         closeModal();
       }
     } catch (error) {
-      console.error('Failed to create voter:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to create voter';
-      showNotification(errorMessage, 'error');
+      showNotification(error.message || 'Failed to create voter', 'error');
     } finally {
       setLoading(false);
     }
@@ -198,18 +195,18 @@ const AdminDashboard = () => {
 
     try {
       setLoading(true);
-      
-      const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/admin/promote', { userId });
+      const response = await apiCall('/admin/promote', {
+        method: 'POST',
+        body: JSON.stringify({ userId })
+      });
 
-      if (response.data.success) {
+      if (response.success) {
         showNotification('User promoted to admin successfully', 'success');
         addToRecentActivity('user', `User promoted to admin`, 'info');
-        await loadVoters();
+        await loadVoters(); // Refresh the users list
       }
     } catch (error) {
-      console.error('Failed to promote user:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to promote user';
-      showNotification(errorMessage, 'error');
+      showNotification(error.message || 'Failed to promote user', 'error');
     } finally {
       setLoading(false);
     }
@@ -224,182 +221,28 @@ const AdminDashboard = () => {
       setLoading(true);
       const user = users.find(u => u._id === userId);
       
-      const response = await axios.delete(`https://elections-backend-j8m8.onrender.com/api/admin/users/${userId}`);
+      const response = await apiCall(`/admin/users/${userId}`, {
+        method: 'DELETE'
+      });
 
-      if (response.data.success) {
+      if (response.success) {
         showNotification('User deleted successfully', 'success');
         addToRecentActivity('user', `User ${user?.name} account deleted`, 'completed');
-        await loadVoters(); 
+        await loadVoters(); // Refresh the users list
       }
     } catch (error) {
-      console.error('Failed to delete user:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to delete user';
-      showNotification(errorMessage, 'error');
+      showNotification(error.message || 'Failed to delete user', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-
-  const handleCreateElection = async () => {
-    try {
-      setLoading(true);
-      
-    
-      const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/admin/elections', formData);
-      
-      if (response.data.success) {
-        showNotification('Election created successfully', 'success');
-        addToRecentActivity('election', `New election "${formData.title}" created`, 'success');
-       
-        closeModal();
-      }
-    } catch (error) {
-      console.error('Failed to create election:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to create election';
-      showNotification(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateElection = async () => {
-    try {
-      setLoading(true);
-      
-     
-      const response = await axios.put(`https://elections-backend-j8m8.onrender.com/api/admin/elections/${selectedElection._id}`, formData);
-      
-      if (response.data.success) {
-        showNotification('Election updated successfully', 'success');
-        addToRecentActivity('election', `Election "${formData.title}" updated`, 'info');
-       
-        closeModal();
-      }
-    } catch (error) {
-      console.error('Failed to update election:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to update election';
-      showNotification(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteElection = async (electionId) => {
-    if (!window.confirm('Are you sure you want to delete this election?')) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-
-      const response = await axios.delete(`https://elections-backend-j8m8.onrender.com/api/admin/elections/${electionId}`);
-      
-      if (response.data.success) {
-        showNotification('Election deleted successfully', 'success');
-        addToRecentActivity('election', 'Election deleted', 'completed');
-        
-      }
-    } catch (error) {
-      console.error('Failed to delete election:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to delete election';
-      showNotification(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const handleAddCandidate = async () => {
-    try {
-      setLoading(true);
-      
-  
-      const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/admin/candidates', formData);
-      
-      if (response.data.success) {
-        showNotification('Candidate added successfully', 'success');
-        addToRecentActivity('candidate', `${formData.name} registered for ${formData.position} position`, 'success');
-
-        closeModal();
-      }
-    } catch (error) {
-      console.error('Failed to add candidate:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to add candidate';
-      showNotification(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCandidateImageUpload = async (candidateId, file) => {
-    try {
-      setImageUploadLoading(true);
-      
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('candidateId', candidateId);
-
-
-      const response = await axios.post('https://elections-backend-j8m8.onrender.com/api/admin/candidates/upload-image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data.success) {
-        showNotification('Image uploaded successfully', 'success');
-        addToRecentActivity('candidate', 'Photo uploaded for candidate', 'success');
-       
-      }
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to upload image';
-      showNotification(errorMessage, 'error');
-    } finally {
-      setImageUploadLoading(false);
-    }
-  };
-
-
-  const exportResults = async (format, electionId = null) => {
-    try {
-      setLoading(true);
-      
-      
-      const response = await axios.get('https://elections-backend-j8m8.onrender.com/api/admin/export', {
-        params: { format, electionId },
-        responseType: 'blob'
-      });
-
-    
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `election-results.${format}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      showNotification(`Results exported in ${format.toUpperCase()} format`, 'success');
-      addToRecentActivity('election', `Results exported in ${format.toUpperCase()} format`, 'info');
-    } catch (error) {
-      console.error('Failed to export results:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to export results';
-      showNotification(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Modal Management
   const openModal = (type, data = null) => {
     setShowModal(type);
     if (data) {
       setFormData(data);
       if (type === 'editUser') setSelectedUser(data);
-      if (type === 'editElection') setSelectedElection(data);
-      if (type === 'editCandidate') setSelectedCandidate(data);
     } else {
       setFormData({});
     }
@@ -408,12 +251,10 @@ const AdminDashboard = () => {
   const closeModal = () => {
     setShowModal(null);
     setSelectedUser(null);
-    setSelectedElection(null);
-    setSelectedCandidate(null);
     setFormData({});
   };
 
-
+  // Utility functions
   const getActivityIcon = (type) => {
     switch (type) {
       case 'election': return <Calendar size={16} />;
@@ -461,7 +302,7 @@ const AdminDashboard = () => {
       icon: Download, 
       label: 'Export Data', 
       color: 'bg-green-500 hover:bg-green-600', 
-      action: () => exportResults('csv') 
+      action: () => showNotification('Export feature coming soon', 'info') 
     },
     { 
       icon: BarChart3, 
@@ -471,7 +312,7 @@ const AdminDashboard = () => {
     }
   ];
 
-
+  // Filter users based on search term
   const filteredUsers = users.filter(user =>
     user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -491,7 +332,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-     
+      {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 flex items-center gap-3">
@@ -501,16 +342,7 @@ const AdminDashboard = () => {
         </div>
       )}
 
-
-      {imageUploadLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-gray-700">Uploading image...</span>
-          </div>
-        </div>
-      )}
-
+      {/* Notification */}
       {notification && (
         <div className="fixed top-4 right-4 z-50">
           <motion.div
@@ -537,7 +369,7 @@ const AdminDashboard = () => {
         </div>
       )}
 
-
+      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex justify-between items-center">
@@ -558,7 +390,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-
+          {/* Navigation Tabs */}
           <div className="mt-6 border-t pt-4">
             <nav className="flex space-x-8">
               {['dashboard', 'users', 'elections', 'candidates', 'reports'].map((tab) => (
@@ -579,11 +411,11 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-
+            {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white rounded-xl p-6 shadow-sm border">
                 <div className="flex items-center justify-between">
@@ -634,7 +466,7 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            
+            {/* Quick Actions */}
             <div className="bg-white rounded-xl p-6 shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -651,7 +483,7 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            
+            {/* Recent Activity */}
             <div className="bg-white rounded-xl p-6 shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-3">
@@ -675,7 +507,7 @@ const AdminDashboard = () => {
 
         {activeTab === 'users' && (
           <div className="space-y-6">
-            
+            {/* Users Header */}
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
               <button
@@ -687,6 +519,7 @@ const AdminDashboard = () => {
               </button>
             </div>
 
+            {/* Search and Filters */}
             <div className="bg-white rounded-xl p-6 shadow-sm border">
               <div className="flex gap-4 mb-4">
                 <div className="flex-1">
@@ -710,7 +543,7 @@ const AdminDashboard = () => {
                 </button>
               </div>
 
-      
+              {/* Users Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -789,7 +622,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-     
+        {/* Placeholder for other tabs */}
         {activeTab === 'elections' && (
           <div className="bg-white rounded-xl p-8 shadow-sm border text-center">
             <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
@@ -815,7 +648,7 @@ const AdminDashboard = () => {
         )}
       </div>
 
- 
+      {/* Modals */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -885,211 +718,6 @@ const AdminDashboard = () => {
                     >
                       <UserPlus size={16} />
                       Create Voter
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {(showModal === 'createElection' || showModal === 'editElection') && (
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {showModal === 'createElection' ? 'Create New Election' : 'Edit Election'}
-                    </h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                      <X size={24} />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Election Title</label>
-                      <input
-                        type="text"
-                        value={formData.title || ''}
-                        onChange={(e) => setFormData({...formData, title: e.target.value})}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter election title"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        value={formData.description || ''}
-                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="3"
-                        placeholder="Enter election description"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                        <input
-                          type="date"
-                          value={formData.startDate || ''}
-                          onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                        <input
-                          type="date"
-                          value={formData.endDate || ''}
-                          onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Eligible Voters</label>
-                      <input
-                        type="number"
-                        value={formData.eligibleVoters || ''}
-                        onChange={(e) => setFormData({...formData, eligibleVoters: e.target.value})}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter number of eligible voters"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      onClick={closeModal}
-                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={showModal === 'createElection' ? handleCreateElection : handleUpdateElection}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <Save size={16} />
-                      {showModal === 'createElection' ? 'Create Election' : 'Update Election'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {(showModal === 'addCandidate' || showModal === 'editCandidate') && (
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {showModal === 'addCandidate' ? 'Add New Candidate' : 'Edit Candidate'}
-                    </h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                      <X size={24} />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                        <input
-                          type="text"
-                          value={formData.name || ''}
-                          onChange={(e) => setFormData({...formData, name: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter candidate's full name"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                        <input
-                          type="text"
-                          value={formData.position || ''}
-                          onChange={(e) => setFormData({...formData, position: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="President, Vice President, etc."
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Election</label>
-                      <select
-                        value={formData.electionId || ''}
-                        onChange={(e) => setFormData({...formData, electionId: e.target.value})}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select an election</option>
-                        {elections.map((election) => (
-                          <option key={election.id} value={election.id}>
-                            {election.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
-                          type="email"
-                          value={formData.email || ''}
-                          onChange={(e) => setFormData({...formData, email: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="candidate@university.edu"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                        <input
-                          type="text"
-                          value={formData.department || ''}
-                          onChange={(e) => setFormData({...formData, department: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Computer Science"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                        <input
-                          type="tel"
-                          value={formData.phone || ''}
-                          onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="+233 24 123 4567"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                        <input
-                          type="text"
-                          value={formData.year || ''}
-                          onChange={(e) => setFormData({...formData, year: e.target.value})}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="1st Year, 2nd Year, etc."
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      onClick={closeModal}
-                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={showModal === 'addCandidate' ? handleAddCandidate : handleUpdateCandidate}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                    >
-                      <Save size={16} />
-                      {showModal === 'addCandidate' ? 'Add Candidate' : 'Update Candidate'}
                     </button>
                   </div>
                 </div>
