@@ -1,186 +1,225 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { motion } from 'framer-motion';
 
-import React from 'react';
-import {
-  Plus,
-  Search,
-  Download,
-  Edit,
-  Trash2
-} from 'lucide-react';
+const cardVariant = {
+  hidden: { opacity: 0, y: 30 },
+  visible: i => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.2,
+      duration: 0.6,
+      ease: 'easeOut'
+    }
+  })
+};
 
-const Elections = ({
-  elections,
-  searchTerm,
-  setSearchTerm,
-  filterStatus,
-  setFilterStatus,
-  openModal,
-  handleDeleteElection,
-  exportResults,
-  getStatusColor
-}) => {
-  const filteredElections = elections.filter(election => {
-    const matchesSearch =
-      election.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      election.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || election.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+const Vote = () => {
+  const [elections, setElections] = useState([]);
+  const [selectedElectionId, setSelectedElectionId] = useState('');
+  const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [votedCandidateId, setVotedCandidateId] = useState(null);
+
+  useEffect(() => {
+    const fetchElections = async () => {
+      try {
+        const token = localStorage.getItem('userToken');
+        if (!token) {
+          alert('🚨 No token found. Please log in.');
+          return;
+        }
+
+        const { data } = await axios.get(
+          'https://elections-backend-j8m8.onrender.com/api/elections',
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('💬 fetched elections:', data);
+
+        // Fix: Handle different possible response structures
+        let electionsArray;
+        
+        if (Array.isArray(data)) {
+          // If data is directly an array
+          electionsArray = data;
+        } else if (data && Array.isArray(data.elections)) {
+          // If data has an elections property that's an array
+          electionsArray = data.elections;
+        } else if (data && Array.isArray(data.data)) {
+          // If data has a data property that's an array
+          electionsArray = data.data;
+        } else {
+          // If none of the above, log the structure and set empty array
+          console.error('Unexpected data structure:', data);
+          electionsArray = [];
+        }
+
+        const active = electionsArray.filter(e => e && e.isActive);
+        setElections(active);
+        if (active.length) setSelectedElectionId(active[0]._id);
+      } catch (err) {
+        console.error('Error fetching elections:', err);
+        alert('❌ Failed to load elections.');
+      }
+    };
+    fetchElections();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedElectionId) return;
+
+    const fetchCandidates = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('userToken');
+        if (!token) return;
+
+        const { data } = await axios.get(
+          `https://elections-backend-j8m8.onrender.com/api/candidates/${selectedElectionId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log(`💬 candidates for ${selectedElectionId}:`, data);
+        
+        // Fix: Handle different possible response structures for candidates too
+        let candidatesArray;
+        
+        if (Array.isArray(data)) {
+          candidatesArray = data;
+        } else if (data && Array.isArray(data.candidates)) {
+          candidatesArray = data.candidates;
+        } else if (data && Array.isArray(data.data)) {
+          candidatesArray = data.data;
+        } else {
+          console.error('Unexpected candidates data structure:', data);
+          candidatesArray = [];
+        }
+        
+        setCandidates(candidatesArray);
+      } catch (err) {
+        console.error('Error loading candidates:', err);
+        alert('❌ Failed to load candidates.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCandidates();
+  }, [selectedElectionId]);
+
+  const handleVote = async candidate => {
+    const token = localStorage.getItem('userToken');
+    if (!token) {
+      alert('🚨 Please log in first to vote.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await axios.post(
+        'https://elections-backend-j8m8.onrender.com/api/votes',
+        { electionId: selectedElectionId, candidateId: candidate._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(`✅ Vote submitted for ${candidate.name}`);
+      setVotedCandidateId(candidate._id);
+    } catch (err) {
+      console.error('Error casting vote:', err);
+      const message = err.response?.data?.message || 'Something went wrong while voting.';
+      alert(`❌ ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Elections Management</h2>
-        <button
-          onClick={() => openModal('createElection')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 py-12 px-6">
+      <div className="max-w-6xl mx-auto">
+        <motion.h1
+          className="text-4xl font-bold text-center text-gray-800 mb-10"
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
         >
-          <Plus size={20} />
-          Create Election
-        </button>
-      </div>
+          Vote for Your Leaders
+        </motion.h1>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search elections..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-              </select>
-              <button
-                onClick={() => exportResults('csv')}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-              >
-                <Download size={16} />
-                Export CSV
-              </button>
-            </div>
+        {elections.length > 0 ? (
+          <div className="mb-6 max-w-sm mx-auto">
+            <label className="block mb-2 font-medium text-gray-700">
+              Select Election
+            </label>
+            <select
+              value={selectedElectionId}
+              onChange={e => setSelectedElectionId(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            >
+              {elections.map(e => (
+                <option key={e._id} value={e._id}>
+                  {e.title}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+        ) : (
+          <p className="text-center text-gray-600">
+            No active elections available.
+          </p>
+        )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Election
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Progress
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredElections.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                    No elections found
-                  </td>
-                </tr>
-              ) : (
-                filteredElections.map(election => (
-                  <tr key={election._id || election.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{election.title}</div>
-                        <div className="text-sm text-gray-500">{election.description}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                          election.status
-                        )}`}
-                      >
-                        {election.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div>{new Date(election.startDate).toLocaleDateString()}</div>
-                      <div className="text-gray-500">
-                        to {new Date(election.endDate).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {election.totalVotes} / {election.eligibleVoters} votes
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                        <div
-                          className="h-2 rounded-full"
-                          style={{
-                            width: `${
-                              election.eligibleVoters > 0
-                                ? (election.totalVotes / election.eligibleVoters) * 100
-                                : 0
-                            }%`
-                          }}
-                        />
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {election.eligibleVoters > 0
-                          ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1)
-                          : 0}
-                        % turnout
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openModal('editElection', election)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => exportResults('csv', election._id || election.id)}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          <Download size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteElection(election._id || election.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {loading && (
+          <p className="text-center text-gray-700">Loading candidates…</p>
+        )}
+        {!loading && candidates.length === 0 && selectedElectionId && (
+          <p className="text-center text-gray-600">
+            No candidates found for this election.
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {candidates.map((c, i) => (
+            <motion.div
+              key={c._id}
+              custom={i}
+              initial="hidden"
+              animate="visible"
+              variants={cardVariant}
+              whileHover={{ scale: 1.03 }}
+              className={`bg-white rounded-xl shadow-lg overflow-hidden transition-shadow ${
+                votedCandidateId === c._id ? 'ring-4 ring-green-500' : ''
+              }`}
+            >
+              <img src={c.image} alt={c.name} className="w-full h-56 object-cover" />
+              <div className="p-5">
+                <h2 className="text-xl font-semibold text-gray-800">{c.name}</h2>
+                <p className="text-gray-500 text-sm mb-4">{c.position}</p>
+
+                {votedCandidateId ? (
+                  votedCandidateId === c._id ? (
+                    <p className="text-green-600 font-semibold text-center">
+                      You voted for this candidate ✅
+                    </p>
+                  ) : (
+                    <p className="text-gray-400 text-sm text-center">
+                      You have already voted
+                    </p>
+                  )
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleVote(c)}
+                    disabled={loading}
+                    className="w-full py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Vote
+                  </motion.button>
+                )}
+              </div>
+            </motion.div>
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
-export default Elections;
+export default Vote;

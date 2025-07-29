@@ -38,7 +38,7 @@ const Vote = () => {
         );
         console.log('💬 fetched elections:', data);
 
-        // Use isActive flag instead of status
+        
         const active = data.filter(e => e.isActive);
         setElections(active);
         if (active.length) setSelectedElectionId(active[0]._id);
@@ -50,7 +50,7 @@ const Vote = () => {
     fetchElections();
   }, []);
 
-  // 2) Fetch candidates when election changes
+ 
   useEffect(() => {
     if (!selectedElectionId) return;
 
@@ -76,7 +76,7 @@ const Vote = () => {
     fetchCandidates();
   }, [selectedElectionId]);
 
-  // 3) Handle vote
+ 
   const handleVote = async candidate => {
     const token = localStorage.getItem('userToken');
     if (!token) {
