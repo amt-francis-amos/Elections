@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   UserPlus,
@@ -19,10 +18,9 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-// Add Candidate Modal Component
-const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => {
+
+const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
     position: '',
@@ -36,8 +34,43 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingElections, setLoadingElections] = useState(false);
+  const [availableElections, setAvailableElections] = useState(elections);
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
+
+  
+  useEffect(() => {
+    const fetchElections = async () => {
+      if (isOpen && (!elections || elections.length === 0)) {
+        setLoadingElections(true);
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.data.success) {
+            setAvailableElections(response.data.elections || response.data);
+          } else if (response.data.length) {
+           
+            setAvailableElections(response.data);
+          }
+        } catch (error) {
+          console.error('Error fetching elections:', error);
+          setErrors(prev => ({ ...prev, elections: 'Failed to load elections' }));
+        } finally {
+          setLoadingElections(false);
+        }
+      } else {
+        setAvailableElections(elections);
+      }
+    };
+
+    fetchElections();
+  }, [isOpen, elections]);
 
   const resetForm = () => {
     setFormData({
@@ -61,7 +94,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
+ 
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -73,7 +106,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file
+    
       if (!file.type.startsWith('image/')) {
         setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
         return;
@@ -98,7 +131,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
     if (!formData.position.trim()) newErrors.position = 'Position is required';
     if (!formData.electionId) newErrors.electionId = 'Please select an election';
     
-    // Optional email validation
+
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
@@ -117,21 +150,21 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
     try {
       const formDataToSend = new FormData();
       
-      // Add all form fields
+      
       Object.keys(formData).forEach(key => {
         if (formData[key]) {
           formDataToSend.append(key, formData[key]);
         }
       });
       
-      // Add image if selected
+  
       if (image) {
         formDataToSend.append('image', image);
       }
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_BASE_URL}/candidates`,
+        `https://elections-backend-j8m8.onrender.com/api/candidates`,
         formDataToSend,
         {
           headers: {
@@ -179,7 +212,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Image Upload */}
+      
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -213,7 +246,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
             )}
           </div>
 
-          {/* Required Fields */}
+         
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -258,27 +291,44 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Election <span className="text-red-500">*</span>
             </label>
-            <select
-              name="electionId"
-              value={formData.electionId}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.electionId ? 'border-red-500' : 'border-gray-300'
-              }`}
-            >
-              <option value="">Select an election</option>
-              {elections.map(election => (
-                <option key={election._id} value={election._id}>
-                  {election.title}
-                </option>
-              ))}
-            </select>
+            {loadingElections ? (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                <span className="text-sm text-gray-500">Loading elections...</span>
+              </div>
+            ) : (
+              <select
+                name="electionId"
+                value={formData.electionId}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.electionId ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select an election</option>
+                {availableElections.map(election => (
+                  <option key={election._id || election.id} value={election._id || election.id}>
+                    {election.title || election.name} 
+                    {election.status && ` (${election.status})`}
+                    {election.startDate && ` - ${new Date(election.startDate).toLocaleDateString()}`}
+                  </option>
+                ))}
+              </select>
+            )}
             {errors.electionId && (
               <p className="text-red-600 text-sm mt-1">{errors.electionId}</p>
             )}
+            {errors.elections && (
+              <p className="text-red-600 text-sm mt-1">{errors.elections}</p>
+            )}
+            {!loadingElections && availableElections.length === 0 && (
+              <p className="text-amber-600 text-sm mt-1">
+                No elections available. Please create an election first.
+              </p>
+            )}
           </div>
 
-          {/* Optional Fields */}
+        
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -398,7 +448,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections }) => 
   );
 };
 
-// Image Upload Modal Component
+
 const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null, candidateId }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -490,7 +540,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
 
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `${API_BASE_URL}/candidates/${candidateId}/image`,
+        `https://elections-backend-j8m8.onrender.com/api/candidates/${candidateId}/image`,
         formData,
         {
           headers: {
@@ -659,7 +709,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
   );
 };
 
-// Candidate Card Component
+
 const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
   const [showImageModal, setShowImageModal] = useState(false);
 
@@ -671,7 +721,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
     if (window.confirm(`Are you sure you want to delete ${candidate.name}?`)) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${API_BASE_URL}/candidates/${candidate.id || candidate._id}`, {
+        await axios.delete(`https://elections-backend-j8m8.onrender.com/api/candidates/${candidate.id || candidate._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -779,7 +829,7 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
   );
 };
 
-// Update your main Candidates component
+
 const Candidates = ({ 
   candidates, 
   searchTerm, 
@@ -787,14 +837,57 @@ const Candidates = ({
   openModal, 
   handleDeleteCandidate,
   onImageUpload,
-  elections = [] // Add elections prop
+  elections = [] 
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [candidatesList, setCandidatesList] = useState(candidates);
+  const [availableElections, setAvailableElections] = useState(elections);
+  const [loadingElections, setLoadingElections] = useState(false);
 
   useEffect(() => {
     setCandidatesList(candidates);
   }, [candidates]);
+
+ 
+  useEffect(() => {
+    const fetchElections = async () => {
+      if (!elections || elections.length === 0) {
+        setLoadingElections(true);
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          
+          let electionsData = [];
+          if (response.data.success && response.data.elections) {
+            electionsData = response.data.elections;
+          } else if (response.data.success && response.data.data) {
+            electionsData = response.data.data;
+          } else if (Array.isArray(response.data)) {
+            electionsData = response.data;
+          } else if (response.data) {
+            electionsData = [response.data];
+          }
+          
+          setAvailableElections(electionsData);
+        } catch (error) {
+          console.error('Error fetching elections:', error);
+         
+          setAvailableElections([]);
+        } finally {
+          setLoadingElections(false);
+        }
+      } else {
+        setAvailableElections(elections);
+      }
+    };
+
+    fetchElections();
+  }, [elections]);
 
   const filteredCandidates = candidatesList.filter(candidate => {
     const searchLower = searchTerm.toLowerCase();
@@ -901,7 +994,7 @@ const Candidates = ({
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onCandidateAdded={handleCandidateAdded}
-        elections={elections}
+        elections={availableElections}
       />
     </div>
   );

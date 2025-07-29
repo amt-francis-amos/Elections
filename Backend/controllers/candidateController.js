@@ -7,7 +7,6 @@ export const addCandidate = async (req, res) => {
   try {
     const { name, position, electionId, email, phone, department, year, bio } = req.body;
 
-    // Validation
     if (!name || !position || !electionId) {
       return res.status(400).json({ 
         success: false,
@@ -15,7 +14,7 @@ export const addCandidate = async (req, res) => {
       });
     }
 
-    // Validate electionId format
+  
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
       return res.status(400).json({ 
         success: false,
@@ -23,7 +22,7 @@ export const addCandidate = async (req, res) => {
       });
     }
 
-    // Check if election exists
+    
     const election = await Election.findById(electionId);
     if (!election) {
       return res.status(404).json({ 
@@ -32,7 +31,7 @@ export const addCandidate = async (req, res) => {
       });
     }
 
-    // Handle image upload
+ 
     let imageUrl = '';
     if (req.file) {
       try {
@@ -64,7 +63,7 @@ export const addCandidate = async (req, res) => {
       }
     }
 
-    // Create candidate object
+
     const candidateData = {
       name: name.trim(),
       position: position.trim(),
@@ -72,7 +71,7 @@ export const addCandidate = async (req, res) => {
       image: imageUrl
     };
 
-    // Add optional fields if provided
+ 
     if (email) candidateData.email = email.trim();
     if (phone) candidateData.phone = phone.trim();
     if (department) candidateData.department = department.trim();
@@ -82,7 +81,7 @@ export const addCandidate = async (req, res) => {
     const newCandidate = new Candidate(candidateData);
     await newCandidate.save();
 
-    // Populate election details for response
+   
     const populatedCandidate = await Candidate.findById(newCandidate._id)
       .populate('election', 'title');
 
@@ -95,7 +94,7 @@ export const addCandidate = async (req, res) => {
   } catch (error) {
     console.error('Add candidate error:', error);
     
-    // Handle duplicate entry errors
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -104,7 +103,7 @@ export const addCandidate = async (req, res) => {
       });
     }
     
-    // Handle validation errors
+  
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
@@ -145,7 +144,7 @@ export const getCandidatesByElection = async (req, res) => {
       .populate('election', 'title')
       .sort({ createdAt: -1 });
 
- 
+  
     const candidatesWithElectionTitle = candidates.map(candidate => ({
       ...candidate.toObject(),
       electionTitle: candidate.election?.title || 'Unknown Election'
@@ -185,6 +184,7 @@ export const updateCandidate = async (req, res) => {
       });
     }
 
+ 
     const updateData = {};
     if (name) updateData.name = name.trim();
     if (position) updateData.position = position.trim();
@@ -324,6 +324,27 @@ export const deleteCandidate = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting candidate',
+      error: error.message
+    });
+  }
+};
+
+
+export const getAllElections = async (req, res) => {
+  try {
+    const elections = await Election.find({})
+      .select('title description startDate endDate status')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      elections: elections
+    });
+  } catch (error) {
+    console.error('Get all elections error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching elections',
       error: error.message
     });
   }
