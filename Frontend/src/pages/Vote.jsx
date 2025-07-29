@@ -375,52 +375,25 @@ const Vote = () => {
 
         console.log('Fetching candidates for election ID:', selectedElectionId);
         
-        // Try different possible endpoints
+        // Use the correct backend route: /api/candidates/election/:electionId
         let response;
         try {
-          // First try: /api/candidates/:electionId
           response = await axios.get(
-            `${API_BASE_URL}/candidates/${selectedElectionId}`,
+            `${API_BASE_URL}/candidates/election/${selectedElectionId}`,
             { 
               headers: { Authorization: `Bearer ${token}` },
               timeout: 10000
             }
           );
         } catch (firstError) {
-          if (firstError.response?.status === 404) {
-            try {
-              // Second try: /api/candidates?electionId=:id
-              response = await axios.get(
-                `${API_BASE_URL}/candidates?electionId=${selectedElectionId}`,
-                { 
-                  headers: { Authorization: `Bearer ${token}` },
-                  timeout: 10000
-                }
-              );
-            } catch (secondError) {
-              if (secondError.response?.status === 404) {
-                try {
-                  // Third try: /api/elections/:id/candidates
-                  response = await axios.get(
-                    `${API_BASE_URL}/elections/${selectedElectionId}/candidates`,
-                    { 
-                      headers: { Authorization: `Bearer ${token}` },
-                      timeout: 10000
-                    }
-                  );
-                } catch (thirdError) {
-                  // If all attempts fail, throw the original error
-                  throw firstError;
-                }
-              } else {
-                throw secondError;
-              }
-            }
-          } else {
-            throw firstError;
+          // If we get a 403 (Forbidden) error, it might be due to admin role requirement
+          if (firstError.response?.status === 403) {
+            console.warn('Access denied to candidates endpoint. You may need admin privileges or a public voting endpoint.');
+            setError('Access denied. This may require admin privileges. Please contact your administrator.');
+            return;
           }
+          throw firstError;
         }
-        
         const data = response.data;
         
         console.log('Candidates API Response:', data);
