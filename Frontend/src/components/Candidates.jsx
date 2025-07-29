@@ -18,8 +18,6 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-
-
 const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -39,33 +37,96 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
-  
   useEffect(() => {
     const fetchElections = async () => {
       if (isOpen && (!elections || elections.length === 0)) {
         setLoadingElections(true);
+        setErrors(prev => ({ ...prev, elections: '' })); // Clear previous errors
+        
         try {
           const token = localStorage.getItem('token');
+          
+          if (!token) {
+            throw new Error('No authentication token found');
+          }
+
           const response = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
             headers: {
-              'Authorization': `Bearer ${token}`
-            }
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 10000 // 10 second timeout
           });
           
-          if (response.data.success) {
-            setAvailableElections(response.data.elections || response.data);
-          } else if (response.data.length) {
-           
-            setAvailableElections(response.data);
+          console.log('Elections API Response:', response.data); // Debug log
+          
+          let electionsData = [];
+          
+          // Handle different response structures
+          if (response.data) {
+            if (response.data.success && response.data.elections) {
+              electionsData = response.data.elections;
+            } else if (response.data.success && response.data.data) {
+              electionsData = response.data.data;
+            } else if (Array.isArray(response.data)) {
+              electionsData = response.data;
+            } else if (response.data.elections) {
+              electionsData = response.data.elections;
+            } else if (response.data.data) {
+              electionsData = response.data.data;
+            }
           }
+          
+          // Ensure we have an array
+          if (!Array.isArray(electionsData)) {
+            electionsData = [];
+          }
+          
+          console.log('Processed elections data:', electionsData); // Debug log
+          setAvailableElections(electionsData);
+          
+          if (electionsData.length === 0) {
+            setErrors(prev => ({ 
+              ...prev, 
+              elections: 'No elections available. Please create an election first.' 
+            }));
+          }
+          
         } catch (error) {
           console.error('Error fetching elections:', error);
-          setErrors(prev => ({ ...prev, elections: 'Failed to load elections' }));
+          
+          let errorMessage = 'Failed to load elections';
+          
+          if (error.code === 'ECONNABORTED') {
+            errorMessage = 'Request timeout - please try again';
+          } else if (error.response) {
+            // Server responded with error status
+            if (error.response.status === 401) {
+              errorMessage = 'Authentication failed - please login again';
+            } else if (error.response.status === 403) {
+              errorMessage = 'Access denied - insufficient permissions';
+            } else if (error.response.status === 404) {
+              errorMessage = 'Elections endpoint not found';
+            } else if (error.response.status >= 500) {
+              errorMessage = 'Server error - please try again later';
+            } else {
+              errorMessage = error.response.data?.message || errorMessage;
+            }
+          } else if (error.request) {
+            // Network error
+            errorMessage = 'Network error - please check your connection';
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          setErrors(prev => ({ ...prev, elections: errorMessage }));
+          setAvailableElections([]);
         } finally {
           setLoadingElections(false);
         }
-      } else {
+      } else if (elections && elections.length > 0) {
         setAvailableElections(elections);
+        setErrors(prev => ({ ...prev, elections: '' }));
       }
     };
 
@@ -106,7 +167,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-    
       if (!file.type.startsWith('image/')) {
         setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
         return;
@@ -131,7 +191,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     if (!formData.position.trim()) newErrors.position = 'Position is required';
     if (!formData.electionId) newErrors.electionId = 'Please select an election';
     
-
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
@@ -150,14 +209,12 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     try {
       const formDataToSend = new FormData();
       
-      
       Object.keys(formData).forEach(key => {
         if (formData[key]) {
           formDataToSend.append(key, formData[key]);
         }
       });
       
-  
       if (image) {
         formDataToSend.append('image', image);
       }
@@ -195,6 +252,13 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     }
   };
 
+  const retryFetchElections = () => {
+    setLoadingElections(true);
+    setErrors(prev => ({ ...prev, elections: '' }));
+    // Trigger useEffect by changing a dependency
+    setAvailableElections([]);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -212,7 +276,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-      
+          {/* Image Upload Section */}
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -246,7 +310,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-         
+          {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -287,6 +351,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             </div>
           </div>
 
+          {/* Election Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Election <span className="text-red-500">*</span>
@@ -319,16 +384,28 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
               <p className="text-red-600 text-sm mt-1">{errors.electionId}</p>
             )}
             {errors.elections && (
-              <p className="text-red-600 text-sm mt-1">{errors.elections}</p>
+              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
+                  <p className="text-red-700 text-sm">{errors.elections}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={retryFetchElections}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                >
+                  Try again
+                </button>
+              </div>
             )}
-            {!loadingElections && availableElections.length === 0 && (
+            {!loadingElections && availableElections.length === 0 && !errors.elections && (
               <p className="text-amber-600 text-sm mt-1">
                 No elections available. Please create an election first.
               </p>
             )}
           </div>
 
-        
+          {/* Contact Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -426,7 +503,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingElections}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -447,7 +524,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     </div>
   );
 };
-
 
 const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null, candidateId }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -709,7 +785,6 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
   );
 };
 
-
 const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
   const [showImageModal, setShowImageModal] = useState(false);
 
@@ -829,7 +904,6 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
   );
 };
 
-
 const Candidates = ({ 
   candidates, 
   searchTerm, 
@@ -848,7 +922,6 @@ const Candidates = ({
     setCandidatesList(candidates);
   }, [candidates]);
 
- 
   useEffect(() => {
     const fetchElections = async () => {
       if (!elections || elections.length === 0) {
@@ -857,10 +930,10 @@ const Candidates = ({
           const token = localStorage.getItem('token');
           const response = await axios.get(`https://elections-backend-j8m8.onrender.com/api/elections`, {
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
           });
-          
           
           let electionsData = [];
           if (response.data.success && response.data.elections) {
@@ -876,7 +949,6 @@ const Candidates = ({
           setAvailableElections(electionsData);
         } catch (error) {
           console.error('Error fetching elections:', error);
-         
           setAvailableElections([]);
         } finally {
           setLoadingElections(false);
