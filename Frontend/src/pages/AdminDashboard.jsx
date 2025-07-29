@@ -263,72 +263,39 @@ const AdminDashboard = () => {
   };
 
   const handleAddCandidate = async () => {
-  try {
-    if (!formData.name || !formData.position || !formData.electionId) {
-      alert("Please fill in all required fields (Name, Position, Election)");
-      return;
-    }
-
-    const selected = elections.find((e) => e._id === formData.electionId);
-    if (!selected) {
-      alert("Please select a valid election");
-      return;
-    }
-
-    const formDataToSend = new FormData();
-    formDataToSend.append("name", formData.name.trim());
-    formDataToSend.append("position", formData.position.trim());
-    formDataToSend.append("description", formData.description || "Candidate details");
-    formDataToSend.append("electionId", formData.electionId);
-
-    if (formData.image) {
-      formDataToSend.append("image", formData.image);
-    }
-
-    const { data } = await axios.post(
-      "https://elections-backend-j8m8.onrender.com/api/candidates",
-      formDataToSend,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+    try {
+      if (!formData.name || !formData.position || !formData.electionId) {
+        alert("Please fill in all required fields (Name, Position, Election)");
+        return;
       }
-    );
-
-    const newCandidate = {
-      ...data.candidate,
-      electionTitle: selected.title,
-      email: formData.email || '',
-      phone: formData.phone || '',
-      department: formData.department || '',
-      year: formData.year || '',
-      votes: 0,
-      image: data.candidate.image || '/api/placeholder/64/64',
-    };
-
-    setCandidates((cs) => [newCandidate, ...cs]);
-
-    setRecentActivity((a) => [
-      {
-        id: Date.now(),
-        type: "candidate",
-        action: `${data.candidate.name} registered for ${formData.position} position`,
-        time: "Just now",
-        status: "success",
-      },
-      ...a.slice(0, 4),
-    ]);
-
-    closeModal();
-    alert("Candidate added successfully!");
-  } catch (err) {
-    console.error("Add candidate error:", err);
-    const errorMessage = err.response?.data?.message || err.message || "Error adding candidate";
-    alert(`Error adding candidate: ${errorMessage}`);
-  }
-};
-
+      const selected = elections.find((e) => e._id === formData.electionId);
+      if (!selected) {
+        alert("Please select a valid election");
+        return;
+      }
+      const payload = {
+        name: formData.name,
+        position: formData.position,
+        electionId: selected._id,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        year: formData.year,
+      };
+      const { data } = await axios.post(
+        "https://elections-backend-j8m8.onrender.com/api/admin/candidates",
+        payload
+      );
+      setCandidates((cs) => [data.candidate, ...cs]);
+      setRecentActivity((a) => [
+        { id: Date.now(), type: "candidate", action: `${data.candidate.name} registered`, time: "Just now", status: "success" },
+        ...a.slice(0, 4),
+      ]);
+      closeModal();
+    } catch (err) {
+      alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
+    }
+  };
 
   const exportResults = async (format, electionId = null) => {
     try {
