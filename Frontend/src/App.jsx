@@ -8,7 +8,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import VoteProtectedRoute from './components/VoteProtectedRoute';
 import Home from './pages/Home';
-import Login from './pages/Login'; 
+import Login from './pages/Login';
 import Vote from './pages/Vote';
 import Results from './pages/Results';
 import AdminDashboard from './pages/AdminDashboard';
