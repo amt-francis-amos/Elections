@@ -1,26 +1,36 @@
-
 import mongoose from 'mongoose';
 
 const voteSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    unique: false,
-  },
   election: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Election',
-    required: true,
+    required: true
   },
   candidate: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Candidate',
-    required: true,
+    required: true
   },
-}, { timestamps: true });
+  voter: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  votedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
 
-voteSchema.index({ user: 1, election: 1 }, { unique: true }); 
+
+voteSchema.index({ election: 1, voter: 1 }, { unique: true });
+
+
+voteSchema.index({ election: 1 });
+voteSchema.index({ candidate: 1 });
+voteSchema.index({ voter: 1 });
 
 const Vote = mongoose.model('Vote', voteSchema);
 

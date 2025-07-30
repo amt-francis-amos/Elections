@@ -294,7 +294,7 @@ const Vote = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      if (data.vote) {
+      if (data.success && data.hasVoted && data.vote) {
         setVotedCandidateId(data.vote.candidate);
         setHasVoted(true);
       } else {
@@ -302,8 +302,14 @@ const Vote = () => {
         setHasVoted(false);
       }
     } catch (err) {
-      // If 404, user hasn't voted yet
+      console.log('Check existing vote error:', err.response?.status);
+      // If 404, user hasn't voted yet, or route doesn't exist
       if (err.response?.status === 404) {
+        setVotedCandidateId(null);
+        setHasVoted(false);
+      } else {
+        console.error('Error checking existing vote:', err);
+        // On other errors, assume user hasn't voted to allow voting
         setVotedCandidateId(null);
         setHasVoted(false);
       }
@@ -461,7 +467,7 @@ const Vote = () => {
     }
 
     if (hasVoted) {
-      setError('You have already voted in this election.');
+      setError('You have already voted in this election. Only one vote per election is allowed.');
       return;
     }
 
@@ -469,28 +475,48 @@ const Vote = () => {
     setError('');
 
     try {
-      await axios.post(
+      const response = await axios.post(
         `${API_BASE_URL}/votes`,
         { electionId: selectedElectionId, candidateId: candidate._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      setVotedCandidateId(candidate._id);
-      setHasVoted(true);
-      
-      // Update vote count optimistically
-      setCandidates(prev => 
-        prev.map(c => 
-          c._id === candidate._id 
-            ? { ...c, votes: (c.votes || 0) + 1 }
-            : c
-        )
-      );
+      if (response.data.success) {
+        setVotedCandidateId(candidate._id);
+        setHasVoted(true);
+        
+        // Update vote count optimistically
+        setCandidates(prev => 
+          prev.map(c => 
+            c._id === candidate._id 
+              ? { ...c, votes: (c.votes || 0) + 1 }
+              : c
+          )
+        );
+
+        // Show success message
+        setError('');
+      }
 
     } catch (err) {
       console.error('Error casting vote:', err);
-      const message = err.response?.data?.message || 'Something went wrong while voting.';
-      setError(message);
+      
+      let errorMessage = 'Something went wrong while voting.';
+      
+      if (err.response?.data) {
+        const { message, alreadyVoted } = err.response.data;
+        
+        if (alreadyVoted) {
+          // User has already voted
+          setHasVoted(true);
+          setVotedCandidateId(err.response.data.votedFor);
+          errorMessage = 'You have already voted in this election. Only one vote per election is allowed.';
+        } else {
+          errorMessage = message || errorMessage;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsVoting(false);
     }
@@ -631,13 +657,35 @@ const Vote = () => {
             <div className="flex items-start gap-3">
               <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-900 mb-2">Voting Instructions</h4>
+                <h4 className="font-medium text-blue-900 mb-2">Important Voting Rules</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>You can only vote for ONE candidate per election</strong></li>
                   <li>• Review all candidates carefully before making your choice</li>
-                  <li>• You can only vote once per election</li>
+                  <li>• Once you vote, you cannot change your selection</li>
                   <li>• Your vote is anonymous and secure</li>
                   <li>• Click the "Vote" button to cast your ballot</li>
                 </ul>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Already Voted Notice */}
+        {hasVoted && candidates.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mt-8 bg-green-50 border border-green-200 rounded-xl p-5"
+          >
+            <div className="flex items-start gap-3">
+              <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-green-900 mb-2">Vote Successfully Cast!</h4>
+                <p className="text-sm text-green-800">
+                  Thank you for participating in this election. Your vote has been recorded and cannot be changed. 
+                  You can view the election results once voting concludes.
+                </p>
               </div>
             </div>
           </motion.div>
