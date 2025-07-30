@@ -70,11 +70,6 @@ const Hero = () => {
                 </button>
               </Link>
 
-              <Link to="candidate">
-                <button className="px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 backdrop-blur-sm">
-                  View Candidates
-                </button>
-              </Link>
             </motion.div>
 
             <motion.div
