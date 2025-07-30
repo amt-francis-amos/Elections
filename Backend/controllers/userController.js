@@ -82,7 +82,7 @@ export const registerUser = async (req, res) => {
       password: hashed,
       userId,
       role,
-      profilePicture: null, // Initialize with null
+      profilePicture: null, 
     };
 
     console.log("User data to create:", { ...userData, password: '[HIDDEN]' });
