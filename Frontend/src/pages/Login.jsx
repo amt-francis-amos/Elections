@@ -92,9 +92,8 @@ const Login = ({
       
       if (!token || !user) throw new Error("Invalid login response");
 
-      // Store in localStorage instead of window.authData
-      localStorage.setItem('token', token);
-      localStorage.setItem('userData', JSON.stringify(user));
+      
+      window.authData = { token, user };
 
       showNotification("Login successful!", "success");
       if (onLoginSuccess) onLoginSuccess({ user, token });
@@ -139,7 +138,7 @@ const Login = ({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
               <input
                 type="text"
@@ -177,13 +176,14 @@ const Login = ({
             </div>
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={loading}
               className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
-          </form>
+          </div>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 text-center">
