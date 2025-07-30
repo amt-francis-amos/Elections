@@ -4,7 +4,11 @@ import jwt from 'jsonwebtoken';
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 
-
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -15,7 +19,6 @@ function generateUserId() {
   return `USR-${randomStr}`;
 }
 
-// Multer configuration for memory storage (Cloudinary)
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
@@ -33,12 +36,11 @@ const fileFilter = (req, file, cb) => {
 export const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter
 });
 
-// Helper function to upload to Cloudinary
 const uploadToCloudinary = (buffer, options = {}) => {
   return new Promise((resolve, reject) => {
     const uploadOptions = {
@@ -64,7 +66,6 @@ const uploadToCloudinary = (buffer, options = {}) => {
   });
 };
 
-// Helper function to delete from Cloudinary
 const deleteFromCloudinary = (publicId) => {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.destroy(publicId, (error, result) => {
@@ -350,10 +351,21 @@ export const updateUserProfile = async (req, res) => {
       createdAt: user.createdAt,
     };
 
+    const newToken = generateToken({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      userId: user.userId,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
+    });
+
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user: updatedUser
+      user: updatedUser,
+      token: newToken
     });
 
   } catch (error) {
@@ -382,7 +394,6 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Delete old image from Cloudinary if exists
     if (user.cloudinaryPublicId) {
       try {
         await deleteFromCloudinary(user.cloudinaryPublicId);
@@ -391,15 +402,23 @@ export const uploadProfilePicture = async (req, res) => {
       }
     }
 
-    // Upload new image to Cloudinary
     const cloudinaryResult = await uploadToCloudinary(req.file.buffer, {
       public_id: `profile-${user.userId}-${Date.now()}`
     });
 
-    // Update user with new image details
     user.profilePicture = cloudinaryResult.secure_url;
     user.cloudinaryPublicId = cloudinaryResult.public_id;
     await user.save();
+
+    const newToken = generateToken({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      userId: user.userId,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
+    });
 
     res.status(200).json({
       success: true,
@@ -413,7 +432,8 @@ export const uploadProfilePicture = async (req, res) => {
         role: user.role,
         profilePicture: user.profilePicture,
         createdAt: user.createdAt,
-      }
+      },
+      token: newToken
     });
 
   } catch (error) {
@@ -437,7 +457,6 @@ export const removeProfilePicture = async (req, res) => {
       });
     }
 
-    // Delete image from Cloudinary if exists
     if (user.cloudinaryPublicId) {
       try {
         await deleteFromCloudinary(user.cloudinaryPublicId);
@@ -446,10 +465,19 @@ export const removeProfilePicture = async (req, res) => {
       }
     }
 
-    // Clear profile picture and cloudinary public ID
     user.profilePicture = null;
     user.cloudinaryPublicId = null;
     await user.save();
+
+    const newToken = generateToken({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      userId: user.userId,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
+    });
 
     res.status(200).json({ 
       success: true, 
@@ -462,7 +490,8 @@ export const removeProfilePicture = async (req, res) => {
         role: user.role,
         profilePicture: user.profilePicture,
         createdAt: user.createdAt,
-      }
+      },
+      token: newToken
     });
 
   } catch (error) {
