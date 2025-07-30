@@ -18,6 +18,13 @@ import axios from 'axios';
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
+// Add axios interceptor for authentication (same as AdminDashboard)
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 const CandidateCard = ({ candidate }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -174,112 +181,39 @@ const CandidatePage = () => {
       setLoading(true);
       setError(null);
 
-      // For now, use demo data since the API requires authentication
-      // Replace this with actual API call when public endpoint is available
-      const demoData = [
-        {
-          _id: '1',
-          name: 'John Smith',
-          position: 'President',
-          electionTitle: 'Student Government Election 2024',
-          email: 'john.smith@university.edu',
-          phone: '+1 (555) 123-4567',
-          department: 'Computer Science',
-          year: 'Senior',
-          bio: 'Passionate about student rights and campus improvement. I have served as class representative for 2 years and led multiple successful initiatives.',
-          votes: 245,
-          image: null
-        },
-        {
-          _id: '2',
-          name: 'Sarah Johnson',
-          position: 'Vice President',
-          electionTitle: 'Student Government Election 2024',
-          email: 'sarah.johnson@university.edu',
-          phone: '+1 (555) 234-5678',
-          department: 'Business Administration',
-          year: 'Junior',
-          bio: 'Dedicated to creating inclusive campus policies and enhancing student life through innovative programs and events.',
-          votes: 198,
-          image: null
-        },
-        {
-          _id: '3',
-          name: 'Michael Chen',
-          position: 'Secretary',
-          electionTitle: 'Student Government Election 2024',
-          email: 'michael.chen@university.edu',
-          phone: '+1 (555) 345-6789',
-          department: 'Engineering',
-          year: 'Sophomore',
-          bio: 'Committed to transparency and efficient communication. I believe in making student government more accessible to everyone.',
-          votes: 167,
-          image: null
-        },
-        {
-          _id: '4',
-          name: 'Emily Rodriguez',
-          position: 'Treasurer',
-          electionTitle: 'Student Government Election 2024',
-          email: 'emily.rodriguez@university.edu',
-          phone: '+1 (555) 456-7890',
-          department: 'Finance',
-          year: 'Senior',
-          bio: 'Experienced in budget management and financial planning. I will ensure responsible use of student fees and transparent reporting.',
-          votes: 178,
-          image: null
-        }
-      ];
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setCandidates(demoData);
-
-      // Uncomment below when you have a public API endpoint or proper authentication
-      /*
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Please log in to view candidates');
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/candidates`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        timeout: 15000
-      });
+      // Fetch candidates using the same method as AdminDashboard
+      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
+      console.log("Fetched candidates:", data);
 
       let candidatesData = [];
-
-      if (response.data) {
-        if (response.data.success === true) {
-          candidatesData = response.data.candidates || response.data.data || [];
-        } else if (Array.isArray(response.data)) {
-          candidatesData = response.data;
-        } else if (response.data.candidates && Array.isArray(response.data.candidates)) {
-          candidatesData = response.data.candidates;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          candidatesData = response.data.data;
-        }
+      
+      // Handle different response formats (same as AdminDashboard)
+      if (data.success && data.candidates) {
+        candidatesData = data.candidates;
+      } else if (data.candidates) {
+        candidatesData = data.candidates;
+      } else if (Array.isArray(data)) {
+        candidatesData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        candidatesData = data.data;
       }
 
-      if (!Array.isArray(candidatesData)) {
-        candidatesData = [];
-      }
+      // Format candidates data (same as AdminDashboard)
+      const formattedCandidates = candidatesData.map(candidate => ({
+        ...candidate,
+        id: candidate._id || candidate.id,
+        votes: candidate.votes || 0,
+        image: candidate.image || null,
+      }));
 
-      setCandidates(candidatesData);
-      */
+      setCandidates(formattedCandidates);
 
     } catch (error) {
       console.error('Error fetching candidates:', error);
       
       let errorMessage = 'Failed to load candidates';
       
-      if (error.message === 'Please log in to view candidates') {
-        errorMessage = error.message;
-      } else if (error.code === 'ECONNABORTED') {
+      if (error.code === 'ECONNABORTED') {
         errorMessage = 'Request timeout - please check your connection';
       } else if (error.response) {
         const status = error.response.status;
@@ -291,7 +225,7 @@ const CandidatePage = () => {
             errorMessage = 'Access denied - insufficient permissions';
             break;
           case 404:
-            errorMessage = 'No candidates found or endpoint not available';
+            errorMessage = 'No candidates found. Make sure candidates have been added to the system.';
             break;
           case 500:
           case 502:
@@ -306,6 +240,12 @@ const CandidatePage = () => {
       }
       
       setError(errorMessage);
+      
+      // If 404 error (like AdminDashboard), set empty array
+      if (error.response?.status === 404) {
+        console.error("Candidates endpoint not found. Make sure backend route exists.");
+        setCandidates([]);
+      }
     } finally {
       setLoading(false);
     }
