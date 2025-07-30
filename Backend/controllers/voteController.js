@@ -1,15 +1,20 @@
-
 import Vote from '../models/VotingModel.js';
 import Candidate from '../models/candidateModel.js';
 import mongoose from 'mongoose';
 import Election from '../models/electionModel.js';
-
 
 export const castVote = async (req, res) => {
   try {
     const { electionId, candidateId } = req.body;
     const userId = req.user.id || req.user._id;
 
+
+    if (req.user.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Administrators are not allowed to vote in elections'
+      });
+    }
 
     if (!electionId || !candidateId) {
       return res.status(400).json({
@@ -18,14 +23,12 @@ export const castVote = async (req, res) => {
       });
     }
 
- 
     if (!mongoose.Types.ObjectId.isValid(electionId) || !mongoose.Types.ObjectId.isValid(candidateId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid election or candidate ID format'
       });
     }
-
 
     const election = await Election.findById(electionId);
     if (!election) {
@@ -42,7 +45,6 @@ export const castVote = async (req, res) => {
       });
     }
 
-    
     const candidate = await Candidate.findById(candidateId);
     if (!candidate) {
       return res.status(404).json({
@@ -58,7 +60,6 @@ export const castVote = async (req, res) => {
       });
     }
 
-
     const existingVote = await Vote.findOne({
       election: electionId,
       voter: userId
@@ -73,7 +74,6 @@ export const castVote = async (req, res) => {
       });
     }
 
- 
     const newVote = new Vote({
       election: electionId,
       candidate: candidateId,
@@ -89,7 +89,6 @@ export const castVote = async (req, res) => {
       { new: true }
     );
 
-  
     const populatedVote = await Vote.findById(newVote._id)
       .populate('candidate', 'name position')
       .populate('election', 'title');
@@ -122,7 +121,6 @@ export const castVote = async (req, res) => {
   }
 };
 
-
 export const getUserVote = async (req, res) => {
   try {
     const { electionId } = req.params;
@@ -143,7 +141,6 @@ export const getUserVote = async (req, res) => {
       });
     }
 
-   
     const existingVote = await Vote.findOne({
       election: electionId,
       voter: userId
@@ -179,7 +176,6 @@ export const getUserVote = async (req, res) => {
   }
 };
 
-
 export const getResults = async (req, res) => {
   try {
     const { electionId } = req.params;
@@ -199,15 +195,12 @@ export const getResults = async (req, res) => {
       });
     }
 
-  
     const candidates = await Candidate.find({ election: electionId })
       .sort({ votes: -1 }) 
       .select('name position votes image');
 
- 
     const totalVotes = await Vote.countDocuments({ election: electionId });
 
-   
     const candidatesWithPercentage = candidates.map(candidate => ({
       ...candidate.toObject(),
       percentage: totalVotes > 0 ? ((candidate.votes || 0) / totalVotes * 100).toFixed(2) : 0
@@ -235,7 +228,6 @@ export const getResults = async (req, res) => {
     });
   }
 };
-
 
 export const getCandidates = async (req, res) => {
   try {

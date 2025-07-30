@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { 
   Users, 
   Calendar, 
@@ -14,7 +16,8 @@ import {
   MapPin,
   Trophy,
   Info,
-  ThumbsUp
+  ThumbsUp,
+  Shield
 } from 'lucide-react';
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
@@ -61,18 +64,31 @@ const cardVariants = {
   }
 };
 
-const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, electionTitle }) => {
+const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, electionTitle, userRole }) => {
+  const isAdminUser = userRole === 'admin';
+  
   return (
     <motion.div
       variants={cardVariants}
-      whileHover={!hasVoted ? "hover" : {}}
-      whileTap={!hasVoted ? "tap" : {}}
+      whileHover={!hasVoted && !isAdminUser ? "hover" : {}}
+      whileTap={!hasVoted && !isAdminUser ? "tap" : {}}
       className={`
         relative bg-white rounded-xl shadow-md hover:shadow-lg overflow-hidden border transition-all duration-300
         ${votedForThis ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200 hover:border-blue-300'}
         ${hasVoted && !votedForThis ? 'opacity-60' : ''}
+        ${isAdminUser ? 'border-orange-200 bg-orange-50' : ''}
       `}
     >
+      {/* Admin indicator */}
+      {isAdminUser && (
+        <motion.div
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          className="absolute top-3 left-3 z-10 bg-orange-500 text-white rounded-full p-1.5 shadow-lg"
+        >
+          <Shield size={16} />
+        </motion.div>
+      )}
   
       {votedForThis && (
         <motion.div
@@ -85,9 +101,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
       )}
 
       <div className="p-5">
-       
         <div className="flex items-start gap-4 mb-4">
-         
           <div className="flex-shrink-0">
             {candidate.image ? (
               <img 
@@ -108,7 +122,6 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
             </div>
           </div>
 
-          
           <div className="flex-grow min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
               {candidate.name}
@@ -117,7 +130,6 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
               {candidate.position}
             </div>
             
-            
             <div className="flex items-center gap-1.5 text-sm text-gray-600">
               <Trophy size={14} className="text-yellow-500" />
               <span className="font-medium">{candidate.votes || 0} votes</span>
@@ -125,7 +137,6 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
           </div>
         </div>
 
-     
         <div className="space-y-1.5 mb-4 text-sm">
           {candidate.email && (
             <div className="flex items-center gap-2 text-gray-600">
@@ -151,7 +162,6 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
           )}
         </div>
 
-      
         {candidate.bio && (
           <div className="bg-gray-50 rounded-lg p-3 mb-4">
             <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
@@ -163,9 +173,13 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
           </div>
         )}
 
-       
         <div className="mt-auto">
-          {hasVoted ? (
+          {isAdminUser ? (
+            <div className="w-full py-2.5 bg-orange-200 text-orange-700 rounded-lg font-medium text-center text-sm flex items-center justify-center gap-2">
+              <Shield size={16} />
+              Admin View Only
+            </div>
+          ) : hasVoted ? (
             votedForThis ? (
               <motion.div 
                 initial={{ scale: 0.8, opacity: 0 }}
@@ -207,13 +221,29 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
   );
 };
 
-const ElectionHeader = ({ election, candidatesCount, hasVoted }) => {
+const ElectionHeader = ({ election, candidatesCount, hasVoted, userRole }) => {
+  const isAdminUser = userRole === 'admin';
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200"
     >
+      {isAdminUser && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 bg-orange-100 border border-orange-300 rounded-xl p-4 flex items-center gap-3"
+        >
+          <Shield className="text-orange-600 flex-shrink-0" size={18} />
+          <div>
+            <p className="font-medium text-orange-800">Administrator View</p>
+            <p className="text-sm text-orange-700">You are viewing this election as an administrator. Voting is restricted for admin accounts.</p>
+          </div>
+        </motion.div>
+      )}
+
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           {election.title}
@@ -239,22 +269,30 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted }) => {
           </div>
         </div>
 
-        <div className={`rounded-xl p-4 ${hasVoted ? 'bg-green-50' : 'bg-yellow-50'}`}>
-          {hasVoted ? (
+        <div className={`rounded-xl p-4 ${
+          isAdminUser ? 'bg-orange-50' : hasVoted ? 'bg-green-50' : 'bg-yellow-50'
+        }`}>
+          {isAdminUser ? (
+            <Shield className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+          ) : hasVoted ? (
             <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
           ) : (
             <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
           )}
-          <div className={`text-xl font-bold ${hasVoted ? 'text-green-900' : 'text-yellow-900'}`}>
-            {hasVoted ? 'Voted' : 'Pending'}
+          <div className={`text-xl font-bold ${
+            isAdminUser ? 'text-orange-900' : hasVoted ? 'text-green-900' : 'text-yellow-900'
+          }`}>
+            {isAdminUser ? 'Admin' : hasVoted ? 'Voted' : 'Pending'}
           </div>
-          <div className={`text-sm ${hasVoted ? 'text-green-700' : 'text-yellow-700'}`}>
+          <div className={`text-sm ${
+            isAdminUser ? 'text-orange-700' : hasVoted ? 'text-green-700' : 'text-yellow-700'
+          }`}>
             Your Status
           </div>
         </div>
       </div>
 
-      {hasVoted && (
+      {hasVoted && !isAdminUser && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -282,110 +320,117 @@ const Vote = () => {
   const [hasVoted, setHasVoted] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState('');
+  const [userRole, setUserRole] = useState(null);
 
- 
-
-const checkExistingVote = async (electionId) => {
-  try {
-    const token = localStorage.getItem('userToken');
-    if (!token) return;
-
-    console.log('Checking existing vote for election:', electionId);
-
- 
-    let response;
-    try {
-
-      response = await axios.get(
-        `${API_BASE_URL}/votes/${electionId}/user-vote`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    } catch (firstError) {
-      if (firstError.response?.status === 404) {
+  // Check user role when component mounts
+  useEffect(() => {
+    const checkUserRole = () => {
+      const token = localStorage.getItem('userToken');
+      if (token) {
         try {
-         
-          response = await axios.get(
-            `${API_BASE_URL}/votes/user/${electionId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-        } catch (secondError) {
-          if (secondError.response?.status === 404) {
-            try {
-      
-              response = await axios.get(
-                `${API_BASE_URL}/votes/check/${electionId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-            } catch (thirdError) {
-              if (thirdError.response?.status === 404) {
-                try {
-                
-                  response = await axios.get(
-                    `${API_BASE_URL}/elections/${electionId}/user-vote`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                  );
-                } catch (fourthError) {
-                 
-                  console.log('All vote check endpoints returned 404 - assuming user has not voted');
-                  setVotedCandidateId(null);
-                  setHasVoted(false);
-                  return;
-                }
-              } else {
-                throw thirdError;
-              }
-            }
-          } else {
-            throw secondError;
-          }
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          setUserRole(payload.role);
+          console.log('User role detected:', payload.role);
+        } catch (error) {
+          console.error('Error decoding token:', error);
         }
+      }
+    };
+    
+    checkUserRole();
+  }, []);
+
+  const checkExistingVote = async (electionId) => {
+    try {
+      const token = localStorage.getItem('userToken');
+      if (!token) return;
+
+      console.log('Checking existing vote for election:', electionId);
+
+      let response;
+      try {
+        response = await axios.get(
+          `${API_BASE_URL}/votes/${electionId}/user-vote`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch (firstError) {
+        if (firstError.response?.status === 404) {
+          try {
+            response = await axios.get(
+              `${API_BASE_URL}/votes/user/${electionId}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+          } catch (secondError) {
+            if (secondError.response?.status === 404) {
+              try {
+                response = await axios.get(
+                  `${API_BASE_URL}/votes/check/${electionId}`,
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+              } catch (thirdError) {
+                if (thirdError.response?.status === 404) {
+                  try {
+                    response = await axios.get(
+                      `${API_BASE_URL}/elections/${electionId}/user-vote`,
+                      { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                  } catch (fourthError) {
+                    console.log('All vote check endpoints returned 404 - assuming user has not voted');
+                    setVotedCandidateId(null);
+                    setHasVoted(false);
+                    return;
+                  }
+                } else {
+                  throw thirdError;
+                }
+              }
+            } else {
+              throw secondError;
+            }
+          }
+        } else {
+          throw firstError;
+        }
+      }
+      
+      const data = response.data;
+      console.log('Vote check response:', data);
+
+      if (data.success && data.hasVoted && data.vote) {
+        setVotedCandidateId(data.vote.candidate);
+        setHasVoted(true);
+        console.log('User has voted for candidate:', data.vote.candidate);
+      } else if (data.hasVoted && data.candidateId) {
+        setVotedCandidateId(data.candidateId);
+        setHasVoted(true);
+        console.log('User has voted for candidate:', data.candidateId);
+      } else if (data.vote && data.vote.candidateId) {
+        setVotedCandidateId(data.vote.candidateId);
+        setHasVoted(true);
+        console.log('User has voted for candidate:', data.vote.candidateId);
       } else {
-        throw firstError;
+        setVotedCandidateId(null);
+        setHasVoted(false);
+        console.log('User has not voted yet');
+      }
+      
+    } catch (err) {
+      console.log('Check existing vote error:', err.response?.status, err.message);
+    
+      if (err.response?.status === 404) {
+        console.log('404 error - assuming user has not voted');
+        setVotedCandidateId(null);
+        setHasVoted(false);
+      } else if (err.response?.status === 401) {
+        console.error('Unauthorized - please log in again');
+        setError('Session expired. Please log in again.');
+      } else {
+        console.error('Error checking existing vote:', err);
+        setVotedCandidateId(null);
+        setHasVoted(false);
       }
     }
-    
-    const data = response.data;
-    console.log('Vote check response:', data);
-    
-
-    if (data.success && data.hasVoted && data.vote) {
-      setVotedCandidateId(data.vote.candidate);
-      setHasVoted(true);
-      console.log('User has voted for candidate:', data.vote.candidate);
-    } else if (data.hasVoted && data.candidateId) {
-      
-      setVotedCandidateId(data.candidateId);
-      setHasVoted(true);
-      console.log('User has voted for candidate:', data.candidateId);
-    } else if (data.vote && data.vote.candidateId) {
-    
-      setVotedCandidateId(data.vote.candidateId);
-      setHasVoted(true);
-      console.log('User has voted for candidate:', data.vote.candidateId);
-    } else {
-   
-      setVotedCandidateId(null);
-      setHasVoted(false);
-      console.log('User has not voted yet');
-    }
-    
-  } catch (err) {
-    console.log('Check existing vote error:', err.response?.status, err.message);
-  
-    if (err.response?.status === 404) {
-      console.log('404 error - assuming user has not voted');
-      setVotedCandidateId(null);
-      setHasVoted(false);
-    } else if (err.response?.status === 401) {
-      console.error('Unauthorized - please log in again');
-      setError('Session expired. Please log in again.');
-    } else {
-      console.error('Error checking existing vote:', err);
-      setVotedCandidateId(null);
-      setHasVoted(false);
-    }
-  }
-};
+  };
 
   useEffect(() => {
     const fetchElections = async () => {
@@ -449,7 +494,6 @@ const checkExistingVote = async (electionId) => {
 
         console.log('Fetching candidates for election ID:', selectedElectionId);
         
-       
         const response = await axios.get(
           `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
           { 
@@ -528,11 +572,35 @@ const checkExistingVote = async (electionId) => {
     const token = localStorage.getItem('userToken');
     if (!token) {
       setError('Please log in first to vote.');
+      toast.error('Please log in first to vote.');
+      return;
+    }
+
+    // Check if user is admin
+    if (userRole === 'admin') {
+      const message = 'Administrators are not allowed to vote in elections';
+      setError(message);
+      toast.error(message, {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        icon: <Shield size={20} />,
+        style: {
+          backgroundColor: '#FEF3C7',
+          color: '#92400E',
+          border: '1px solid #F59E0B'
+        }
+      });
       return;
     }
 
     if (hasVoted) {
-      setError('You have already voted in this election. Only one vote per election is allowed.');
+      const message = 'You have already voted in this election. Only one vote per election is allowed.';
+      setError(message);
+      toast.warning(message);
       return;
     }
 
@@ -550,7 +618,6 @@ const checkExistingVote = async (electionId) => {
         setVotedCandidateId(candidate._id);
         setHasVoted(true);
         
-      
         setCandidates(prev => 
           prev.map(c => 
             c._id === candidate._id 
@@ -559,8 +626,16 @@ const checkExistingVote = async (electionId) => {
           )
         );
 
-
         setError('');
+        toast.success(`Vote cast successfully for ${candidate.name}!`, {
+          position: "top-center",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          icon: <CheckCircle size={20} />
+        });
       }
 
     } catch (err) {
@@ -571,14 +646,33 @@ const checkExistingVote = async (electionId) => {
       if (err.response?.data) {
         const { message, alreadyVoted } = err.response.data;
         
-        if (alreadyVoted) {
-          
+        if (message === 'Administrators are not allowed to vote in elections') {
+          errorMessage = message;
+          toast.error(errorMessage, {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            icon: <Shield size={20} />,
+            style: {
+              backgroundColor: '#FEF3C7',
+              color: '#92400E',
+              border: '1px solid #F59E0B'
+            }
+          });
+        } else if (alreadyVoted) {
           setHasVoted(true);
           setVotedCandidateId(err.response.data.votedFor);
           errorMessage = 'You have already voted in this election. Only one vote per election is allowed.';
+          toast.warning(errorMessage);
         } else {
           errorMessage = message || errorMessage;
+          toast.error(errorMessage);
         }
+      } else {
+        toast.error(errorMessage);
       }
       
       setError(errorMessage);
@@ -587,7 +681,7 @@ const checkExistingVote = async (electionId) => {
     }
   };
 
-  if (error) {
+  if (error && !candidates.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-6">
         <div className="max-w-4xl mx-auto">
@@ -601,6 +695,7 @@ const checkExistingVote = async (electionId) => {
             <p className="text-red-700">{error}</p>
           </motion.div>
         </div>
+        <ToastContainer />
       </div>
     );
   }
@@ -608,7 +703,6 @@ const checkExistingVote = async (electionId) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        
         {elections.length > 1 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -632,16 +726,15 @@ const checkExistingVote = async (electionId) => {
           </motion.div>
         )}
 
-     
         {selectedElection && (
           <ElectionHeader 
             election={selectedElection} 
             candidatesCount={candidates.length}
             hasVoted={hasVoted}
+            userRole={userRole}
           />
         )}
 
-    
         {loading && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -653,7 +746,6 @@ const checkExistingVote = async (electionId) => {
           </motion.div>
         )}
 
-      
         {!loading && elections.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -670,7 +762,6 @@ const checkExistingVote = async (electionId) => {
           </motion.div>
         )}
 
-       
         {!loading && candidates.length === 0 && selectedElectionId && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -687,7 +778,6 @@ const checkExistingVote = async (electionId) => {
           </motion.div>
         )}
 
-        
         {!loading && candidates.length > 0 && (
           <motion.div
             variants={containerVariants}
@@ -705,14 +795,14 @@ const checkExistingVote = async (electionId) => {
                   hasVoted={hasVoted}
                   votedForThis={votedCandidateId === candidate._id}
                   electionTitle={selectedElection?.title}
+                  userRole={userRole}
                 />
               ))}
             </AnimatePresence>
           </motion.div>
         )}
 
-        
-        {!hasVoted && candidates.length > 0 && (
+        {!hasVoted && candidates.length > 0 && userRole !== 'admin' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -735,8 +825,30 @@ const checkExistingVote = async (electionId) => {
           </motion.div>
         )}
 
-     
-        {hasVoted && candidates.length > 0 && (
+        {userRole === 'admin' && candidates.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mt-8 bg-orange-50 border border-orange-200 rounded-xl p-5"
+          >
+            <div className="flex items-start gap-3">
+              <Shield size={18} className="text-orange-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-orange-900 mb-2">Administrator Information</h4>
+                <ul className="text-sm text-orange-800 space-y-1">
+                  <li>• <strong>You are viewing this election as an administrator</strong></li>
+                  <li>• Administrators cannot vote to maintain election integrity</li>
+                  <li>• You can view candidate information and monitor the election</li>
+                  <li>• Use the admin dashboard to manage elections and view results</li>
+                  <li>• All voting actions are restricted for admin accounts</li>
+                </ul>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {hasVoted && candidates.length > 0 && userRole !== 'admin' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -756,6 +868,21 @@ const checkExistingVote = async (electionId) => {
           </motion.div>
         )}
       </div>
+      
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-center"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+        style={{ zIndex: 9999 }}
+      />
     </div>
   );
 };
