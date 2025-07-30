@@ -73,7 +73,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
         ${hasVoted && !votedForThis ? 'opacity-60' : ''}
       `}
     >
-      {/* Voted Badge */}
+  
       {votedForThis && (
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
@@ -85,9 +85,9 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
       )}
 
       <div className="p-5">
-        {/* Header with Avatar and Basic Info */}
+       
         <div className="flex items-start gap-4 mb-4">
-          {/* Avatar */}
+         
           <div className="flex-shrink-0">
             {candidate.image ? (
               <img 
@@ -108,7 +108,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
             </div>
           </div>
 
-          {/* Name and Position */}
+          
           <div className="flex-grow min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
               {candidate.name}
@@ -117,7 +117,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
               {candidate.position}
             </div>
             
-            {/* Vote Count */}
+            
             <div className="flex items-center gap-1.5 text-sm text-gray-600">
               <Trophy size={14} className="text-yellow-500" />
               <span className="font-medium">{candidate.votes || 0} votes</span>
@@ -125,7 +125,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
           </div>
         </div>
 
-        {/* Contact Info - Compact */}
+     
         <div className="space-y-1.5 mb-4 text-sm">
           {candidate.email && (
             <div className="flex items-center gap-2 text-gray-600">
@@ -151,7 +151,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
           )}
         </div>
 
-        {/* Bio - Condensed */}
+      
         {candidate.bio && (
           <div className="bg-gray-50 rounded-lg p-3 mb-4">
             <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
@@ -163,7 +163,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
           </div>
         )}
 
-        {/* Vote Button */}
+       
         <div className="mt-auto">
           {hasVoted ? (
             votedForThis ? (
@@ -283,38 +283,109 @@ const Vote = () => {
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState('');
 
-  // Check for existing vote
-  const checkExistingVote = async (electionId) => {
-    try {
-      const token = localStorage.getItem('userToken');
-      if (!token) return;
+ 
 
-      const { data } = await axios.get(
+const checkExistingVote = async (electionId) => {
+  try {
+    const token = localStorage.getItem('userToken');
+    if (!token) return;
+
+    console.log('Checking existing vote for election:', electionId);
+
+ 
+    let response;
+    try {
+
+      response = await axios.get(
         `${API_BASE_URL}/votes/${electionId}/user-vote`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+    } catch (firstError) {
+      if (firstError.response?.status === 404) {
+        try {
+         
+          response = await axios.get(
+            `${API_BASE_URL}/votes/user/${electionId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (secondError) {
+          if (secondError.response?.status === 404) {
+            try {
       
-      if (data.success && data.hasVoted && data.vote) {
-        setVotedCandidateId(data.vote.candidate);
-        setHasVoted(true);
+              response = await axios.get(
+                `${API_BASE_URL}/votes/check/${electionId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+            } catch (thirdError) {
+              if (thirdError.response?.status === 404) {
+                try {
+                
+                  response = await axios.get(
+                    `${API_BASE_URL}/elections/${electionId}/user-vote`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                } catch (fourthError) {
+                 
+                  console.log('All vote check endpoints returned 404 - assuming user has not voted');
+                  setVotedCandidateId(null);
+                  setHasVoted(false);
+                  return;
+                }
+              } else {
+                throw thirdError;
+              }
+            }
+          } else {
+            throw secondError;
+          }
+        }
       } else {
-        setVotedCandidateId(null);
-        setHasVoted(false);
-      }
-    } catch (err) {
-      console.log('Check existing vote error:', err.response?.status);
-      // If 404, user hasn't voted yet, or route doesn't exist
-      if (err.response?.status === 404) {
-        setVotedCandidateId(null);
-        setHasVoted(false);
-      } else {
-        console.error('Error checking existing vote:', err);
-        // On other errors, assume user hasn't voted to allow voting
-        setVotedCandidateId(null);
-        setHasVoted(false);
+        throw firstError;
       }
     }
-  };
+    
+    const data = response.data;
+    console.log('Vote check response:', data);
+    
+
+    if (data.success && data.hasVoted && data.vote) {
+      setVotedCandidateId(data.vote.candidate);
+      setHasVoted(true);
+      console.log('User has voted for candidate:', data.vote.candidate);
+    } else if (data.hasVoted && data.candidateId) {
+      
+      setVotedCandidateId(data.candidateId);
+      setHasVoted(true);
+      console.log('User has voted for candidate:', data.candidateId);
+    } else if (data.vote && data.vote.candidateId) {
+    
+      setVotedCandidateId(data.vote.candidateId);
+      setHasVoted(true);
+      console.log('User has voted for candidate:', data.vote.candidateId);
+    } else {
+   
+      setVotedCandidateId(null);
+      setHasVoted(false);
+      console.log('User has not voted yet');
+    }
+    
+  } catch (err) {
+    console.log('Check existing vote error:', err.response?.status, err.message);
+  
+    if (err.response?.status === 404) {
+      console.log('404 error - assuming user has not voted');
+      setVotedCandidateId(null);
+      setHasVoted(false);
+    } else if (err.response?.status === 401) {
+      console.error('Unauthorized - please log in again');
+      setError('Session expired. Please log in again.');
+    } else {
+      console.error('Error checking existing vote:', err);
+      setVotedCandidateId(null);
+      setHasVoted(false);
+    }
+  }
+};
 
   useEffect(() => {
     const fetchElections = async () => {
@@ -335,13 +406,10 @@ const Vote = () => {
         
         let electionsArray = [];
         if (data && Array.isArray(data.elections)) {
-          // Response format: { elections: [...], message: "..." }
           electionsArray = data.elections;
         } else if (data && data.success && Array.isArray(data.elections)) {
-          // Response format: { success: true, elections: [...] }
           electionsArray = data.elections;
         } else if (Array.isArray(data)) {
-          // Response is directly an array
           electionsArray = data;
         } else {
           console.error('Unexpected response format:', data);
@@ -381,7 +449,7 @@ const Vote = () => {
 
         console.log('Fetching candidates for election ID:', selectedElectionId);
         
-        // FIXED: Use the public route for voters
+       
         const response = await axios.get(
           `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
           { 
@@ -396,13 +464,10 @@ const Vote = () => {
         
         let candidatesArray = [];
         if (data && Array.isArray(data.candidates)) {
-          // Response format: { candidates: [...], message: "..." }
           candidatesArray = data.candidates;
         } else if (data && data.success && Array.isArray(data.candidates)) {
-          // Response format: { success: true, candidates: [...] }
           candidatesArray = data.candidates;
         } else if (Array.isArray(data)) {
-          // Response is directly an array
           candidatesArray = data;
         } else {
           console.error('Unexpected candidates response format:', data);
@@ -485,7 +550,7 @@ const Vote = () => {
         setVotedCandidateId(candidate._id);
         setHasVoted(true);
         
-        // Update vote count optimistically
+      
         setCandidates(prev => 
           prev.map(c => 
             c._id === candidate._id 
@@ -494,7 +559,7 @@ const Vote = () => {
           )
         );
 
-        // Show success message
+
         setError('');
       }
 
@@ -507,7 +572,7 @@ const Vote = () => {
         const { message, alreadyVoted } = err.response.data;
         
         if (alreadyVoted) {
-          // User has already voted
+          
           setHasVoted(true);
           setVotedCandidateId(err.response.data.votedFor);
           errorMessage = 'You have already voted in this election. Only one vote per election is allowed.';
@@ -543,7 +608,7 @@ const Vote = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Election Selection */}
+        
         {elections.length > 1 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -567,7 +632,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {/* Election Header */}
+     
         {selectedElection && (
           <ElectionHeader 
             election={selectedElection} 
@@ -576,7 +641,7 @@ const Vote = () => {
           />
         )}
 
-        {/* Loading State */}
+    
         {loading && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -588,7 +653,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {/* No Elections */}
+      
         {!loading && elections.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -605,7 +670,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {/* No Candidates */}
+       
         {!loading && candidates.length === 0 && selectedElectionId && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -622,7 +687,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {/* Candidates Grid */}
+        
         {!loading && candidates.length > 0 && (
           <motion.div
             variants={containerVariants}
@@ -646,7 +711,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {/* Voting Instructions */}
+        
         {!hasVoted && candidates.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -670,7 +735,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {/* Already Voted Notice */}
+     
         {hasVoted && candidates.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
