@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "voter",
     },
+    profilePicture: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
