@@ -67,8 +67,9 @@ const cardVariants = {
   }
 };
 
-const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, electionTitle, userRole, position }) => {
+const CandidateCard = ({ candidate, onVote, votingCandidateId, hasVoted, votedForThis, electionTitle, userRole, position }) => {
   const isAdminUser = userRole === 'admin';
+  const isVotingThisCandidate = votingCandidateId === candidate._id;
   
   return (
     <motion.div
@@ -82,7 +83,7 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
         ${isAdminUser ? 'border-orange-200 bg-orange-50' : ''}
       `}
       onClick={() => {
-        if (!hasVoted && !isAdminUser && !isVoting) {
+        if (!hasVoted && !isAdminUser && !votingCandidateId) {
           onVote(candidate);
         }
       }}
@@ -209,10 +210,10 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
                 e.stopPropagation();
                 onVote(candidate);
               }}
-              disabled={isVoting}
+              disabled={!!votingCandidateId}
               className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:shadow-none text-sm"
             >
-              {isVoting ? (
+              {isVotingThisCandidate ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
                   Voting...
@@ -438,7 +439,7 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidates, setVotedCandidates] = useState({});
   const [votedPositions, setVotedPositions] = useState([]);
-  const [isVoting, setIsVoting] = useState(false);
+  const [votingCandidateId, setVotingCandidateId] = useState(null); // Changed from isVoting to votingCandidateId
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState(null);
 
@@ -753,7 +754,7 @@ const Vote = () => {
       return;
     }
 
-    setIsVoting(true);
+    setVotingCandidateId(candidate._id); // Set the specific candidate being voted for
     setError('');
 
     try {
@@ -846,7 +847,7 @@ const Vote = () => {
       
       setError(errorMessage);
     } finally {
-      setIsVoting(false);
+      setVotingCandidateId(null); // Clear the voting state
     }
   };
 
@@ -992,7 +993,7 @@ const Vote = () => {
                     key={candidate._id}
                     candidate={candidate}
                     onVote={handleVote}
-                    isVoting={isVoting}
+                    votingCandidateId={votingCandidateId}
                     hasVoted={votedPositions.includes(candidate.position)}
                     votedForThis={votedCandidates[candidate.position] === candidate._id}
                     electionTitle={selectedElection?.title}
