@@ -24,12 +24,12 @@ const ProfilePage = () => {
   const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
-    // Simulate fetching user data from localStorage (as in your Navbar)
+
     const token = localStorage.getItem("userToken");
     const userData = localStorage.getItem("userData");
     
     if (!token || !userData || userData === "undefined" || userData === "null") {
-      // In a real app, you'd navigate to login
+    
       setLoading(false);
       return;
     }
@@ -71,7 +71,7 @@ const ProfilePage = () => {
 
   const handleEditToggle = () => {
     if (isEditing) {
-      // Reset form if canceling
+      
       setEditForm({
         name: user.name || '',
         email: user.email || ''
@@ -89,7 +89,7 @@ const ProfilePage = () => {
   };
 
   const showToast = (message, type = 'success') => {
-    // Simple toast notification (in real app, use react-toastify)
+   
     const toast = document.createElement('div');
     toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-medium z-50 ${
       type === 'success' ? 'bg-green-500' : 'bg-red-500'
@@ -122,15 +122,14 @@ const ProfilePage = () => {
     setUpdateLoading(true);
     
     try {
-      // Here you would typically make an API call to update the user
-      // For now, we'll simulate the update by updating localStorage
+      
       const updatedUser = {
         ...user,
         name: editForm.name.trim(),
         email: editForm.email.toLowerCase().trim()
       };
       
-      // Simulate API delay
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       setUser(updatedUser);
@@ -150,12 +149,12 @@ const ProfilePage = () => {
     localStorage.removeItem("userToken");
     localStorage.removeItem("userData");
     showToast('Logged out successfully');
-    // In real app: navigate('/');
+   
     window.location.href = '/';
   };
 
   const handleNavigation = (path) => {
-    // In real app: navigate(path);
+  
     window.location.href = path;
   };
 
@@ -191,7 +190,7 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+    
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-32 relative">
             <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -268,7 +267,7 @@ const ProfilePage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Information */}
+          
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Profile Information</h2>
@@ -357,7 +356,7 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Quick Actions */}
+     
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
@@ -397,7 +396,7 @@ const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Account Actions */}
+           
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Account</h3>
               
