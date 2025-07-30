@@ -1,9 +1,10 @@
 import User from '../models/userModel.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import path from 'path';
-import fs from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
+
+
 
 const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -14,37 +15,67 @@ function generateUserId() {
   return `USR-${randomStr}`;
 }
 
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join('uploads', 'profile-pictures');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, `${req.user.id}-${Date.now()}${ext}`);
-  }
-});
+// Multer configuration for memory storage (Cloudinary)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const isValidExt = allowedTypes.test(file.originalname.toLowerCase());
+  const isValidMime = allowedTypes.test(file.mimetype);
 
-  if (file.mimetype.startsWith('image/')) {
+  if (isValidExt && isValidMime) {
     cb(null, true);
   } else {
-    cb(new Error('Please upload only image files'), false);
+    cb(new Error('Only image files are allowed!'), false);
   }
 };
 
-export const upload = multer({ 
+export const upload = multer({
   storage,
-  fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 
-  }
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter
 });
+
+// Helper function to upload to Cloudinary
+const uploadToCloudinary = (buffer, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const uploadOptions = {
+      folder: 'profile-pictures',
+      resource_type: 'image',
+      transformation: [
+        { width: 300, height: 300, crop: 'fill', gravity: 'face' },
+        { quality: 'auto' }
+      ],
+      ...options
+    };
+
+    cloudinary.uploader.upload_stream(
+      uploadOptions,
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      }
+    ).end(buffer);
+  });
+};
+
+// Helper function to delete from Cloudinary
+const deleteFromCloudinary = (publicId) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.destroy(publicId, (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+};
 
 export const registerUser = async (req, res) => {
   try {
@@ -96,6 +127,7 @@ export const registerUser = async (req, res) => {
       userId,
       role,
       profilePicture: null,
+      cloudinaryPublicId: null,
     };
 
     const user = await User.create(userData);
@@ -253,7 +285,6 @@ export const updateUserProfile = async (req, res) => {
   try {
     const { name, email } = req.body;
 
-   
     if (!name || name.trim().length < 2) {
       return res.status(400).json({ 
         success: false, 
@@ -272,7 +303,6 @@ export const updateUserProfile = async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const trimmedName = name.trim();
 
-  
     const existingUser = await User.findOne({ 
       email: normalizedEmail,
       _id: { $ne: req.user.id } 
@@ -285,7 +315,6 @@ export const updateUserProfile = async (req, res) => {
       });
     }
 
- 
     const existingName = await User.findOne({ 
       name: trimmedName,
       _id: { $ne: req.user.id } 
@@ -353,27 +382,29 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-
-    if (user.profilePicture) {
+    // Delete old image from Cloudinary if exists
+    if (user.cloudinaryPublicId) {
       try {
-        const oldImagePath = user.profilePicture.split('/').pop();
-        const fullOldPath = path.join('uploads', 'profile-pictures', oldImagePath);
-        if (fs.existsSync(fullOldPath)) {
-          fs.unlinkSync(fullOldPath);
-        }
+        await deleteFromCloudinary(user.cloudinaryPublicId);
       } catch (deleteError) {
-        console.error('Error deleting old profile picture:', deleteError);
+        console.error('Error deleting old profile picture from Cloudinary:', deleteError);
       }
     }
 
-    const filePath = `${req.protocol}://${req.get('host')}/uploads/profile-pictures/${req.file.filename}`;
-    user.profilePicture = filePath;
+    // Upload new image to Cloudinary
+    const cloudinaryResult = await uploadToCloudinary(req.file.buffer, {
+      public_id: `profile-${user.userId}-${Date.now()}`
+    });
+
+    // Update user with new image details
+    user.profilePicture = cloudinaryResult.secure_url;
+    user.cloudinaryPublicId = cloudinaryResult.public_id;
     await user.save();
 
     res.status(200).json({
       success: true,
       message: 'Profile picture uploaded successfully',
-      profilePictureUrl: filePath,
+      profilePictureUrl: cloudinaryResult.secure_url,
       user: {
         _id: user._id,
         name: user.name,
@@ -386,15 +417,8 @@ export const uploadProfilePicture = async (req, res) => {
     });
 
   } catch (error) {
-   
-    if (req.file) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (cleanupError) {
-        console.error('Error cleaning up file:', cleanupError);
-      }
-    }
-
+    console.error('Error uploading to Cloudinary:', error);
+    
     res.status(500).json({
       success: false,
       message: 'Server error during image upload',
@@ -413,20 +437,18 @@ export const removeProfilePicture = async (req, res) => {
       });
     }
 
-  
-    if (user.profilePicture) {
+    // Delete image from Cloudinary if exists
+    if (user.cloudinaryPublicId) {
       try {
-        const imagePath = user.profilePicture.split('/').pop();
-        const fullPath = path.join('uploads', 'profile-pictures', imagePath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
-        }
+        await deleteFromCloudinary(user.cloudinaryPublicId);
       } catch (deleteError) {
-        console.error('Error deleting profile picture file:', deleteError);
+        console.error('Error deleting profile picture from Cloudinary:', deleteError);
       }
     }
 
+    // Clear profile picture and cloudinary public ID
     user.profilePicture = null;
+    user.cloudinaryPublicId = null;
     await user.save();
 
     res.status(200).json({ 
