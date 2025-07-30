@@ -11,7 +11,7 @@ import Login from './pages/Login';
 import Vote from './pages/Vote';
 import Results from './pages/Results';
 import AdminDashboard from './pages/AdminDashboard';
-import CandidatesPage from './pages/CandidatePage';
+
 
 const App = () => (
   <div className="flex flex-col min-h-screen bg-white text-gray-900">
@@ -21,7 +21,6 @@ const App = () => (
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/vote" element={<Vote />} />
-        <Route path="/candidate" element={<CandidatesPage />} />
        <Route path="/results/:electionId" element={<Results />} />
         <Route
           path="/admin"
