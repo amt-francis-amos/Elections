@@ -76,11 +76,16 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
       whileHover={!hasVoted && !isAdminUser ? "hover" : {}}
       whileTap={!hasVoted && !isAdminUser ? "tap" : {}}
       className={`
-        relative bg-white rounded-xl shadow-md hover:shadow-lg overflow-hidden border transition-all duration-300
+        relative bg-white rounded-xl shadow-md hover:shadow-lg overflow-hidden border transition-all duration-300 cursor-pointer
         ${votedForThis ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200 hover:border-blue-300'}
         ${hasVoted && !votedForThis ? 'opacity-60' : ''}
         ${isAdminUser ? 'border-orange-200 bg-orange-50' : ''}
       `}
+      onClick={() => {
+        if (!hasVoted && !isAdminUser && !isVoting) {
+          onVote(candidate);
+        }
+      }}
     >
       {isAdminUser && (
         <motion.div
@@ -200,7 +205,10 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              onClick={() => onVote(candidate)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onVote(candidate);
+              }}
               disabled={isVoting}
               className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:shadow-none text-sm"
             >
@@ -967,7 +975,7 @@ const Vote = () => {
               <p className="text-gray-600">
                 {votedPositions.includes(currentPosition) 
                   ? `You have voted for this position` 
-                  : `Select your preferred candidate for ${currentPosition}`
+                  : `Click on a candidate card to vote for ${currentPosition}`
                 }
               </p>
             </motion.div>
@@ -1009,10 +1017,10 @@ const Vote = () => {
               <div>
                 <h4 className="font-medium text-blue-900 mb-2">Important Voting Rules for {currentPosition}</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• <strong>You can only vote for ONE candidate per position</strong></li>
+                  <li>• <strong>Click on any candidate card to vote for them</strong></li>
+                  <li>• You can only vote for ONE candidate per position</li>
                   <li>• Review all candidates carefully before making your choice</li>
                   <li>• Once you vote for this position, you cannot change your selection</li>
-                  <li>• You can vote for multiple positions in this election</li>
                   <li>• Your vote is anonymous and secure</li>
                 </ul>
               </div>
