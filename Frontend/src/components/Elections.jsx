@@ -1,5 +1,5 @@
-
 import React from 'react';
+import { toast } from 'react-toastify';
 import {
   Plus,
   Search,
@@ -27,12 +27,82 @@ const Elections = ({
     return matchesSearch && matchesFilter;
   });
 
+  const handleDeleteWithToast = async (electionId) => {
+    try {
+      await handleDeleteElection(electionId);
+      toast.success('Election deleted successfully!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (error) {
+      toast.error('Failed to delete election. Please try again.', {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  };
+
+  const handleExportWithToast = async (format, electionId = null) => {
+    try {
+      await exportResults(format, electionId);
+      toast.success(`Results exported successfully as ${format.toUpperCase()}!`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (error) {
+      toast.error('Failed to export results. Please try again.', {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  };
+
+  const handleCreateElection = () => {
+    openModal('createElection');
+    toast.info('Opening election creation form...', {
+      position: "top-right",
+      autoClose: 2000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
+  };
+
+  const handleEditElection = (election) => {
+    openModal('editElection', election);
+    toast.info(`Opening editor for "${election.title}"...`, {
+      position: "top-right",
+      autoClose: 2000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Elections Management</h2>
         <button
-          onClick={() => openModal('createElection')}
+          onClick={handleCreateElection}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
           <Plus size={20} />
@@ -65,7 +135,7 @@ const Elections = ({
                 <option value="completed">Completed</option>
               </select>
               <button
-                onClick={() => exportResults('csv')}
+                onClick={() => handleExportWithToast('csv')}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
               >
                 <Download size={16} />
@@ -133,7 +203,7 @@ const Elections = ({
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                         <div
-                          className="h-2 rounded-full"
+                          className="bg-blue-600 h-2 rounded-full"
                           style={{
                             width: `${
                               election.eligibleVoters > 0
@@ -153,20 +223,23 @@ const Elections = ({
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => openModal('editElection', election)}
+                          onClick={() => handleEditElection(election)}
                           className="text-blue-600 hover:text-blue-900"
+                          title="Edit Election"
                         >
                           <Edit size={16} />
                         </button>
                         <button
-                          onClick={() => exportResults('csv', election._id || election.id)}
+                          onClick={() => handleExportWithToast('csv', election._id || election.id)}
                           className="text-green-600 hover:text-green-900"
+                          title="Export Results"
                         >
                           <Download size={16} />
                         </button>
                         <button
-                          onClick={() => handleDeleteElection(election._id || election.id)}
+                          onClick={() => handleDeleteWithToast(election._id || election.id)}
                           className="text-red-600 hover:text-red-900"
+                          title="Delete Election"
                         >
                           <Trash2 size={16} />
                         </button>
