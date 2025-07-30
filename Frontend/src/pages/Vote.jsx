@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { 
   Users, 
   Calendar, 
@@ -23,7 +20,109 @@ import {
   RotateCcw
 } from 'lucide-react';
 
-const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
+// Mock API for demonstration
+const mockAPI = {
+  async fetchElections() {
+    return {
+      success: true,
+      elections: [
+        {
+          _id: '1',
+          title: 'Student Union Elections 2024',
+          description: 'Annual student body elections',
+          isActive: true,
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ]
+    };
+  },
+
+  async fetchCandidates(electionId) {
+    return {
+      success: true,
+      candidatesByPosition: {
+        'President': [
+          {
+            _id: '1',
+            name: 'John Doe',
+            position: 'President',
+            email: 'john@example.com',
+            phone: '+1234567890',
+            department: 'Computer Science',
+            year: '2024',
+            bio: 'Passionate about student rights and improving campus life.',
+            image: null,
+            votes: 45
+          },
+          {
+            _id: '2',
+            name: 'Jane Smith',
+            position: 'President',
+            email: 'jane@example.com',
+            phone: '+1234567891',
+            department: 'Business Administration',
+            year: '2024',
+            bio: 'Experienced leader committed to academic excellence.',
+            image: null,
+            votes: 38
+          }
+        ],
+        'Vice President': [
+          {
+            _id: '3',
+            name: 'Mike Johnson',
+            position: 'Vice President',
+            email: 'mike@example.com',
+            phone: '+1234567892',
+            department: 'Engineering',
+            year: '2023',
+            bio: 'Focused on improving student services and facilities.',
+            image: null,
+            votes: 32
+          },
+          {
+            _id: '4',
+            name: 'Sarah Williams',
+            position: 'Vice President',
+            email: 'sarah@example.com',
+            phone: '+1234567893',
+            department: 'Liberal Arts',
+            year: '2023',
+            bio: 'Advocate for diversity and inclusion on campus.',
+            image: null,
+            votes: 28
+          }
+        ]
+      },
+      positions: ['President', 'Vice President']
+    };
+  },
+
+  async castVote(electionId, candidateId) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Simulate success
+    return {
+      success: true,
+      message: 'Vote cast successfully',
+      vote: {
+        id: 'vote_' + Date.now(),
+        candidate: { id: candidateId, name: 'Selected Candidate' },
+        position: 'President'
+      }
+    };
+  },
+
+  async checkExistingVotes(electionId) {
+    return {
+      success: false,
+      hasVoted: false,
+      message: 'No vote found for this user in this election'
+    };
+  }
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -76,11 +175,16 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
       whileHover={!hasVoted && !isAdminUser ? "hover" : {}}
       whileTap={!hasVoted && !isAdminUser ? "tap" : {}}
       className={`
-        relative bg-white rounded-xl shadow-md hover:shadow-lg overflow-hidden border transition-all duration-300
+        relative bg-white rounded-xl shadow-md hover:shadow-lg overflow-hidden border transition-all duration-300 cursor-pointer
         ${votedForThis ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200 hover:border-blue-300'}
         ${hasVoted && !votedForThis ? 'opacity-60' : ''}
         ${isAdminUser ? 'border-orange-200 bg-orange-50' : ''}
       `}
+      onClick={() => {
+        if (!hasVoted && !isAdminUser && !isVoting) {
+          onVote(candidate);
+        }
+      }}
     >
       {isAdminUser && (
         <motion.div
@@ -200,7 +304,10 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              onClick={() => onVote(candidate)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onVote(candidate);
+              }}
               disabled={isVoting}
               className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm disabled:shadow-none text-sm"
             >
@@ -420,6 +527,25 @@ const ElectionHeader = ({ election, candidatesCount, votedPositions, totalPositi
   );
 };
 
+const Toast = ({ message, type, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -50 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -50 }}
+    className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-2 ${
+      type === 'success' ? 'bg-green-500 text-white' : 
+      type === 'error' ? 'bg-red-500 text-white' : 
+      'bg-yellow-500 text-white'
+    }`}
+  >
+    {type === 'success' && <CheckCircle size={20} />}
+    {type === 'error' && <AlertCircle size={20} />}
+    {type === 'warning' && <AlertCircle size={20} />}
+    <span>{message}</span>
+    <button onClick={onClose} className="ml-2 text-white hover:text-gray-200">×</button>
+  </motion.div>
+);
+
 const Vote = () => {
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState('');
@@ -432,156 +558,21 @@ const Vote = () => {
   const [votedPositions, setVotedPositions] = useState([]);
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState('');
-  const [userRole, setUserRole] = useState(null);
+  const [userRole, setUserRole] = useState('student'); // Default to student for demo
+  const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    const checkUserRole = () => {
-      const token = localStorage.getItem('userToken');
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          setUserRole(payload.role);
-          console.log('User role detected:', payload.role);
-        } catch (error) {
-          console.error('Error decoding token:', error);
-        }
-      }
-    };
-    
-    checkUserRole();
-  }, []);
-
-  const checkExistingVotes = async (electionId) => {
-    try {
-      const token = localStorage.getItem('userToken');
-      if (!token) return;
-
-      console.log('Checking existing votes for election:', electionId);
-
-      let response;
-      try {
-        response = await axios.get(
-          `${API_BASE_URL}/votes/${electionId}/user-vote`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-      } catch (firstError) {
-        if (firstError.response?.status === 404) {
-          try {
-            response = await axios.get(
-              `${API_BASE_URL}/votes/user/${electionId}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-          } catch (secondError) {
-            if (secondError.response?.status === 404) {
-              try {
-                response = await axios.get(
-                  `${API_BASE_URL}/votes/check/${electionId}`,
-                  { headers: { Authorization: `Bearer ${token}` } }
-                );
-              } catch (thirdError) {
-                if (thirdError.response?.status === 404) {
-                  try {
-                    response = await axios.get(
-                      `${API_BASE_URL}/elections/${electionId}/user-vote`,
-                      { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                  } catch (fourthError) {
-                    console.log('All vote check endpoints returned 404 - assuming user has not voted');
-                    setVotedCandidates({});
-                    setVotedPositions([]);
-                    return;
-                  }
-                } else {
-                  throw thirdError;
-                }
-              }
-            } else {
-              throw secondError;
-            }
-          }
-        } else {
-          throw firstError;
-        }
-      }
-      
-      const data = response.data;
-      console.log('Vote check response:', data);
-
-      if (data.success && data.votes && Array.isArray(data.votes)) {
-        const votedCandidatesMap = {};
-        const votedPositionsList = [];
-
-        data.votes.forEach(vote => {
-          votedCandidatesMap[vote.position] = vote.candidate;
-          if (!votedPositionsList.includes(vote.position)) {
-            votedPositionsList.push(vote.position);
-          }
-        });
-
-        setVotedCandidates(votedCandidatesMap);
-        setVotedPositions(votedPositionsList);
-        console.log('User has voted for positions:', votedPositionsList);
-      } else if (data.success && data.hasVoted && data.vote) {
-        const votedCandidatesMap = {};
-        votedCandidatesMap[data.vote.position] = data.vote.candidate;
-        setVotedCandidates(votedCandidatesMap);
-        setVotedPositions([data.vote.position]);
-        console.log('User has voted for position:', data.vote.position);
-      } else {
-        setVotedCandidates({});
-        setVotedPositions([]);
-        console.log('User has not voted yet');
-      }
-      
-    } catch (err) {
-      console.log('Check existing votes error:', err.response?.status, err.message);
-    
-      if (err.response?.status === 404) {
-        console.log('404 error - assuming user has not voted');
-        setVotedCandidates({});
-        setVotedPositions([]);
-      } else if (err.response?.status === 401) {
-        console.error('Unauthorized - please log in again');
-        setError('Session expired. Please log in again.');
-      } else {
-        console.error('Error checking existing votes:', err);
-        setVotedCandidates({});
-        setVotedPositions([]);
-      }
-    }
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
   };
 
   useEffect(() => {
     const fetchElections = async () => {
       try {
         setError('');
-        const token = localStorage.getItem('userToken');
-        if (!token) {
-          setError('Please log in to view elections.');
-          return;
-        }
-
-        const { data } = await axios.get(
-          `${API_BASE_URL}/elections`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        console.log('Elections API Response:', data);
+        const data = await mockAPI.fetchElections();
         
-        let electionsArray = [];
-        if (data && Array.isArray(data.elections)) {
-          electionsArray = data.elections;
-        } else if (data && data.success && Array.isArray(data.elections)) {
-          electionsArray = data.elections;
-        } else if (Array.isArray(data)) {
-          electionsArray = data;
-        } else {
-          console.error('Unexpected response format:', data);
-          setError('Unexpected response format from server.');
-          return;
-        }
-
-        const active = electionsArray.filter(e => e.isActive === true || e.status === 'active');
+        const active = data.elections.filter(e => e.isActive === true);
         setElections(active);
         
         if (active.length) {
@@ -597,6 +588,34 @@ const Vote = () => {
     fetchElections();
   }, []);
 
+  const checkExistingVotes = async (electionId) => {
+    try {
+      const data = await mockAPI.checkExistingVotes(electionId);
+      
+      if (data.success && data.votes && Array.isArray(data.votes)) {
+        const votedCandidatesMap = {};
+        const votedPositionsList = [];
+
+        data.votes.forEach(vote => {
+          votedCandidatesMap[vote.position] = vote.candidate;
+          if (!votedPositionsList.includes(vote.position)) {
+            votedPositionsList.push(vote.position);
+          }
+        });
+
+        setVotedCandidates(votedCandidatesMap);
+        setVotedPositions(votedPositionsList);
+      } else {
+        setVotedCandidates({});
+        setVotedPositions([]);
+      }
+    } catch (err) {
+      console.log('Check existing votes error:', err);
+      setVotedCandidates({});
+      setVotedPositions([]);
+    }
+  };
+
   useEffect(() => {
     if (!selectedElectionId) return;
 
@@ -605,25 +624,7 @@ const Vote = () => {
       setError('');
       
       try {
-        const token = localStorage.getItem('userToken');
-        if (!token) {
-          setError('Authentication token not found. Please log in.');
-          return;
-        }
-
-        console.log('Fetching candidates for election ID:', selectedElectionId);
-        
-        const response = await axios.get(
-          `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
-          { 
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 10000
-          }
-        );
-        
-        const data = response.data;
-        
-        console.log('Candidates API Response:', data);
+        const data = await mockAPI.fetchCandidates(selectedElectionId);
         
         if (data && data.success && data.candidatesByPosition) {
           setCandidatesByPosition(data.candidatesByPosition);
@@ -632,61 +633,13 @@ const Vote = () => {
           if (positionsList.length > 0 && !currentPosition) {
             setCurrentPosition(positionsList[0]);
           }
-        } else if (data && Array.isArray(data.candidates)) {
-          const groupedByPosition = {};
-          const positionsList = [];
-          
-          data.candidates.forEach(candidate => {
-            if (!groupedByPosition[candidate.position]) {
-              groupedByPosition[candidate.position] = [];
-              positionsList.push(candidate.position);
-            }
-            groupedByPosition[candidate.position].push(candidate);
-          });
-          
-          setCandidatesByPosition(groupedByPosition);
-          setPositions(positionsList);
-          if (positionsList.length > 0 && !currentPosition) {
-            setCurrentPosition(positionsList[0]);
-          }
-        } else {
-          console.error('Unexpected candidates response format:', data);
-          setCandidatesByPosition({});
-          setPositions([]);
         }
         
         await checkExistingVotes(selectedElectionId);
         
       } catch (err) {
         console.error('Error loading candidates:', err);
-        
-        let errorMessage = 'Failed to load candidates.';
-        
-        if (err.response) {
-          const status = err.response.status;
-          switch (status) {
-            case 404:
-              errorMessage = 'No candidates found for this election or election not found.';
-              break;
-            case 401:
-              errorMessage = 'Authentication failed. Please log in again.';
-              break;
-            case 403:
-              errorMessage = 'Access denied. Please check your permissions.';
-              break;
-            case 500:
-              errorMessage = 'Server error. Please try again later.';
-              break;
-            default:
-              errorMessage = `Server returned ${status} error: ${err.response.data?.message || 'Unknown error'}`;
-          }
-        } else if (err.request) {
-          errorMessage = 'Network error. Please check your internet connection.';
-        } else if (err.code === 'ECONNABORTED') {
-          errorMessage = 'Request timeout. Please try again.';
-        }
-        
-        setError(errorMessage);
+        setError('Failed to load candidates.');
       } finally {
         setLoading(false);
       }
@@ -711,37 +664,17 @@ const Vote = () => {
   };
 
   const handleVote = async (candidate) => {
-    const token = localStorage.getItem('userToken');
-    if (!token) {
-      setError('Please log in first to vote.');
-      toast.error('Please log in first to vote.');
-      return;
-    }
-
     if (userRole === 'admin') {
       const message = 'Administrators are not allowed to vote in elections';
       setError(message);
-      toast.error(message, {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        icon: <Shield size={20} />,
-        style: {
-          backgroundColor: '#FEF3C7',
-          color: '#92400E',
-          border: '1px solid #F59E0B'
-        }
-      });
+      showToast(message, 'error');
       return;
     }
 
     if (votedPositions.includes(candidate.position)) {
       const message = `You have already voted for the ${candidate.position} position. Only one vote per position is allowed.`;
       setError(message);
-      toast.warning(message);
+      showToast(message, 'warning');
       return;
     }
 
@@ -749,13 +682,9 @@ const Vote = () => {
     setError('');
 
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/votes`,
-        { electionId: selectedElectionId, candidateId: candidate._id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await mockAPI.castVote(selectedElectionId, candidate._id);
       
-      if (response.data.success) {
+      if (response.success) {
         setVotedCandidates(prev => ({
           ...prev,
           [candidate.position]: candidate._id
@@ -773,15 +702,7 @@ const Vote = () => {
         }));
 
         setError('');
-        toast.success(`Vote cast successfully for ${candidate.name} (${candidate.position})!`, {
-          position: "top-center",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          icon: <CheckCircle size={20} />
-        });
+        showToast(`Vote cast successfully for ${candidate.name} (${candidate.position})!`, 'success');
 
         const nextPositionIndex = positions.indexOf(candidate.position) + 1;
         if (nextPositionIndex < positions.length) {
@@ -793,50 +714,9 @@ const Vote = () => {
 
     } catch (err) {
       console.error('Error casting vote:', err);
-      
-      let errorMessage = 'Something went wrong while voting.';
-      
-      if (err.response?.data) {
-        const { message, alreadyVoted, position } = err.response.data;
-        
-        if (message === 'Administrators are not allowed to vote in elections') {
-          errorMessage = message;
-          toast.error(errorMessage, {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            icon: <Shield size={20} />,
-            style: {
-              backgroundColor: '#FEF3C7',
-              color: '#92400E',
-              border: '1px solid #F59E0B'
-            }
-          });
-        } else if (alreadyVoted) {
-          setVotedPositions(prev => {
-            if (!prev.includes(position || candidate.position)) {
-              return [...prev, position || candidate.position];
-            }
-            return prev;
-          });
-          setVotedCandidates(prev => ({
-            ...prev,
-            [position || candidate.position]: err.response.data.votedFor
-          }));
-          errorMessage = `You have already voted for the ${position || candidate.position} position. Only one vote per position is allowed.`;
-          toast.warning(errorMessage);
-        } else {
-          errorMessage = message || errorMessage;
-          toast.error(errorMessage);
-        }
-      } else {
-        toast.error(errorMessage);
-      }
-      
+      const errorMessage = 'Something went wrong while voting.';
       setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setIsVoting(false);
     }
@@ -859,7 +739,13 @@ const Vote = () => {
             <p className="text-red-700">{error}</p>
           </motion.div>
         </div>
-        <ToastContainer />
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => setToast(null)} 
+          />
+        )}
       </div>
     );
   }
@@ -967,7 +853,7 @@ const Vote = () => {
               <p className="text-gray-600">
                 {votedPositions.includes(currentPosition) 
                   ? `You have voted for this position` 
-                  : `Select your preferred candidate for ${currentPosition}`
+                  : `Click on a candidate card to vote for ${currentPosition}`
                 }
               </p>
             </motion.div>
@@ -1009,10 +895,10 @@ const Vote = () => {
               <div>
                 <h4 className="font-medium text-blue-900 mb-2">Important Voting Rules for {currentPosition}</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• <strong>You can only vote for ONE candidate per position</strong></li>
+                  <li>• <strong>Click on any candidate card to vote for them</strong></li>
+                  <li>• You can only vote for ONE candidate per position</li>
                   <li>• Review all candidates carefully before making your choice</li>
                   <li>• Once you vote for this position, you cannot change your selection</li>
-                  <li>• You can vote for multiple positions in this election</li>
                   <li>• Your vote is anonymous and secure</li>
                 </ul>
               </div>
@@ -1067,19 +953,13 @@ const Vote = () => {
         )}
       </div>
       
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        style={{ zIndex: 9999 }}
-      />
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 };

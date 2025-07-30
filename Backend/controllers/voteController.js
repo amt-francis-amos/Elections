@@ -6,7 +6,20 @@ import Election from '../models/electionModel.js';
 export const castVote = async (req, res) => {
   try {
     const { electionId, candidateId } = req.body;
-    const userId = req.user.id || req.user._id;
+    
+    // Better user ID extraction
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+    
+    console.log('User object:', req.user);
+    console.log('Extracted userId:', userId);
+
+    // Check if userId exists
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User ID not found. Please log in again.'
+      });
+    }
 
     if (req.user.role === 'admin') {
       return res.status(403).json({
@@ -26,6 +39,14 @@ export const castVote = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid election or candidate ID format'
+      });
+    }
+
+    // Validate userId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
       });
     }
 
@@ -59,9 +80,10 @@ export const castVote = async (req, res) => {
       });
     }
 
+    // Check for existing vote with proper userId
     const existingVote = await Vote.findOne({
-      election: electionId,
-      voter: userId,
+      election: new mongoose.Types.ObjectId(electionId),
+      voter: new mongoose.Types.ObjectId(userId),
       position: candidate.position
     });
 
@@ -75,22 +97,32 @@ export const castVote = async (req, res) => {
       });
     }
 
+    // Create new vote with proper ObjectId conversion
     const newVote = new Vote({
-      election: electionId,
-      candidate: candidateId,
-      voter: userId,
+      election: new mongoose.Types.ObjectId(electionId),
+      candidate: new mongoose.Types.ObjectId(candidateId),
+      voter: new mongoose.Types.ObjectId(userId),
       position: candidate.position,
       votedAt: new Date()
     });
 
+    console.log('Attempting to save vote:', {
+      election: newVote.election,
+      candidate: newVote.candidate,
+      voter: newVote.voter,
+      position: newVote.position
+    });
+
     await newVote.save();
 
+    // Update candidate vote count
     await Candidate.findByIdAndUpdate(
       candidateId,
       { $inc: { votes: 1 } },
       { new: true }
     );
 
+    // Populate the saved vote
     const populatedVote = await Vote.findById(newVote._id)
       .populate('candidate', 'name position')
       .populate('election', 'title');
@@ -116,6 +148,16 @@ export const castVote = async (req, res) => {
 
   } catch (error) {
     console.error('Cast vote error:', error);
+    
+    // Handle specific duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already voted for this position in this election',
+        alreadyVoted: true
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Error casting vote',
@@ -128,12 +170,28 @@ export const getUserVote = async (req, res) => {
   try {
     const { electionId } = req.params;
     const { position } = req.query;
-    const userId = req.user.id || req.user._id;
+    
+    // Better user ID extraction
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User ID not found. Please log in again.'
+      });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid election ID format'
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
       });
     }
 
@@ -146,8 +204,8 @@ export const getUserVote = async (req, res) => {
     }
 
     const query = {
-      election: electionId,
-      voter: userId
+      election: new mongoose.Types.ObjectId(electionId),
+      voter: new mongoose.Types.ObjectId(userId)
     };
 
     if (position) {
