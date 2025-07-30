@@ -181,6 +181,14 @@ const CandidatePage = () => {
       setLoading(true);
       setError(null);
 
+      // Check if user has a token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please log in to view candidates');
+        setCandidates([]);
+        return;
+      }
+
       // Fetch candidates using the same method as AdminDashboard
       const { data } = await axios.get(`${API_BASE_URL}/candidates`);
       console.log("Fetched candidates:", data);
@@ -219,7 +227,9 @@ const CandidatePage = () => {
         const status = error.response.status;
         switch (status) {
           case 401:
-            errorMessage = 'Authentication required - please log in to view candidates';
+            // Clear invalid token and prompt for login
+            localStorage.removeItem('token');
+            errorMessage = 'Your session has expired. Please log in to view candidates.';
             break;
           case 403:
             errorMessage = 'Access denied - insufficient permissions';
@@ -295,18 +305,30 @@ const CandidatePage = () => {
   }
 
   if (error) {
+    const isAuthError = error.includes('log in') || error.includes('session has expired');
+    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-md">
           <AlertCircle size={48} className="text-red-500 mx-auto" />
           <h3 className="text-lg font-medium text-gray-900">Unable to Load Candidates</h3>
           <p className="text-gray-500">{error}</p>
-          <button
-            onClick={fetchCandidates}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Try Again
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {isAuthError ? (
+              <button
+                onClick={() => window.location.href = '/login'} // Adjust this path to your login route
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Go to Login
+              </button>
+            ) : null}
+            <button
+              onClick={fetchCandidates}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
