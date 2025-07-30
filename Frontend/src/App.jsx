@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Vote from './pages/Vote';
 import Results from './pages/Results';
 import AdminDashboard from './pages/AdminDashboard';
+import ProfilePage from './pages/ProfilePage';
 
 
 const App = () => (
@@ -21,6 +22,7 @@ const App = () => (
         <Route path="/login" element={<Login />} />
         <Route path="/vote" element={<Vote />} />
        <Route path="/results/:electionId" element={<Results />} />
+       <Route path='/profile' element={<ProfilePage />} />
         <Route
           path="/admin"
           element={
