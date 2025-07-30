@@ -61,7 +61,8 @@ const ProfilePage = () => {
       // Then fetch fresh data from server
       const response = await axios.get(`${API_BASE_URL}/users/profile`, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       
@@ -80,7 +81,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error fetching profile:', error);
       
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem("userData");
         localStorage.removeItem("userToken");
         toast.error('Session expired. Please log in again.');
@@ -90,16 +91,21 @@ const ProfilePage = () => {
         // Use cached data if server request fails
         try {
           const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
-          setEditForm({
-            name: parsedUser.name || '',
-            email: parsedUser.email || ''
-          });
-          toast.warn('Using offline data. Some features may be limited.');
+          if (parsedUser && parsedUser._id) {
+            setUser(parsedUser);
+            setEditForm({
+              name: parsedUser.name || '',
+              email: parsedUser.email || ''
+            });
+            toast.warn('Using offline data. Some features may be limited.');
+          } else {
+            throw new Error('Invalid cached data');
+          }
         } catch (parseError) {
           console.error('Error parsing cached user data:', parseError);
           localStorage.removeItem("userData");
           localStorage.removeItem("userToken");
+          toast.error('Invalid session data. Please log in again.');
           navigate('/');
           return;
         }
@@ -110,21 +116,25 @@ const ProfilePage = () => {
   };
 
   const getInitials = (name) => {
+    if (!name) return "U";
     return name
-      ? name
-          .split(" ")
-          .map((w) => w[0])
-          .join("")
-          .toUpperCase()
-      : "U";
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const handleEditToggle = () => {
@@ -135,6 +145,9 @@ const ProfilePage = () => {
         email: user.email || ''
       });
       setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
     setIsEditing(!isEditing);
   };
@@ -153,12 +166,18 @@ const ProfilePage = () => {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         toast.error('Please select an image file');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
       
       // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('Image size should be less than 5MB');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
       
@@ -166,6 +185,10 @@ const ProfilePage = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target.result);
+      };
+      reader.onerror = () => {
+        toast.error('Error reading file');
+        setImagePreview(null);
       };
       reader.readAsDataURL(file);
     }
@@ -204,7 +227,7 @@ const ProfilePage = () => {
       );
 
       if (response.data.success) {
-        const updatedUser = {
+        const updatedUser = response.data.user || {
           ...user,
           profilePicture: response.data.profilePictureUrl
         };
@@ -224,7 +247,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error uploading image:', error);
       
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error('Session expired. Please log in again.');
         localStorage.removeItem("userData");
         localStorage.removeItem("userToken");
@@ -255,18 +278,20 @@ const ProfilePage = () => {
         `${API_BASE_URL}/users/remove-profile-picture`,
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
 
       if (response.data.success) {
-        const updatedUser = {
+        const updatedUser = response.data.user || {
           ...user,
           profilePicture: null
         };
         setUser(updatedUser);
         localStorage.setItem("userData", JSON.stringify(updatedUser));
+        setImagePreview(null);
         toast.success('Profile picture removed successfully!');
       } else {
         toast.error(response.data.message || 'Failed to remove image');
@@ -274,7 +299,14 @@ const ProfilePage = () => {
       
     } catch (error) {
       console.error('Error removing image:', error);
-      toast.error('Failed to remove image. Please try again.');
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem("userData");
+        localStorage.removeItem("userToken");
+        navigate('/');
+      } else {
+        toast.error('Failed to remove image. Please try again.');
+      }
     } finally {
       setImageUploading(false);
     }
@@ -286,7 +318,7 @@ const ProfilePage = () => {
       return;
     }
 
-    if (editForm.name.length < 2) {
+    if (editForm.name.trim().length < 2) {
       toast.error('Name must be at least 2 characters long');
       return;
     }
@@ -335,7 +367,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error updating profile:', error);
       
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error('Session expired. Please log in again.');
         localStorage.removeItem("userData");
         localStorage.removeItem("userToken");
@@ -362,7 +394,8 @@ const ProfilePage = () => {
           {},
           {
             headers: {
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
           }
         );
@@ -405,7 +438,6 @@ const ProfilePage = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
