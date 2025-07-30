@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, 
   Mail, 
@@ -10,7 +10,9 @@ import {
   Camera,
   UserCircle,
   LogOut,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -25,10 +27,13 @@ const ProfilePage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  
-  const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api/api';
+  // Fixed API URL structure
+  const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
   useEffect(() => {
     fetchUserProfile();
@@ -45,7 +50,7 @@ const ProfilePage = () => {
     }
     
     try {
-      
+      // First try to use cached data for immediate display
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       setEditForm({
@@ -53,7 +58,7 @@ const ProfilePage = () => {
         email: parsedUser.email || ''
       });
       
-     
+      // Then fetch fresh data from server
       const response = await axios.get(`${API_BASE_URL}/users/profile`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -68,7 +73,7 @@ const ProfilePage = () => {
           email: freshUserData.email || ''
         });
         
-      
+        // Update localStorage with fresh data
         localStorage.setItem("userData", JSON.stringify(freshUserData));
       }
       
@@ -76,14 +81,13 @@ const ProfilePage = () => {
       console.error('Error fetching profile:', error);
       
       if (error.response?.status === 401) {
-       
         localStorage.removeItem("userData");
         localStorage.removeItem("userToken");
         toast.error('Session expired. Please log in again.');
         navigate('/');
         return;
       } else {
-     
+        // Use cached data if server request fails
         try {
           const parsedUser = JSON.parse(userData);
           setUser(parsedUser);
@@ -125,11 +129,12 @@ const ProfilePage = () => {
 
   const handleEditToggle = () => {
     if (isEditing) {
-    
+      // Reset form if canceling
       setEditForm({
         name: user.name || '',
         email: user.email || ''
       });
+      setImagePreview(null);
     }
     setIsEditing(!isEditing);
   };
@@ -140,6 +145,139 @@ const ProfilePage = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    const file = fileInputRef.current?.files[0];
+    if (!file) {
+      toast.error('Please select an image first');
+      return;
+    }
+
+    setImageUploading(true);
+    
+    try {
+      const token = localStorage.getItem("userToken");
+      
+      if (!token) {
+        toast.error('Authentication required. Please log in again.');
+        navigate('/');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/users/upload-profile-picture`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const updatedUser = {
+          ...user,
+          profilePicture: response.data.profilePictureUrl
+        };
+        setUser(updatedUser);
+        localStorage.setItem("userData", JSON.stringify(updatedUser));
+        setImagePreview(null);
+        toast.success('Profile picture updated successfully!');
+        
+        // Clear file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        toast.error(response.data.message || 'Failed to upload image');
+      }
+      
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem("userData");
+        localStorage.removeItem("userToken");
+        navigate('/');
+      } else if (error.response?.status === 400) {
+        toast.error(error.response.data.message || 'Invalid image file');
+      } else {
+        toast.error('Failed to upload image. Please try again.');
+      }
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleRemoveProfilePicture = async () => {
+    setImageUploading(true);
+    
+    try {
+      const token = localStorage.getItem("userToken");
+      
+      if (!token) {
+        toast.error('Authentication required. Please log in again.');
+        navigate('/');
+        return;
+      }
+
+      const response = await axios.delete(
+        `${API_BASE_URL}/users/remove-profile-picture`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const updatedUser = {
+          ...user,
+          profilePicture: null
+        };
+        setUser(updatedUser);
+        localStorage.setItem("userData", JSON.stringify(updatedUser));
+        toast.success('Profile picture removed successfully!');
+      } else {
+        toast.error(response.data.message || 'Failed to remove image');
+      }
+      
+    } catch (error) {
+      console.error('Error removing image:', error);
+      toast.error('Failed to remove image. Please try again.');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -219,7 +357,6 @@ const ProfilePage = () => {
       const token = localStorage.getItem("userToken");
       
       if (token) {
-      
         await axios.post(
           `${API_BASE_URL}/users/logout`,
           {},
@@ -232,9 +369,7 @@ const ProfilePage = () => {
       }
     } catch (error) {
       console.error('Logout error:', error);
-     
     } finally {
-      
       localStorage.removeItem("userToken");
       localStorage.removeItem("userData");
       toast.success('Logged out successfully');
@@ -274,7 +409,7 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-       
+        {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-32 relative">
             <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -283,7 +418,13 @@ const ProfilePage = () => {
           <div className="relative px-6 pb-6">
             <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-5 -mt-12">
               <div className="relative mb-4 sm:mb-0">
-                {user.profilePicture ? (
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                  />
+                ) : user.profilePicture ? (
                   <img
                     src={user.profilePicture}
                     alt={user.name}
@@ -294,9 +435,35 @@ const ProfilePage = () => {
                     {getInitials(user.name)}
                   </div>
                 )}
-                <button className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 transition shadow-lg">
-                  <Camera size={16} />
-                </button>
+                
+                {/* Profile Picture Actions */}
+                <div className="absolute bottom-0 right-0 flex flex-col space-y-1">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={imageUploading}
+                    className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 transition shadow-lg disabled:opacity-50"
+                  >
+                    <Camera size={16} />
+                  </button>
+                  
+                  {(user.profilePicture || imagePreview) && (
+                    <button
+                      onClick={imagePreview ? () => setImagePreview(null) : handleRemoveProfilePicture}
+                      disabled={imageUploading}
+                      className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition shadow-lg disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
               </div>
               
               <div className="flex-1 min-w-0 pt-6">
@@ -311,6 +478,22 @@ const ProfilePage = () => {
                   </div>
                   
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                    {/* Image Upload Actions */}
+                    {imagePreview && (
+                      <button
+                        onClick={handleImageUpload}
+                        disabled={imageUploading}
+                        className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                      >
+                        {imageUploading ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Upload size={16} />
+                        )}
+                        Upload Picture
+                      </button>
+                    )}
+                    
                     {!isEditing ? (
                       <button
                         onClick={handleEditToggle}
@@ -351,7 +534,7 @@ const ProfilePage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+          {/* Profile Information */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Profile Information</h2>
@@ -440,7 +623,7 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          
+          {/* Quick Actions */}
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
@@ -480,7 +663,7 @@ const ProfilePage = () => {
               </div>
             </div>
 
-           
+            {/* Account Actions */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Account</h3>
               
