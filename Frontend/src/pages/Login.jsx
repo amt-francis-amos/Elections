@@ -17,7 +17,7 @@ const Login = ({
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  
+  // Show notification
   const showNotification = (message, type = "info") => {
     setNotification({ message, type });
     setTimeout(() => setNotification({ message: "", type: "" }), 5000);
@@ -139,7 +139,7 @@ const Login = ({
             </div>
           )}
 
-          <div onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
               <input
                 type="text"
@@ -177,14 +177,13 @@ const Login = ({
             </div>
 
             <button
-              type="button"
-              onClick={handleSubmit}
+              type="submit"
               disabled={loading}
               className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
-          </div>
+          </form>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 text-center">
