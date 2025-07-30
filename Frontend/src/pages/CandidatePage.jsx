@@ -174,26 +174,14 @@ const CandidatePage = () => {
       setLoading(true);
       setError(null);
 
-      // Try to fetch without authentication first (public endpoint)
-      let response;
-      try {
-        response = await axios.get(`${API_BASE_URL}/candidates/public`, {
-          timeout: 10000
-        });
-      } catch (publicError) {
-        // If public endpoint fails, try with authentication
-        const token = localStorage.getItem('token');
-        if (token) {
-          response = await axios.get(`${API_BASE_URL}/candidates`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            timeout: 10000
-          });
-        } else {
-          throw publicError;
-        }
-      }
+      // Use the regular candidates endpoint with authentication
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/candidates`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {},
+        timeout: 15000
+      });
 
       let candidatesData = [];
 
@@ -226,8 +214,14 @@ const CandidatePage = () => {
       } else if (error.response) {
         const status = error.response.status;
         switch (status) {
+          case 401:
+            errorMessage = 'Authentication required - please log in to view candidates';
+            break;
+          case 403:
+            errorMessage = 'Access denied - insufficient permissions';
+            break;
           case 404:
-            errorMessage = 'Candidates not found';
+            errorMessage = 'No candidates found or endpoint not available';
             break;
           case 500:
           case 502:
