@@ -206,7 +206,7 @@ export const loginUser = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, {
-      password: 0 // Exclude password from results
+      password: 0 
     }).sort({ createdAt: -1 });
 
     res.status(200).json({
