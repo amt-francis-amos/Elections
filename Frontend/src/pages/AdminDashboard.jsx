@@ -79,7 +79,6 @@ const AdminDashboard = () => {
     { icon: BarChart3, label: "View Reports", color: "bg-orange-500 hover:bg-orange-600", action: () => setActiveTab("reports") },
   ];
 
-  
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -132,51 +131,45 @@ const AdminDashboard = () => {
     }
   };
 
-const fetchCandidates = async () => {
-  try {
-    const { data } = await axios.get(`${API_BASE_URL}/candidates`);
-    console.log("Fetched candidates:", data);
+  const fetchCandidates = async () => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
+      console.log("Fetched candidates:", data);
 
-    let candidatesData = [];
-    
-   
-    if (data.success && data.candidates) {
-      candidatesData = data.candidates;
-    } else if (data.candidates) {
-      candidatesData = data.candidates;
-    } else if (Array.isArray(data)) {
-      candidatesData = data;
-    } else if (data.data && Array.isArray(data.data)) {
-      candidatesData = data.data;
+      let candidatesData = [];
+      
+      if (data.success && data.candidates) {
+        candidatesData = data.candidates;
+      } else if (data.candidates) {
+        candidatesData = data.candidates;
+      } else if (Array.isArray(data)) {
+        candidatesData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        candidatesData = data.data;
+      }
+
+      const formattedCandidates = candidatesData.map(candidate => ({
+        ...candidate,
+        id: candidate._id || candidate.id,
+        votes: candidate.votes || 0,
+        image: candidate.image || null,
+      }));
+
+      setCandidates(formattedCandidates);
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalCandidates: formattedCandidates.length,
+      }));
+
+    } catch (err) {
+      console.error("Error fetching candidates:", err);
+      if (err.response?.status === 404) {
+        console.error("Candidates endpoint not found. Make sure backend route exists.");
+      }
+      setCandidates([]);
     }
-
-  
-    const formattedCandidates = candidatesData.map(candidate => ({
-      ...candidate,
-      id: candidate._id || candidate.id,
-      votes: candidate.votes || 0,
-      image: candidate.image || null,
-    }));
-
-    setCandidates(formattedCandidates);
-
-  
-    setStats(prevStats => ({
-      ...prevStats,
-      totalCandidates: formattedCandidates.length,
-    }));
-
-  } catch (err) {
-    console.error("Error fetching candidates:", err);
-  
-    if (err.response?.status === 404) {
-      console.error("Candidates endpoint not found. Make sure backend route exists.");
-    }
-    
-  
-    setCandidates([]);
-  }
-};
+  };
 
   const fetchUsers = async () => {
     try {
@@ -243,7 +236,6 @@ const fetchCandidates = async () => {
       ]);
       closeModal();
       
-      // Update stats
       setStats(prevStats => ({
         ...prevStats,
         totalUsers: prevStats.totalUsers + 1,
@@ -254,43 +246,185 @@ const fetchCandidates = async () => {
     }
   };
 
+  const handleUpdateUser = async () => {
+    try {
+      if (!selectedUser) {
+        alert("No user selected for update");
+        return;
+      }
+
+      if (!formData.name || formData.name.trim().length < 2) {
+        alert("Name must be at least 2 characters long");
+        return;
+      }
+
+      if (formData.email && formData.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+          alert("Please provide a valid email address");
+          return;
+        }
+
+        const existingUser = users.find(u => 
+          u.email.toLowerCase() === formData.email.toLowerCase().trim() && 
+          (u._id !== selectedUser._id && u.id !== selectedUser._id)
+        );
+        if (existingUser) {
+          alert("Email is already taken by another user");
+          return;
+        }
+      }
+
+      const existingName = users.find(u => 
+        u.name.toLowerCase() === formData.name.toLowerCase().trim() && 
+        (u._id !== selectedUser._id && u.id !== selectedUser._id)
+      );
+      if (existingName) {
+        alert("Name is already taken by another user");
+        return;
+      }
+
+      const userId = selectedUser._id || selectedUser.id;
+      
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email ? formData.email.toLowerCase().trim() : selectedUser.email,
+        role: formData.role || selectedUser.role
+      };
+
+      console.log("Updating user with payload:", payload);
+
+      const { data } = await axios.put(
+        `${API_BASE_URL}/admin/users/${userId}`,
+        payload
+      );
+
+      console.log("User updated successfully:", data);
+
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => {
+          const currentId = user._id || user.id;
+          if (currentId === userId) {
+            return {
+              ...user,
+              ...data.user,
+              id: user.id || user._id, 
+            };
+          }
+          return user;
+        })
+      );
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "user", 
+          action: `User "${data.user.name}" updated`, 
+          time: "Just now", 
+          status: "info" 
+        },
+        ...prevActivity.slice(0, 4),
+      ]);
+
+      closeModal();
+      alert("User updated successfully!");
+
+    } catch (err) {
+      console.error("Error updating user:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error updating user: ${err.message}`);
+      }
+    }
+  };
+
   const handlePromoteUser = async (user) => {
     try {
+      if (user.role === 'admin') {
+        alert("User is already an admin");
+        return;
+      }
+
       const { data } = await axios.post(
         `${API_BASE_URL}/admin/promote`,
-        { userId: user._id }
+        { userId: user._id || user.id }
       );
-      setUsers((us) =>
-        us.map((u) => (u._id === data.user._id ? data.user : u))
+
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => {
+          const currentId = u._id || u.id;
+          const updatedId = data.user._id || data.user.id;
+          if (currentId === updatedId) {
+            return { ...u, ...data.user };
+          }
+          return u;
+        })
       );
-      setRecentActivity((a) => [
-        { id: Date.now(), type: "user", action: `User ${data.user.name} promoted to admin`, time: "Just now", status: "success" },
-        ...a.slice(0, 4),
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "user", 
+          action: `User ${data.user.name} promoted to admin`, 
+          time: "Just now", 
+          status: "success" 
+        },
+        ...prevActivity.slice(0, 4),
       ]);
+
+      alert(`${data.user.name} has been promoted to admin!`);
+
     } catch (err) {
-      console.error(err);
+      console.error("Error promoting user:", err);
       alert(`Error promoting user: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    if (!window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+      return;
+    }
+
     try {
-      await axios.delete(`${API_BASE_URL}/admin/users/${id}`);
-      setUsers((us) => us.filter((u) => u._id !== id));
-      setRecentActivity((a) => [
-        { id: Date.now(), type: "user", action: `User deleted`, time: "Just now", status: "completed" },
-        ...a.slice(0, 4),
-      ]);
-      
-      // Update stats
+      const user = users.find((u) => u._id === id || u.id === id);
+      const userId = user?._id || user?.id || id;
+
+      console.log("Deleting user with ID:", userId);
+
+      await axios.delete(`${API_BASE_URL}/admin/users/${userId}`);
+
+      setUsers((prevUsers) => 
+        prevUsers.filter((u) => u._id !== id && u.id !== id && u._id !== userId && u.id !== userId)
+      );
+
       setStats(prevStats => ({
         ...prevStats,
         totalUsers: Math.max(0, prevStats.totalUsers - 1),
       }));
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "user", 
+          action: `User "${user?.name || 'Unknown'}" deleted`, 
+          time: "Just now", 
+          status: "completed" 
+        },
+        ...prevActivity.slice(0, 4),
+      ]);
+
+      alert("User deleted successfully!");
+
     } catch (err) {
-      console.error(err);
-      alert(`Error deleting user: ${err.response?.data?.message || err.message}`);
+      console.error("Error deleting user:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error deleting user: ${err.message}`);
+      }
     }
   };
 
@@ -304,7 +438,6 @@ const fetchCandidates = async () => {
         ...a.slice(0, 4),
       ]);
       
-      // Update stats
       setStats(prevStats => ({
         ...prevStats,
         totalCandidates: Math.max(0, prevStats.totalCandidates - 1),
@@ -592,7 +725,6 @@ const fetchCandidates = async () => {
         ...a.slice(0, 4),
       ]);
       
-      // Update stats
       setStats(prevStats => ({
         ...prevStats,
         totalCandidates: prevStats.totalCandidates + 1,
@@ -606,7 +738,77 @@ const fetchCandidates = async () => {
       alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
     }
   };
-  
+
+  const handleUpdateCandidate = async () => {
+    try {
+      if (!selectedCandidate) {
+        alert("No candidate selected for update");
+        return;
+      }
+
+      if (!formData.name || !formData.position) {
+        alert("Name and position are required");
+        return;
+      }
+
+      const candidateId = selectedCandidate._id || selectedCandidate.id;
+      
+      const payload = {
+        name: formData.name.trim(),
+        position: formData.position.trim(),
+        email: formData.email?.trim() || '',
+        phone: formData.phone?.trim() || '',
+        department: formData.department?.trim() || '',
+        year: formData.year?.trim() || '',
+      };
+
+      console.log("Updating candidate with payload:", payload);
+
+      const { data } = await axios.put(
+        `${API_BASE_URL}/candidates/${candidateId}`,
+        payload
+      );
+
+      console.log("Candidate updated successfully:", data);
+
+      setCandidates((prevCandidates) =>
+        prevCandidates.map((candidate) => {
+          const currentId = candidate._id || candidate.id;
+          if (currentId === candidateId) {
+            return {
+              ...candidate,
+              ...data.candidate,
+              id: candidate.id || candidate._id,
+            };
+          }
+          return candidate;
+        })
+      );
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "candidate", 
+          action: `Candidate "${data.candidate.name}" updated`, 
+          time: "Just now", 
+          status: "info" 
+        },
+        ...prevActivity.slice(0, 4),
+      ]);
+
+      closeModal();
+      alert("Candidate updated successfully!");
+
+    } catch (err) {
+      console.error("Error updating candidate:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error updating candidate: ${err.message}`);
+      }
+    }
+  };
 
   const exportResults = async (format, electionId = null) => {
     try {
@@ -746,8 +948,8 @@ const fetchCandidates = async () => {
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             openModal={openModal}
-            onPromote={handlePromoteUser}
             onDelete={handleDeleteUser}
+            onPromote={handlePromoteUser}
           />
         )}
         {activeTab === "reports" && (
@@ -979,6 +1181,72 @@ const fetchCandidates = async () => {
                     <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                     <button onClick={handleCreateUser} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
                       <Save size={16} /> Create Voter
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showModal === "editUser" && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                      <X size={24} />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={formData.name || ""}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter user's full name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={formData.email || ""}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <select
+                        value={formData.role || ""}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="voter">Voter</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <strong>User ID:</strong> {selectedUser?.userId || 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Created:</strong> {selectedUser?.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button 
+                      onClick={closeModal} 
+                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateUser}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      Update User
                     </button>
                   </div>
                 </div>
