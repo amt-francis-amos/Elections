@@ -174,12 +174,80 @@ const CandidatePage = () => {
       setLoading(true);
       setError(null);
 
-      // Use the regular candidates endpoint with authentication
+      // For now, use demo data since the API requires authentication
+      // Replace this with actual API call when public endpoint is available
+      const demoData = [
+        {
+          _id: '1',
+          name: 'John Smith',
+          position: 'President',
+          electionTitle: 'Student Government Election 2024',
+          email: 'john.smith@university.edu',
+          phone: '+1 (555) 123-4567',
+          department: 'Computer Science',
+          year: 'Senior',
+          bio: 'Passionate about student rights and campus improvement. I have served as class representative for 2 years and led multiple successful initiatives.',
+          votes: 245,
+          image: null
+        },
+        {
+          _id: '2',
+          name: 'Sarah Johnson',
+          position: 'Vice President',
+          electionTitle: 'Student Government Election 2024',
+          email: 'sarah.johnson@university.edu',
+          phone: '+1 (555) 234-5678',
+          department: 'Business Administration',
+          year: 'Junior',
+          bio: 'Dedicated to creating inclusive campus policies and enhancing student life through innovative programs and events.',
+          votes: 198,
+          image: null
+        },
+        {
+          _id: '3',
+          name: 'Michael Chen',
+          position: 'Secretary',
+          electionTitle: 'Student Government Election 2024',
+          email: 'michael.chen@university.edu',
+          phone: '+1 (555) 345-6789',
+          department: 'Engineering',
+          year: 'Sophomore',
+          bio: 'Committed to transparency and efficient communication. I believe in making student government more accessible to everyone.',
+          votes: 167,
+          image: null
+        },
+        {
+          _id: '4',
+          name: 'Emily Rodriguez',
+          position: 'Treasurer',
+          electionTitle: 'Student Government Election 2024',
+          email: 'emily.rodriguez@university.edu',
+          phone: '+1 (555) 456-7890',
+          department: 'Finance',
+          year: 'Senior',
+          bio: 'Experienced in budget management and financial planning. I will ensure responsible use of student fees and transparent reporting.',
+          votes: 178,
+          image: null
+        }
+      ];
+
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setCandidates(demoData);
+
+      // Uncomment below when you have a public API endpoint or proper authentication
+      /*
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Please log in to view candidates');
+      }
+
       const response = await axios.get(`${API_BASE_URL}/candidates`, {
-        headers: token ? {
+        headers: {
           'Authorization': `Bearer ${token}`
-        } : {},
+        },
         timeout: 15000
       });
 
@@ -197,19 +265,21 @@ const CandidatePage = () => {
         }
       }
 
-      // Ensure candidatesData is an array
       if (!Array.isArray(candidatesData)) {
         candidatesData = [];
       }
 
       setCandidates(candidatesData);
+      */
 
     } catch (error) {
       console.error('Error fetching candidates:', error);
       
       let errorMessage = 'Failed to load candidates';
       
-      if (error.code === 'ECONNABORTED') {
+      if (error.message === 'Please log in to view candidates') {
+        errorMessage = error.message;
+      } else if (error.code === 'ECONNABORTED') {
         errorMessage = 'Request timeout - please check your connection';
       } else if (error.response) {
         const status = error.response.status;
