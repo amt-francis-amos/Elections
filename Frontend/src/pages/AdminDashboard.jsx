@@ -607,6 +607,103 @@ const fetchCandidates = async () => {
     }
   };
 
+  const handleUpdateUser = async () => {
+  try {
+    if (!selectedUser) {
+      alert("No user selected for update");
+      return;
+    }
+
+    if (!formData.name || formData.name.trim().length < 2) {
+      alert("Name must be at least 2 characters long");
+      return;
+    }
+
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        alert("Please provide a valid email address");
+        return;
+      }
+
+      // Check if email is already taken by another user
+      const existingUser = users.find(u => 
+        u.email.toLowerCase() === formData.email.toLowerCase().trim() && 
+        (u._id !== selectedUser._id && u.id !== selectedUser._id)
+      );
+      if (existingUser) {
+        alert("Email is already taken by another user");
+        return;
+      }
+    }
+
+    // Check if name is already taken by another user
+    const existingName = users.find(u => 
+      u.name.toLowerCase() === formData.name.toLowerCase().trim() && 
+      (u._id !== selectedUser._id && u.id !== selectedUser._id)
+    );
+    if (existingName) {
+      alert("Name is already taken by another user");
+      return;
+    }
+
+    const userId = selectedUser._id || selectedUser.id;
+    
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email ? formData.email.toLowerCase().trim() : selectedUser.email,
+      role: formData.role || selectedUser.role
+    };
+
+    console.log("Updating user with payload:", payload);
+
+    const { data } = await axios.put(
+      `${API_BASE_URL}/admin/users/${userId}`,
+      payload
+    );
+
+    console.log("User updated successfully:", data);
+
+    // Update users state
+    setUsers((prevUsers) =>
+      prevUsers.map((user) => {
+        const currentId = user._id || user.id;
+        if (currentId === userId) {
+          return {
+            ...user,
+            ...data.user,
+            id: user.id || user._id, 
+          };
+        }
+        return user;
+      })
+    );
+
+    setRecentActivity((prevActivity) => [
+      { 
+        id: Date.now(), 
+        type: "user", 
+        action: `User "${data.user.name}" updated`, 
+        time: "Just now", 
+        status: "info" 
+      },
+      ...prevActivity.slice(0, 4),
+    ]);
+
+    closeModal();
+    alert("User updated successfully!");
+
+  } catch (err) {
+    console.error("Error updating user:", err);
+    
+    if (err.response?.data?.message) {
+      alert(`Error: ${err.response.data.message}`);
+    } else {
+      alert(`Error updating user: ${err.message}`);
+    }
+  }
+};
+
   const exportResults = async (format, electionId = null) => {
     try {
       await axios.get(
@@ -982,6 +1079,72 @@ const fetchCandidates = async () => {
                   </div>
                 </div>
               )}
+              {showModal === "editUser" && (
+  <div className="p-6">
+    <div className="flex justify-between items-center mb-6">
+      <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+      <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+        <X size={24} />
+      </button>
+    </div>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+        <input
+          type="text"
+          value={formData.name || ""}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Enter user's full name"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <input
+          type="email"
+          value={formData.email || ""}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Enter email address"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+        <select
+          value={formData.role || ""}
+          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="voter">Voter</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div className="bg-gray-50 p-3 rounded-lg">
+        <p className="text-sm text-gray-600">
+          <strong>User ID:</strong> {selectedUser?.userId || 'N/A'}
+        </p>
+        <p className="text-sm text-gray-600">
+          <strong>Created:</strong> {selectedUser?.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : 'N/A'}
+        </p>
+      </div>
+    </div>
+    <div className="flex justify-end gap-3 mt-6">
+      <button 
+        onClick={closeModal} 
+        className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+      >
+        Cancel
+      </button>
+      <button
+        onClick={handleUpdateUser}
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+      >
+        <Save size={16} />
+        Update User
+      </button>
+    </div>
+  </div>
+)}
             </motion.div>
           </motion.div>
         )}
