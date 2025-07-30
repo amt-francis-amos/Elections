@@ -253,7 +253,7 @@ export const updateUserProfile = async (req, res) => {
   try {
     const { name, email } = req.body;
 
-    // Validation
+   
     if (!name || name.trim().length < 2) {
       return res.status(400).json({ 
         success: false, 
@@ -272,7 +272,7 @@ export const updateUserProfile = async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const trimmedName = name.trim();
 
-    // Check if email is already taken by another user
+  
     const existingUser = await User.findOne({ 
       email: normalizedEmail,
       _id: { $ne: req.user.id } 
@@ -285,7 +285,7 @@ export const updateUserProfile = async (req, res) => {
       });
     }
 
-    // Check if name is already taken by another user
+ 
     const existingName = await User.findOne({ 
       name: trimmedName,
       _id: { $ne: req.user.id } 
@@ -353,7 +353,7 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Delete old profile picture if it exists
+
     if (user.profilePicture) {
       try {
         const oldImagePath = user.profilePicture.split('/').pop();
@@ -386,7 +386,7 @@ export const uploadProfilePicture = async (req, res) => {
     });
 
   } catch (error) {
-    // Clean up uploaded file if there's an error
+   
     if (req.file) {
       try {
         fs.unlinkSync(req.file.path);
@@ -413,7 +413,7 @@ export const removeProfilePicture = async (req, res) => {
       });
     }
 
-    // Delete the file from filesystem if it exists
+  
     if (user.profilePicture) {
       try {
         const imagePath = user.profilePicture.split('/').pop();
