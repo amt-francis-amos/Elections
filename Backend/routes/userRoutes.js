@@ -1,4 +1,5 @@
 import express from 'express';
+
 import {
   registerUser,
   loginUser,
@@ -12,8 +13,12 @@ import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 
 const router = express.Router();
 
+
+
+
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+
 router.get('/profile', auth, (req, res) => {
   res.json({
     success: true,
@@ -26,6 +31,7 @@ router.get('/profile', auth, (req, res) => {
     },
   });
 });
+
 router.put('/profile', auth, updateUserProfile);
 router.post('/logout', auth, (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
@@ -49,7 +55,10 @@ router.get('/voting-area', auth, authorizeRoles('admin', 'voter'), (req, res) =>
     canVote: req.user.role === 'voter' || req.user.role === 'admin'
   });
 });
-router.post('/upload-profile-picture', auth, uploadProfilePicture);
+
+
+router.post('/upload-profile-picture', auth, upload.single('profilePicture'), uploadProfilePicture);
+
 router.delete('/remove-profile-picture', auth, removeProfilePicture);
 
 export default router;
