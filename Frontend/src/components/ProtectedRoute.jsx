@@ -14,11 +14,11 @@ const getUserData = () => {
     if (userData && typeof userData === 'object' && userData.role) {
       return userData;
     }
+    
   } catch (error) {
     console.error('Error parsing user data:', error);
     localStorage.removeItem('token');
     localStorage.removeItem('userData');
-    return null;
   }
 
   return null;
@@ -28,6 +28,11 @@ const ProtectedRoute = ({ allowedRoles = [], children }) => {
   const token = localStorage.getItem('token');
   const user = getUserData();
   const location = useLocation();
+
+
+  console.log('ProtectedRoute - Token:', !!token);
+  console.log('ProtectedRoute - User:', user);
+  console.log('ProtectedRoute - AllowedRoles:', allowedRoles);
 
   useEffect(() => {
     if (!token || !user) {
