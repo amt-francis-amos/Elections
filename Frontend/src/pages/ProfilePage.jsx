@@ -12,6 +12,9 @@ import {
   LogOut,
   AlertCircle
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const ProfilePage = () => {
   const [user, setUser] = useState(null);
@@ -22,34 +25,85 @@ const ProfilePage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const navigate = useNavigate();
+
+  
+  const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api/api';
 
   useEffect(() => {
+    fetchUserProfile();
+  }, []);
 
+  const fetchUserProfile = async () => {
     const token = localStorage.getItem("userToken");
     const userData = localStorage.getItem("userData");
     
     if (!token || !userData || userData === "undefined" || userData === "null") {
-    
+      navigate('/');
       setLoading(false);
       return;
     }
     
     try {
+      
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       setEditForm({
         name: parsedUser.name || '',
         email: parsedUser.email || ''
       });
+      
+     
+      const response = await axios.get(`${API_BASE_URL}/users/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        const freshUserData = response.data.user;
+        setUser(freshUserData);
+        setEditForm({
+          name: freshUserData.name || '',
+          email: freshUserData.email || ''
+        });
+        
+      
+        localStorage.setItem("userData", JSON.stringify(freshUserData));
+      }
+      
     } catch (error) {
-      console.error('Error parsing user data:', error);
-      localStorage.removeItem("userData");
-      localStorage.removeItem("userToken");
-      setUser(null);
+      console.error('Error fetching profile:', error);
+      
+      if (error.response?.status === 401) {
+       
+        localStorage.removeItem("userData");
+        localStorage.removeItem("userToken");
+        toast.error('Session expired. Please log in again.');
+        navigate('/');
+        return;
+      } else {
+     
+        try {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          setEditForm({
+            name: parsedUser.name || '',
+            email: parsedUser.email || ''
+          });
+          toast.warn('Using offline data. Some features may be limited.');
+        } catch (parseError) {
+          console.error('Error parsing cached user data:', parseError);
+          localStorage.removeItem("userData");
+          localStorage.removeItem("userToken");
+          navigate('/');
+          return;
+        }
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
-  }, []);
+  };
 
   const getInitials = (name) => {
     return name
@@ -71,7 +125,7 @@ const ProfilePage = () => {
 
   const handleEditToggle = () => {
     if (isEditing) {
-      
+    
       setEditForm({
         name: user.name || '',
         email: user.email || ''
@@ -88,74 +142,104 @@ const ProfilePage = () => {
     }));
   };
 
-  const showToast = (message, type = 'success') => {
-   
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-medium z-50 ${
-      type === 'success' ? 'bg-green-500' : 'bg-red-500'
-    }`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.remove();
-    }, 3000);
-  };
-
   const handleSaveProfile = async () => {
     if (!editForm.name.trim()) {
-      showToast('Name is required', 'error');
+      toast.error('Name is required');
       return;
     }
 
     if (editForm.name.length < 2) {
-      showToast('Name must be at least 2 characters long', 'error');
+      toast.error('Name must be at least 2 characters long');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editForm.email)) {
-      showToast('Please provide a valid email address', 'error');
+      toast.error('Please provide a valid email address');
       return;
     }
 
     setUpdateLoading(true);
     
     try {
+      const token = localStorage.getItem("userToken");
       
-      const updatedUser = {
-        ...user,
-        name: editForm.name.trim(),
-        email: editForm.email.toLowerCase().trim()
-      };
-      
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setUser(updatedUser);
-      localStorage.setItem("userData", JSON.stringify(updatedUser));
-      setIsEditing(false);
-      showToast('Profile updated successfully!');
+      if (!token) {
+        toast.error('Authentication required. Please log in again.');
+        navigate('/');
+        return;
+      }
+
+      const response = await axios.put(
+        `${API_BASE_URL}/users/profile`,
+        {
+          name: editForm.name.trim(),
+          email: editForm.email.toLowerCase().trim()
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const updatedUser = response.data.user;
+        setUser(updatedUser);
+        localStorage.setItem("userData", JSON.stringify(updatedUser));
+        setIsEditing(false);
+        toast.success('Profile updated successfully!');
+      } else {
+        toast.error(response.data.message || 'Failed to update profile');
+      }
       
     } catch (error) {
       console.error('Error updating profile:', error);
-      showToast('Failed to update profile. Please try again.', 'error');
+      
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem("userData");
+        localStorage.removeItem("userToken");
+        navigate('/');
+      } else if (error.response?.status === 400) {
+        toast.error(error.response.data.message || 'Invalid input data');
+      } else if (error.response?.status === 404) {
+        toast.error('User not found');
+      } else {
+        toast.error('Failed to update profile. Please try again.');
+      }
     } finally {
       setUpdateLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userData");
-    showToast('Logged out successfully');
-   
-    window.location.href = '/';
-  };
-
-  const handleNavigation = (path) => {
-  
-    window.location.href = path;
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("userToken");
+      
+      if (token) {
+      
+        await axios.post(
+          `${API_BASE_URL}/users/logout`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+     
+    } finally {
+      
+      localStorage.removeItem("userToken");
+      localStorage.removeItem("userData");
+      toast.success('Logged out successfully');
+      navigate('/');
+    }
   };
 
   if (loading) {
@@ -177,7 +261,7 @@ const ProfilePage = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">Please log in to view your profile.</p>
           <button
-            onClick={() => handleNavigation('/')}
+            onClick={() => navigate('/')}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
           >
             Go Home
@@ -190,15 +274,15 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-    
+       
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-32 relative">
             <div className="absolute inset-0 bg-black bg-opacity-20"></div>
           </div>
           
           <div className="relative px-6 pb-6">
-            <div className="flex items-end space-x-5 -mt-12">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-5 -mt-12">
+              <div className="relative mb-4 sm:mb-0">
                 {user.profilePicture ? (
                   <img
                     src={user.profilePicture}
@@ -216,8 +300,8 @@ const ProfilePage = () => {
               </div>
               
               <div className="flex-1 min-w-0 pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mb-4 sm:mb-0">
                     <h1 className="text-2xl font-bold text-gray-900 truncate">
                       {user.name}
                     </h1>
@@ -226,21 +310,21 @@ const ProfilePage = () => {
                     </p>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                     {!isEditing ? (
                       <button
                         onClick={handleEditToggle}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                        className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                       >
                         <Edit3 size={16} />
                         Edit Profile
                       </button>
                     ) : (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                         <button
                           onClick={handleSaveProfile}
                           disabled={updateLoading}
-                          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                          className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
                         >
                           {updateLoading ? (
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -252,7 +336,7 @@ const ProfilePage = () => {
                         <button
                           onClick={handleEditToggle}
                           disabled={updateLoading}
-                          className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
+                          className="flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
                         >
                           <X size={16} />
                           Cancel
@@ -267,7 +351,7 @@ const ProfilePage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+        
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Profile Information</h2>
@@ -356,14 +440,14 @@ const ProfilePage = () => {
             </div>
           </div>
 
-     
+          
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               
               <div className="space-y-3">
                 <button
-                  onClick={() => handleNavigation('/vote')}
+                  onClick={() => navigate('/vote')}
                   className="w-full flex items-center gap-3 p-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition"
                 >
                   <div className="w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
@@ -374,7 +458,7 @@ const ProfilePage = () => {
 
                 {user.role === 'admin' && (
                   <button
-                    onClick={() => handleNavigation('/admin')}
+                    onClick={() => navigate('/admin')}
                     className="w-full flex items-center gap-3 p-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition"
                   >
                     <div className="w-8 h-8 bg-purple-200 rounded-lg flex items-center justify-center">
@@ -385,7 +469,7 @@ const ProfilePage = () => {
                 )}
 
                 <button
-                  onClick={() => handleNavigation('/')}
+                  onClick={() => navigate('/')}
                   className="w-full flex items-center gap-3 p-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition"
                 >
                   <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
