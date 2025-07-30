@@ -14,6 +14,38 @@ function generateUserId() {
   return `USR-${randomStr}`;
 }
 
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join('uploads', 'profile-pictures');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, `${req.user.id}-${Date.now()}${ext}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Please upload only image files'), false);
+  }
+};
+
+export const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 
+  }
+});
+
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -183,22 +215,116 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile retrieved successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        userId: user.userId,
+        role: user.role,
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt,
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching profile",
+      error: error.message,
+    });
+  }
+};
+
 export const updateUserProfile = async (req, res) => {
   try {
+    const { name, email } = req.body;
+
+    // Validation
+    if (!name || name.trim().length < 2) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Name must be at least 2 characters long" 
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Please provide a valid email address" 
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const trimmedName = name.trim();
+
+    // Check if email is already taken by another user
+    const existingUser = await User.findOne({ 
+      email: normalizedEmail,
+      _id: { $ne: req.user.id } 
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email is already registered by another user" 
+      });
+    }
+
+    // Check if name is already taken by another user
+    const existingName = await User.findOne({ 
+      name: trimmedName,
+      _id: { $ne: req.user.id } 
+    });
+
+    if (existingName) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Name is already taken by another user" 
+      });
+    }
+
     const user = await User.findById(req.user.id);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
     }
 
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
+    user.name = trimmedName;
+    user.email = normalizedEmail;
     await user.save();
+
+    const updatedUser = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      userId: user.userId,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
+    };
 
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user
+      user: updatedUser
     });
 
   } catch (error) {
@@ -210,60 +336,118 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join('uploads', 'profile-pictures');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, `${req.user.id}-${Date.now()}${ext}`);
-  }
-});
-
-const upload = multer({ storage });
-
-export const uploadProfilePicture = [
-  upload.single('profilePicture'),
-  async (req, res) => {
-    try {
-      const user = await User.findById(req.user.id);
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
-      }
-
-      const filePath = `${req.protocol}://${req.get('host')}/uploads/profile-pictures/${req.file.filename}`;
-      user.profilePicture = filePath;
-      await user.save();
-
-      res.status(200).json({
-        success: true,
-        message: 'Profile picture uploaded successfully',
-        profilePictureUrl: filePath,
-      });
-
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Server error during image upload',
-        error: error.message
+export const uploadProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
       });
     }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Delete old profile picture if it exists
+    if (user.profilePicture) {
+      try {
+        const oldImagePath = user.profilePicture.split('/').pop();
+        const fullOldPath = path.join('uploads', 'profile-pictures', oldImagePath);
+        if (fs.existsSync(fullOldPath)) {
+          fs.unlinkSync(fullOldPath);
+        }
+      } catch (deleteError) {
+        console.error('Error deleting old profile picture:', deleteError);
+      }
+    }
+
+    const filePath = `${req.protocol}://${req.get('host')}/uploads/profile-pictures/${req.file.filename}`;
+    user.profilePicture = filePath;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      profilePictureUrl: filePath,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        userId: user.userId,
+        role: user.role,
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt,
+      }
+    });
+
+  } catch (error) {
+    // Clean up uploaded file if there's an error
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Error cleaning up file:', cleanupError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error during image upload',
+      error: error.message
+    });
   }
-];
+};
 
 export const removeProfilePicture = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Delete the file from filesystem if it exists
+    if (user.profilePicture) {
+      try {
+        const imagePath = user.profilePicture.split('/').pop();
+        const fullPath = path.join('uploads', 'profile-pictures', imagePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      } catch (deleteError) {
+        console.error('Error deleting profile picture file:', deleteError);
+      }
+    }
 
     user.profilePicture = null;
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Profile picture removed successfully' });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Profile picture removed successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        userId: user.userId,
+        role: user.role,
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt,
+      }
+    });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error removing profile picture' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error removing profile picture',
+      error: error.message 
+    });
   }
 };
