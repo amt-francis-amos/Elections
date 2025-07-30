@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronRight, Users, Shield, Vote } from "lucide-react";
+import {Link} from 'react-router-dom'
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
@@ -38,12 +39,14 @@ const Hero = () => {
             </p>
 
             <div className="flex justify-center lg:justify-start">
+           <Link to='/vote'>
               <button className="group bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-blue-500/25 w-full sm:w-auto max-w-xs sm:max-w-none">
                 <span className="flex items-center justify-center">
                   Vote Now
                   <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
+           </Link>
             </div>
 
             <div className="grid grid-cols-3 gap-3 sm:gap-4 text-center max-w-md mx-auto lg:max-w-none lg:mx-0">
