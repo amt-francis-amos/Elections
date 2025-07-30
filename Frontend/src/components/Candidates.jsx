@@ -17,7 +17,8 @@ import {
   User
 } from 'lucide-react';
 import axios from 'axios';
-
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
@@ -50,8 +51,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         return response;
       } catch (error) {
         if (i === retries) throw error;
-        
-       
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
@@ -63,6 +62,8 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         setLoadingElections(true);
         setErrors(prev => ({ ...prev, elections: '' }));
         
+        const loadingToastId = toast.loading('Loading elections...');
+        
         try {
           const token = localStorage.getItem('token');
           
@@ -70,7 +71,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             throw new Error('No authentication token found');
           }
 
-        
           const response = await makeRequest(
             `${API_BASE_URL}/elections`,
             {
@@ -85,7 +85,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
           
           let electionsData = [];
           
-         
           if (response.data) {
             if (response.data.success === true) {
               electionsData = response.data.elections || response.data.data || [];
@@ -100,7 +99,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             }
           }
           
-          // Ensure electionsData is an array
           if (!Array.isArray(electionsData)) {
             electionsData = [];
           }
@@ -112,15 +110,18 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
           console.log('Processed elections data:', electionsData);
           
           setAvailableElections(electionsData);
+          toast.dismiss(loadingToastId);
           
           if (electionsData.length === 0) {
-            setErrors(prev => ({ 
-              ...prev, 
-              elections: 'No active elections found. Please create an election first.' 
-            }));
+            const errorMessage = 'No active elections found. Please create an election first.';
+            setErrors(prev => ({ ...prev, elections: errorMessage }));
+            toast.warn(errorMessage);
+          } else {
+            toast.success(`${electionsData.length} elections loaded successfully`);
           }
           
         } catch (error) {
+          toast.dismiss(loadingToastId);
           console.error('Error fetching elections:', error);
           
           let errorMessage = 'Failed to load elections';
@@ -158,6 +159,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
           
           setErrors(prev => ({ ...prev, elections: errorMessage }));
           setAvailableElections([]);
+          toast.error(errorMessage);
         } finally {
           setLoadingElections(false);
         }
@@ -193,7 +195,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       [name]: value
     }));
     
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -206,11 +207,15 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
     const file = e.target.files[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
+        const errorMessage = 'Please select a valid image file';
+        setErrors(prev => ({ ...prev, image: errorMessage }));
+        toast.error(errorMessage);
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, image: 'Image must be less than 5MB' }));
+        const errorMessage = 'Image must be less than 5MB';
+        setErrors(prev => ({ ...prev, image: errorMessage }));
+        toast.error(errorMessage);
         return;
       }
 
@@ -219,6 +224,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       reader.onload = (e) => setPreview(e.target.result);
       reader.readAsDataURL(file);
       setErrors(prev => ({ ...prev, image: '' }));
+      toast.success('Image selected successfully');
     }
   };
 
@@ -240,9 +246,13 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error('Please fix the form errors before submitting');
+      return;
+    }
 
     setLoading(true);
+    const submitToastId = toast.loading('Adding candidate...');
     
     try {
       const formDataToSend = new FormData();
@@ -270,14 +280,18 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       );
 
       if (response.data.success) {
+        toast.dismiss(submitToastId);
+        toast.success(`${formData.name} has been added as a candidate successfully!`);
         onCandidateAdded(response.data.candidate);
         resetForm();
         onClose();
       }
     } catch (error) {
+      toast.dismiss(submitToastId);
       console.error('Error adding candidate:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to add candidate';
+      const errorMessage = error.response?.data?.message || 'Failed to add candidate. Please try again.';
       setErrors({ submit: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -292,7 +306,6 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
 
   const retryFetchElections = () => {
     setAvailableElections([]);
-   
   };
 
   if (!isOpen) return null;
@@ -581,11 +594,13 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
     const error = validateFile(file);
     if (error) {
       setUploadStatus({ type: 'error', message: error });
+      toast.error(error);
       return;
     }
 
     setUploadStatus({ type: 'success', message: 'Image selected successfully!' });
     setSelectedFile(file);
+    toast.success('Image selected successfully!');
     
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -631,6 +646,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    toast.info('Image removed');
   };
 
   const handleSave = async () => {
@@ -638,6 +654,7 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
 
     setUploading(true);
     setUploadStatus({ type: 'info', message: 'Uploading image...' });
+    const uploadToastId = toast.loading('Uploading candidate photo...');
 
     try {
       const formData = new FormData();
@@ -656,8 +673,10 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
       );
 
       if (response.data.success) {
+        toast.dismiss(uploadToastId);
         onImageSelect(candidateId, response.data.imageUrl || response.data.image);
         setUploadStatus({ type: 'success', message: 'Image uploaded successfully!' });
+        toast.success('Candidate photo updated successfully!');
         
         setTimeout(() => {
           onClose();
@@ -666,9 +685,11 @@ const ImageUploadModal = ({ isOpen, onClose, onImageSelect, currentImage = null,
       }
 
     } catch (error) {
+      toast.dismiss(uploadToastId);
       console.error('Image upload error:', error);
       const errorMessage = error.response?.data?.message || 'Failed to upload image. Please try again.';
       setUploadStatus({ type: 'error', message: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -823,6 +844,8 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete ${candidate.name}?`)) {
+      const deleteToastId = toast.loading(`Deleting ${candidate.name}...`);
+      
       try {
         const token = localStorage.getItem('token');
         await axios.delete(`${API_BASE_URL}/candidates/${candidate.id || candidate._id}`, {
@@ -830,10 +853,15 @@ const CandidateCard = ({ candidate, onEdit, onDelete, onImageUpload }) => {
             'Authorization': `Bearer ${token}`
           }
         });
+        
+        toast.dismiss(deleteToastId);
+        toast.success(`${candidate.name} has been deleted successfully`);
         onDelete(candidate.id || candidate._id);
       } catch (error) {
+        toast.dismiss(deleteToastId);
         console.error('Error deleting candidate:', error);
-        alert('Failed to delete candidate. Please try again.');
+        const errorMessage = error.response?.data?.message || 'Failed to delete candidate. Please try again.';
+        toast.error(errorMessage);
       }
     }
   };
@@ -981,8 +1009,32 @@ const Candidates = ({
     }
   };
 
+  const handleDeleteCandidate = (candidateId) => {
+    setCandidatesList(prev => prev.filter(candidate => 
+      (candidate.id || candidate._id) !== candidateId
+    ));
+    if (handleDeleteCandidate) {
+      handleDeleteCandidate(candidateId);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+        className="mt-16"
+      />
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Candidates Management</h2>
