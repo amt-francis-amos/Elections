@@ -8,7 +8,6 @@ export const castVote = async (req, res) => {
     const { electionId, candidateId } = req.body;
     const userId = req.user.id || req.user._id;
 
-
     if (req.user.role === 'admin') {
       return res.status(403).json({
         success: false,
@@ -62,15 +61,17 @@ export const castVote = async (req, res) => {
 
     const existingVote = await Vote.findOne({
       election: electionId,
-      voter: userId
+      voter: userId,
+      position: candidate.position
     });
 
     if (existingVote) {
       return res.status(400).json({
         success: false,
-        message: 'You have already voted in this election',
+        message: `You have already voted for the ${candidate.position} position in this election`,
         alreadyVoted: true,
-        votedFor: existingVote.candidate
+        votedFor: existingVote.candidate,
+        position: candidate.position
       });
     }
 
@@ -78,6 +79,7 @@ export const castVote = async (req, res) => {
       election: electionId,
       candidate: candidateId,
       voter: userId,
+      position: candidate.position,
       votedAt: new Date()
     });
 
@@ -107,6 +109,7 @@ export const castVote = async (req, res) => {
           id: populatedVote.election._id,
           title: populatedVote.election.title
         },
+        position: populatedVote.position,
         votedAt: populatedVote.votedAt
       }
     });
@@ -124,6 +127,7 @@ export const castVote = async (req, res) => {
 export const getUserVote = async (req, res) => {
   try {
     const { electionId } = req.params;
+    const { position } = req.query;
     const userId = req.user.id || req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(electionId)) {
@@ -141,23 +145,46 @@ export const getUserVote = async (req, res) => {
       });
     }
 
-    const existingVote = await Vote.findOne({
+    const query = {
       election: electionId,
       voter: userId
-    }).populate('candidate', 'name position image');
+    };
 
-    if (existingVote) {
-      return res.status(200).json({
-        success: true,
-        hasVoted: true,
-        vote: {
-          candidate: existingVote.candidate._id,
-          candidateName: existingVote.candidate.name,
-          candidatePosition: existingVote.candidate.position,
-          candidateImage: existingVote.candidate.image,
-          votedAt: existingVote.votedAt
-        }
-      });
+    if (position) {
+      query.position = position;
+    }
+
+    const existingVotes = await Vote.find(query).populate('candidate', 'name position image');
+
+    if (existingVotes.length > 0) {
+      if (position) {
+        const vote = existingVotes[0];
+        return res.status(200).json({
+          success: true,
+          hasVoted: true,
+          vote: {
+            candidate: vote.candidate._id,
+            candidateName: vote.candidate.name,
+            candidatePosition: vote.candidate.position,
+            candidateImage: vote.candidate.image,
+            position: vote.position,
+            votedAt: vote.votedAt
+          }
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          hasVoted: true,
+          votes: existingVotes.map(vote => ({
+            candidate: vote.candidate._id,
+            candidateName: vote.candidate.name,
+            candidatePosition: vote.candidate.position,
+            candidateImage: vote.candidate.image,
+            position: vote.position,
+            votedAt: vote.votedAt
+          }))
+        });
+      }
     } else {
       return res.status(404).json({
         success: false,
@@ -196,15 +223,31 @@ export const getResults = async (req, res) => {
     }
 
     const candidates = await Candidate.find({ election: electionId })
-      .sort({ votes: -1 }) 
+      .sort({ position: 1, votes: -1 })
       .select('name position votes image');
 
     const totalVotes = await Vote.countDocuments({ election: electionId });
 
-    const candidatesWithPercentage = candidates.map(candidate => ({
-      ...candidate.toObject(),
-      percentage: totalVotes > 0 ? ((candidate.votes || 0) / totalVotes * 100).toFixed(2) : 0
-    }));
+    const positions = [...new Set(candidates.map(c => c.position))];
+    
+    const resultsByPosition = {};
+    
+    for (const position of positions) {
+      const positionCandidates = candidates.filter(c => c.position === position);
+      const positionTotalVotes = await Vote.countDocuments({ 
+        election: electionId, 
+        position: position 
+      });
+      
+      resultsByPosition[position] = {
+        totalVotes: positionTotalVotes,
+        candidates: positionCandidates.map(candidate => ({
+          ...candidate.toObject(),
+          percentage: positionTotalVotes > 0 ? 
+            ((candidate.votes || 0) / positionTotalVotes * 100).toFixed(2) : 0
+        }))
+      };
+    }
 
     res.status(200).json({
       success: true,
@@ -215,7 +258,7 @@ export const getResults = async (req, res) => {
       },
       results: {
         totalVotes,
-        candidates: candidatesWithPercentage
+        positions: resultsByPosition
       }
     });
 
@@ -257,10 +300,33 @@ export const getCandidates = async (req, res) => {
 
     const candidates = await Candidate.find({ election: electionId })
       .select('name position email phone department year bio image votes')
-      .sort({ createdAt: -1 });
+      .sort({ position: 1, createdAt: -1 });
+
+    const positions = [...new Set(candidates.map(c => c.position))];
+    
+    const candidatesByPosition = {};
+    
+    positions.forEach(position => {
+      candidatesByPosition[position] = candidates
+        .filter(c => c.position === position)
+        .map(candidate => ({
+          _id: candidate._id,
+          name: candidate.name,
+          position: candidate.position,
+          email: candidate.email,
+          phone: candidate.phone,
+          department: candidate.department,
+          year: candidate.year,
+          bio: candidate.bio,
+          image: candidate.image,
+          votes: candidate.votes || 0
+        }));
+    });
 
     res.status(200).json({
       success: true,
+      positions: positions,
+      candidatesByPosition: candidatesByPosition,
       candidates: candidates.map(candidate => ({
         _id: candidate._id,
         name: candidate.name,

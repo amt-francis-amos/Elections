@@ -17,7 +17,10 @@ import {
   Trophy,
   Info,
   ThumbsUp,
-  Shield
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw
 } from 'lucide-react';
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
@@ -64,7 +67,7 @@ const cardVariants = {
   }
 };
 
-const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, electionTitle, userRole }) => {
+const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, electionTitle, userRole, position }) => {
   const isAdminUser = userRole === 'admin';
   
   return (
@@ -79,7 +82,6 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
         ${isAdminUser ? 'border-orange-200 bg-orange-50' : ''}
       `}
     >
-      {/* Admin indicator */}
       {isAdminUser && (
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
@@ -221,8 +223,90 @@ const CandidateCard = ({ candidate, onVote, isVoting, hasVoted, votedForThis, el
   );
 };
 
-const ElectionHeader = ({ election, candidatesCount, hasVoted, userRole }) => {
+const PositionNavigation = ({ positions, currentPosition, onPositionChange, votedPositions, userRole }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200"
+    >
+      <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">Voting Positions</h2>
+      
+      <div className="flex flex-wrap justify-center gap-3 mb-6">
+        {positions.map((position, index) => {
+          const isVoted = votedPositions.includes(position);
+          const isCurrent = position === currentPosition;
+          
+          return (
+            <motion.button
+              key={position}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onPositionChange(position)}
+              className={`
+                px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2
+                ${isCurrent 
+                  ? 'bg-blue-600 text-white shadow-lg' 
+                  : isVoted 
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }
+                ${userRole === 'admin' ? 'opacity-75' : ''}
+              `}
+              disabled={userRole === 'admin'}
+            >
+              {isVoted && <CheckCircle size={16} />}
+              <span>{position}</span>
+              {isCurrent && <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">Current</span>}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-between items-center">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            const currentIndex = positions.indexOf(currentPosition);
+            if (currentIndex > 0) {
+              onPositionChange(positions[currentIndex - 1]);
+            }
+          }}
+          disabled={positions.indexOf(currentPosition) === 0 || userRole === 'admin'}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
+        >
+          <ChevronLeft size={16} />
+          Previous
+        </motion.button>
+
+        <div className="text-sm text-gray-600">
+          Position {positions.indexOf(currentPosition) + 1} of {positions.length}
+        </div>
+
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            const currentIndex = positions.indexOf(currentPosition);
+            if (currentIndex < positions.length - 1) {
+              onPositionChange(positions[currentIndex + 1]);
+            }
+          }}
+          disabled={positions.indexOf(currentPosition) === positions.length - 1 || userRole === 'admin'}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
+        >
+          Next
+          <ChevronRight size={16} />
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+};
+
+const ElectionHeader = ({ election, candidatesCount, votedPositions, totalPositions, userRole, currentPosition }) => {
   const isAdminUser = userRole === 'admin';
+  const votingProgress = totalPositions > 0 ? (votedPositions.length / totalPositions * 100) : 0;
   
   return (
     <motion.div
@@ -249,15 +333,20 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted, userRole }) => {
           {election.title}
         </h1>
         <p className="text-gray-600">
-          {election.description || 'Choose your preferred candidate'}
+          {election.description || 'Choose your preferred candidates for each position'}
         </p>
+        {currentPosition && (
+          <div className="mt-2 text-lg font-medium text-blue-600">
+            Current Position: {currentPosition}
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
         <div className="bg-blue-50 rounded-xl p-4">
           <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
           <div className="text-xl font-bold text-blue-900">{candidatesCount}</div>
-          <div className="text-sm text-blue-700">Candidates</div>
+          <div className="text-sm text-blue-700">Total Candidates</div>
         </div>
         
         <div className="bg-green-50 rounded-xl p-4">
@@ -269,30 +358,51 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted, userRole }) => {
           </div>
         </div>
 
+        <div className="bg-purple-50 rounded-xl p-4">
+          <RotateCcw className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+          <div className="text-xl font-bold text-purple-900">{totalPositions}</div>
+          <div className="text-sm text-purple-700">Available Positions</div>
+        </div>
+
         <div className={`rounded-xl p-4 ${
-          isAdminUser ? 'bg-orange-50' : hasVoted ? 'bg-green-50' : 'bg-yellow-50'
+          isAdminUser ? 'bg-orange-50' : 'bg-yellow-50'
         }`}>
           {isAdminUser ? (
             <Shield className="w-6 h-6 text-orange-600 mx-auto mb-2" />
-          ) : hasVoted ? (
-            <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
           ) : (
             <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
           )}
           <div className={`text-xl font-bold ${
-            isAdminUser ? 'text-orange-900' : hasVoted ? 'text-green-900' : 'text-yellow-900'
+            isAdminUser ? 'text-orange-900' : 'text-yellow-900'
           }`}>
-            {isAdminUser ? 'Admin' : hasVoted ? 'Voted' : 'Pending'}
+            {isAdminUser ? 'Admin' : `${votedPositions.length}/${totalPositions}`}
           </div>
           <div className={`text-sm ${
-            isAdminUser ? 'text-orange-700' : hasVoted ? 'text-green-700' : 'text-yellow-700'
+            isAdminUser ? 'text-orange-700' : 'text-yellow-700'
           }`}>
-            Your Status
+            {isAdminUser ? 'Status' : 'Positions Voted'}
           </div>
         </div>
       </div>
 
-      {hasVoted && !isAdminUser && (
+      {!isAdminUser && totalPositions > 0 && (
+        <div className="mt-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-600">Voting Progress</span>
+            <span className="text-sm font-medium text-gray-900">{votingProgress.toFixed(0)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${votingProgress}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full"
+            />
+          </div>
+        </div>
+      )}
+
+      {votedPositions.length === totalPositions && !isAdminUser && totalPositions > 0 && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -301,8 +411,8 @@ const ElectionHeader = ({ election, candidatesCount, hasVoted, userRole }) => {
         >
           <CheckCircle className="text-green-600 flex-shrink-0" size={18} />
           <div>
-            <p className="font-medium text-green-800">Thank you for voting!</p>
-            <p className="text-sm text-green-700">Your vote has been successfully recorded.</p>
+            <p className="font-medium text-green-800">Congratulations! You have completed voting for all positions!</p>
+            <p className="text-sm text-green-700">Your votes have been successfully recorded for all {totalPositions} positions.</p>
           </div>
         </motion.div>
       )}
@@ -314,15 +424,16 @@ const Vote = () => {
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState('');
   const [selectedElection, setSelectedElection] = useState(null);
-  const [candidates, setCandidates] = useState([]);
+  const [candidatesByPosition, setCandidatesByPosition] = useState({});
+  const [positions, setPositions] = useState([]);
+  const [currentPosition, setCurrentPosition] = useState('');
   const [loading, setLoading] = useState(false);
-  const [votedCandidateId, setVotedCandidateId] = useState(null);
-  const [hasVoted, setHasVoted] = useState(false);
+  const [votedCandidates, setVotedCandidates] = useState({});
+  const [votedPositions, setVotedPositions] = useState([]);
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState(null);
 
-  // Check user role when component mounts
   useEffect(() => {
     const checkUserRole = () => {
       const token = localStorage.getItem('userToken');
@@ -340,12 +451,12 @@ const Vote = () => {
     checkUserRole();
   }, []);
 
-  const checkExistingVote = async (electionId) => {
+  const checkExistingVotes = async (electionId) => {
     try {
       const token = localStorage.getItem('userToken');
       if (!token) return;
 
-      console.log('Checking existing vote for election:', electionId);
+      console.log('Checking existing votes for election:', electionId);
 
       let response;
       try {
@@ -376,8 +487,8 @@ const Vote = () => {
                     );
                   } catch (fourthError) {
                     console.log('All vote check endpoints returned 404 - assuming user has not voted');
-                    setVotedCandidateId(null);
-                    setHasVoted(false);
+                    setVotedCandidates({});
+                    setVotedPositions([]);
                     return;
                   }
                 } else {
@@ -396,38 +507,46 @@ const Vote = () => {
       const data = response.data;
       console.log('Vote check response:', data);
 
-      if (data.success && data.hasVoted && data.vote) {
-        setVotedCandidateId(data.vote.candidate);
-        setHasVoted(true);
-        console.log('User has voted for candidate:', data.vote.candidate);
-      } else if (data.hasVoted && data.candidateId) {
-        setVotedCandidateId(data.candidateId);
-        setHasVoted(true);
-        console.log('User has voted for candidate:', data.candidateId);
-      } else if (data.vote && data.vote.candidateId) {
-        setVotedCandidateId(data.vote.candidateId);
-        setHasVoted(true);
-        console.log('User has voted for candidate:', data.vote.candidateId);
+      if (data.success && data.votes && Array.isArray(data.votes)) {
+        const votedCandidatesMap = {};
+        const votedPositionsList = [];
+
+        data.votes.forEach(vote => {
+          votedCandidatesMap[vote.position] = vote.candidate;
+          if (!votedPositionsList.includes(vote.position)) {
+            votedPositionsList.push(vote.position);
+          }
+        });
+
+        setVotedCandidates(votedCandidatesMap);
+        setVotedPositions(votedPositionsList);
+        console.log('User has voted for positions:', votedPositionsList);
+      } else if (data.success && data.hasVoted && data.vote) {
+        const votedCandidatesMap = {};
+        votedCandidatesMap[data.vote.position] = data.vote.candidate;
+        setVotedCandidates(votedCandidatesMap);
+        setVotedPositions([data.vote.position]);
+        console.log('User has voted for position:', data.vote.position);
       } else {
-        setVotedCandidateId(null);
-        setHasVoted(false);
+        setVotedCandidates({});
+        setVotedPositions([]);
         console.log('User has not voted yet');
       }
       
     } catch (err) {
-      console.log('Check existing vote error:', err.response?.status, err.message);
+      console.log('Check existing votes error:', err.response?.status, err.message);
     
       if (err.response?.status === 404) {
         console.log('404 error - assuming user has not voted');
-        setVotedCandidateId(null);
-        setHasVoted(false);
+        setVotedCandidates({});
+        setVotedPositions([]);
       } else if (err.response?.status === 401) {
         console.error('Unauthorized - please log in again');
         setError('Session expired. Please log in again.');
       } else {
-        console.error('Error checking existing vote:', err);
-        setVotedCandidateId(null);
-        setHasVoted(false);
+        console.error('Error checking existing votes:', err);
+        setVotedCandidates({});
+        setVotedPositions([]);
       }
     }
   };
@@ -506,21 +625,37 @@ const Vote = () => {
         
         console.log('Candidates API Response:', data);
         
-        let candidatesArray = [];
-        if (data && Array.isArray(data.candidates)) {
-          candidatesArray = data.candidates;
-        } else if (data && data.success && Array.isArray(data.candidates)) {
-          candidatesArray = data.candidates;
-        } else if (Array.isArray(data)) {
-          candidatesArray = data;
+        if (data && data.success && data.candidatesByPosition) {
+          setCandidatesByPosition(data.candidatesByPosition);
+          const positionsList = data.positions || Object.keys(data.candidatesByPosition);
+          setPositions(positionsList);
+          if (positionsList.length > 0 && !currentPosition) {
+            setCurrentPosition(positionsList[0]);
+          }
+        } else if (data && Array.isArray(data.candidates)) {
+          const groupedByPosition = {};
+          const positionsList = [];
+          
+          data.candidates.forEach(candidate => {
+            if (!groupedByPosition[candidate.position]) {
+              groupedByPosition[candidate.position] = [];
+              positionsList.push(candidate.position);
+            }
+            groupedByPosition[candidate.position].push(candidate);
+          });
+          
+          setCandidatesByPosition(groupedByPosition);
+          setPositions(positionsList);
+          if (positionsList.length > 0 && !currentPosition) {
+            setCurrentPosition(positionsList[0]);
+          }
         } else {
           console.error('Unexpected candidates response format:', data);
-          candidatesArray = [];
+          setCandidatesByPosition({});
+          setPositions([]);
         }
         
-        console.log('Processed candidates:', candidatesArray);
-        setCandidates(candidatesArray);
-        await checkExistingVote(selectedElectionId);
+        await checkExistingVotes(selectedElectionId);
         
       } catch (err) {
         console.error('Error loading candidates:', err);
@@ -564,8 +699,15 @@ const Vote = () => {
     const election = elections.find(e => e._id === electionId);
     setSelectedElectionId(electionId);
     setSelectedElection(election);
-    setVotedCandidateId(null);
-    setHasVoted(false);
+    setVotedCandidates({});
+    setVotedPositions([]);
+    setCandidatesByPosition({});
+    setPositions([]);
+    setCurrentPosition('');
+  };
+
+  const handlePositionChange = (position) => {
+    setCurrentPosition(position);
   };
 
   const handleVote = async (candidate) => {
@@ -576,7 +718,6 @@ const Vote = () => {
       return;
     }
 
-    // Check if user is admin
     if (userRole === 'admin') {
       const message = 'Administrators are not allowed to vote in elections';
       setError(message);
@@ -597,8 +738,8 @@ const Vote = () => {
       return;
     }
 
-    if (hasVoted) {
-      const message = 'You have already voted in this election. Only one vote per election is allowed.';
+    if (votedPositions.includes(candidate.position)) {
+      const message = `You have already voted for the ${candidate.position} position. Only one vote per position is allowed.`;
       setError(message);
       toast.warning(message);
       return;
@@ -615,19 +756,24 @@ const Vote = () => {
       );
       
       if (response.data.success) {
-        setVotedCandidateId(candidate._id);
-        setHasVoted(true);
+        setVotedCandidates(prev => ({
+          ...prev,
+          [candidate.position]: candidate._id
+        }));
         
-        setCandidates(prev => 
-          prev.map(c => 
+        setVotedPositions(prev => [...prev, candidate.position]);
+        
+        setCandidatesByPosition(prev => ({
+          ...prev,
+          [candidate.position]: prev[candidate.position].map(c => 
             c._id === candidate._id 
               ? { ...c, votes: (c.votes || 0) + 1 }
               : c
           )
-        );
+        }));
 
         setError('');
-        toast.success(`Vote cast successfully for ${candidate.name}!`, {
+        toast.success(`Vote cast successfully for ${candidate.name} (${candidate.position})!`, {
           position: "top-center",
           autoClose: 3000,
           hideProgressBar: false,
@@ -636,6 +782,13 @@ const Vote = () => {
           draggable: true,
           icon: <CheckCircle size={20} />
         });
+
+        const nextPositionIndex = positions.indexOf(candidate.position) + 1;
+        if (nextPositionIndex < positions.length) {
+          setTimeout(() => {
+            setCurrentPosition(positions[nextPositionIndex]);
+          }, 1500);
+        }
       }
 
     } catch (err) {
@@ -644,7 +797,7 @@ const Vote = () => {
       let errorMessage = 'Something went wrong while voting.';
       
       if (err.response?.data) {
-        const { message, alreadyVoted } = err.response.data;
+        const { message, alreadyVoted, position } = err.response.data;
         
         if (message === 'Administrators are not allowed to vote in elections') {
           errorMessage = message;
@@ -663,9 +816,17 @@ const Vote = () => {
             }
           });
         } else if (alreadyVoted) {
-          setHasVoted(true);
-          setVotedCandidateId(err.response.data.votedFor);
-          errorMessage = 'You have already voted in this election. Only one vote per election is allowed.';
+          setVotedPositions(prev => {
+            if (!prev.includes(position || candidate.position)) {
+              return [...prev, position || candidate.position];
+            }
+            return prev;
+          });
+          setVotedCandidates(prev => ({
+            ...prev,
+            [position || candidate.position]: err.response.data.votedFor
+          }));
+          errorMessage = `You have already voted for the ${position || candidate.position} position. Only one vote per position is allowed.`;
           toast.warning(errorMessage);
         } else {
           errorMessage = message || errorMessage;
@@ -681,7 +842,10 @@ const Vote = () => {
     }
   };
 
-  if (error && !candidates.length) {
+  const currentCandidates = candidatesByPosition[currentPosition] || [];
+  const totalCandidates = Object.values(candidatesByPosition).flat().length;
+
+  if (error && !Object.keys(candidatesByPosition).length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-6">
         <div className="max-w-4xl mx-auto">
@@ -729,8 +893,20 @@ const Vote = () => {
         {selectedElection && (
           <ElectionHeader 
             election={selectedElection} 
-            candidatesCount={candidates.length}
-            hasVoted={hasVoted}
+            candidatesCount={totalCandidates}
+            votedPositions={votedPositions}
+            totalPositions={positions.length}
+            userRole={userRole}
+            currentPosition={currentPosition}
+          />
+        )}
+
+        {positions.length > 0 && (
+          <PositionNavigation
+            positions={positions}
+            currentPosition={currentPosition}
+            onPositionChange={handlePositionChange}
+            votedPositions={votedPositions}
             userRole={userRole}
           />
         )}
@@ -762,7 +938,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {!loading && candidates.length === 0 && selectedElectionId && (
+        {!loading && currentCandidates.length === 0 && currentPosition && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -773,36 +949,55 @@ const Vote = () => {
               No Candidates Found
             </h3>
             <p className="text-gray-600">
-              No candidates have been registered for this election yet.
+              No candidates have been registered for the {currentPosition} position yet.
             </p>
           </motion.div>
         )}
 
-        {!loading && candidates.length > 0 && (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          >
-            <AnimatePresence>
-              {candidates.map((candidate) => (
-                <CandidateCard
-                  key={candidate._id}
-                  candidate={candidate}
-                  onVote={handleVote}
-                  isVoting={isVoting}
-                  hasVoted={hasVoted}
-                  votedForThis={votedCandidateId === candidate._id}
-                  electionTitle={selectedElection?.title}
-                  userRole={userRole}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
+        {!loading && currentCandidates.length > 0 && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-6"
+            >
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {currentPosition} Candidates
+              </h2>
+              <p className="text-gray-600">
+                {votedPositions.includes(currentPosition) 
+                  ? `You have voted for this position` 
+                  : `Select your preferred candidate for ${currentPosition}`
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              <AnimatePresence>
+                {currentCandidates.map((candidate) => (
+                  <CandidateCard
+                    key={candidate._id}
+                    candidate={candidate}
+                    onVote={handleVote}
+                    isVoting={isVoting}
+                    hasVoted={votedPositions.includes(candidate.position)}
+                    votedForThis={votedCandidates[candidate.position] === candidate._id}
+                    electionTitle={selectedElection?.title}
+                    userRole={userRole}
+                    position={currentPosition}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </>
         )}
 
-        {!hasVoted && candidates.length > 0 && userRole !== 'admin' && (
+        {!votedPositions.includes(currentPosition) && currentCandidates.length > 0 && userRole !== 'admin' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -812,20 +1007,20 @@ const Vote = () => {
             <div className="flex items-start gap-3">
               <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-900 mb-2">Important Voting Rules</h4>
+                <h4 className="font-medium text-blue-900 mb-2">Important Voting Rules for {currentPosition}</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• <strong>You can only vote for ONE candidate per election</strong></li>
+                  <li>• <strong>You can only vote for ONE candidate per position</strong></li>
                   <li>• Review all candidates carefully before making your choice</li>
-                  <li>• Once you vote, you cannot change your selection</li>
+                  <li>• Once you vote for this position, you cannot change your selection</li>
+                  <li>• You can vote for multiple positions in this election</li>
                   <li>• Your vote is anonymous and secure</li>
-                  <li>• Click the "Vote" button to cast your ballot</li>
                 </ul>
               </div>
             </div>
           </motion.div>
         )}
 
-        {userRole === 'admin' && candidates.length > 0 && (
+        {userRole === 'admin' && currentCandidates.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -848,7 +1043,7 @@ const Vote = () => {
           </motion.div>
         )}
 
-        {hasVoted && candidates.length > 0 && userRole !== 'admin' && (
+        {votedPositions.includes(currentPosition) && currentCandidates.length > 0 && userRole !== 'admin' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -858,10 +1053,13 @@ const Vote = () => {
             <div className="flex items-start gap-3">
               <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-medium text-green-900 mb-2">Vote Successfully Cast!</h4>
+                <h4 className="font-medium text-green-900 mb-2">Vote Successfully Cast for {currentPosition}!</h4>
                 <p className="text-sm text-green-800">
-                  Thank you for participating in this election. Your vote has been recorded and cannot be changed. 
-                  You can view the election results once voting concludes.
+                  Your vote for the {currentPosition} position has been recorded and cannot be changed. 
+                  {positions.indexOf(currentPosition) < positions.length - 1 
+                    ? ' You can now vote for the next position.' 
+                    : ' You have completed voting for all positions in this election.'
+                  }
                 </p>
               </div>
             </div>
@@ -869,7 +1067,6 @@ const Vote = () => {
         )}
       </div>
       
-      {/* Toast Container */}
       <ToastContainer
         position="top-center"
         autoClose={5000}
