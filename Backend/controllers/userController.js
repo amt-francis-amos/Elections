@@ -82,18 +82,21 @@ export const registerUser = async (req, res) => {
       password: hashed,
       userId,
       role,
+      profilePicture: null, // Initialize with null
     };
 
     console.log("User data to create:", { ...userData, password: '[HIDDEN]' });
 
     const user = await User.create(userData);
 
-    
     const token = generateToken({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
+      userId: user.userId,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
     });
 
     console.log("✅ User created successfully:", user.name);
@@ -107,6 +110,7 @@ export const registerUser = async (req, res) => {
         email: user.email,
         userId: user.userId,
         role: user.role,
+        profilePicture: user.profilePicture,
         createdAt: user.createdAt,
       },
       token,
@@ -162,12 +166,14 @@ export const loginUser = async (req, res) => {
       });
     }
 
-  
     const token = generateToken({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
+      userId: user.userId,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
     });
 
     console.log("✅ Login successful for user:", user.name, "Role:", user.role);
@@ -182,6 +188,8 @@ export const loginUser = async (req, res) => {
         email: user.email, 
         userId: user.userId,
         role: user.role,
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt,
       }
     });
 
@@ -198,7 +206,7 @@ export const loginUser = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, {
-      password: 0 
+      password: 0 // Exclude password from results
     }).sort({ createdAt: -1 });
 
     res.status(200).json({
