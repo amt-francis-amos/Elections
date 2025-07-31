@@ -901,17 +901,91 @@ const AdminDashboard = () => {
     }
   };
 
+  // Fixed exportResults function
   const exportResults = async (format, electionId = null) => {
     try {
-      await axios.get(
-        `${API_BASE_URL}/admin/export?format=${format}&election=${electionId || ""}`
-      );
+      let url;
+      let filename;
+      
+      if (electionId && electionId !== '' && electionId !== 'undefined' && electionId !== 'null') {
+        // Export specific election results
+        url = `${API_BASE_URL}/admin/export?format=${format}&election=${electionId}`;
+        filename = `election_${electionId}_results.${format}`;
+      } else {
+        // Export all data if no specific election ID
+        url = `${API_BASE_URL}/admin/export-all?format=${format}`;
+        filename = `all_data_export.${format}`;
+      }
+
+      const response = await axios.get(url, {
+        responseType: 'blob',
+        headers: {
+          'Accept': format === 'json' ? 'application/json' : 
+                   format === 'csv' ? 'text/csv' : 'text/plain'
+        }
+      });
+
+      // Create download link
+      const blob = response.data;
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 100);
+
+      // Update recent activity
       setRecentActivity((a) => [
-        { id: Date.now(), type: "election", action: `Results exported as ${format.toUpperCase()}`, time: "Just now", status: "info" },
+        { 
+          id: Date.now(), 
+          type: "election", 
+          action: electionId 
+            ? `Election ${electionId} results exported as ${format.toUpperCase()}`
+            : `All data exported as ${format.toUpperCase()}`, 
+          time: "Just now", 
+          status: "info" 
+        },
         ...a.slice(0, 4),
       ]);
+
+      console.log(`✅ Export successful: ${filename}`);
+      
     } catch (err) {
-      console.error(err);
+      console.error("Export error:", err);
+      
+      let errorMessage = "Export failed";
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.status === 400) {
+        errorMessage = "Bad request - please check the election ID";
+      } else if (err.response?.status === 404) {
+        errorMessage = "Export endpoint not found";
+      } else if (err.response?.status === 500) {
+        errorMessage = "Server error during export";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(`Export Error: ${errorMessage}`);
+      
+      // Log error activity
+      setRecentActivity((a) => [
+        { 
+          id: Date.now(), 
+          type: "election", 
+          action: `Export failed: ${errorMessage}`, 
+          time: "Just now", 
+          status: "error" 
+        },
+        ...a.slice(0, 4),
+      ]);
     }
   };
 
@@ -930,6 +1004,7 @@ const AdminDashboard = () => {
       case "success":   return "bg-green-100 text-green-800";
       case "info":      return "bg-blue-100 text-blue-800";
       case "completed": return "bg-purple-100 text-purple-800";
+      case "error":     return "bg-red-100 text-red-800";
       default:          return "bg-gray-100 text-gray-800";
     }
   };
@@ -964,6 +1039,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex justify-between items-center">
@@ -988,6 +1064,7 @@ const AdminDashboard = () => {
               </button>
             </div>
           </div>
+          
           <div className="mt-6 border-t pt-4">
             <nav className="flex space-x-8">
               {["dashboard","elections","candidates","users","reports"].map((tab) => (
@@ -1007,6 +1084,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
       <div className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === "dashboard" && (
           <Dashboard
@@ -1063,6 +1141,8 @@ const AdminDashboard = () => {
           />
         )}
       </div>
+
+      {/* Modal Component */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -1077,13 +1157,16 @@ const AdminDashboard = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
             >
+              {/* Election Modal */}
               {(showModal === "createElection" || showModal === "editElection") && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">
                       {showModal === "createElection" ? "Create New Election" : "Edit Election"}
                     </h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                      <X size={24} />
+                    </button>
                   </div>
                   <div className="space-y-4">
                     <div>
@@ -1138,7 +1221,9 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                      Cancel
+                    </button>
                     <button
                       onClick={showModal === "createElection" ? handleCreateElection : handleUpdateElection}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -1149,13 +1234,17 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               )}
+
+              {/* Candidate Modal */}
               {(showModal === "addCandidate" || showModal === "editCandidate") && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">
                       {showModal === "addCandidate" ? "Add New Candidate" : "Edit Candidate"}
                     </h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                      <X size={24} />
+                    </button>
                   </div>
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -1241,7 +1330,9 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                      Cancel
+                    </button>
                     <button
                       onClick={showModal === "addCandidate" ? handleAddCandidate : handleUpdateCandidate}
                       className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
@@ -1252,11 +1343,15 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               )}
+
+              {/* User Modal */}
               {showModal === "createUser" && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">Create Voter Account</h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                      <X size={24} />
+                    </button>
                   </div>
                   <div className="space-y-4">
                     <div>
@@ -1281,7 +1376,9 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                      Cancel
+                    </button>
                     <button onClick={handleCreateUser} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
                       <Save size={16} /> Create Voter
                     </button>
