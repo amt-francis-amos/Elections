@@ -39,7 +39,7 @@ import UserAccount from "../components/UserAccount.jsx";
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-// Enhanced axios interceptor with better error handling
+
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem("token") || localStorage.getItem("userToken");
   if (token) {
@@ -50,13 +50,13 @@ axios.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Add response interceptor for better error handling
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       console.error('Authentication failed. Please log in again.');
-      // Optionally redirect to login page
+    
     }
     return Promise.reject(error);
   }
@@ -96,15 +96,15 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchAllData();
     
-    // Set up periodic refresh every 30 seconds for real-time updates
+  
     const intervalId = setInterval(() => {
-      fetchAllData(true); // Silent refresh
+      fetchAllData(true); 
     }, 30000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  // Enhanced refresh function
+ 
   const handleManualRefresh = async () => {
     setRefreshing(true);
     await fetchAllData();
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
         fetchElections(silent),
         fetchCandidates(silent),
         fetchUsers(silent),
-        fetchVoteStats(silent), // Add vote stats fetching
+        fetchVoteStats(silent),
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -132,7 +132,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // New function to fetch real-time vote statistics
+ 
   const fetchVoteStats = async (silent = false) => {
     try {
       const { data } = await axios.get(`${API_BASE_URL}/admin/stats`);
@@ -160,11 +160,11 @@ const AdminDashboard = () => {
 
       const electionsData = data.elections || data || [];
       
-      // Enhanced election data formatting with real vote counts
+
       const formattedElections = await Promise.all(
         electionsData.map(async (election) => {
           try {
-            // Fetch real-time vote count for this election
+       
             const voteResponse = await axios.get(`${API_BASE_URL}/votes/results/${election._id}`);
             const totalVotes = voteResponse.data?.results?.totalVotes || 0;
             
@@ -177,7 +177,7 @@ const AdminDashboard = () => {
               endDate: new Date(election.endDate).toISOString().split('T')[0],
             };
           } catch (voteErr) {
-            // If vote fetching fails, use existing data
+   
             return {
               ...election,
               totalVotes: election.totalVotes || 0,
@@ -196,7 +196,7 @@ const AdminDashboard = () => {
         e.status === 'active' || e.status === 'ongoing' || e.isActive
       ).length;
 
-      // Calculate total votes across all elections
+  
       const totalVotesAcrossElections = formattedElections.reduce(
         (sum, election) => sum + (election.totalVotes || 0), 0
       );
@@ -235,11 +235,11 @@ const AdminDashboard = () => {
         candidatesData = data.data;
       }
 
-      // Enhanced candidate data with real-time vote counts
+    
       const formattedCandidates = await Promise.all(
         candidatesData.map(async (candidate) => {
           try {
-            // Fetch real-time vote count for this candidate
+       
             const voteResponse = await axios.get(
               `${API_BASE_URL}/votes/candidate/${candidate._id || candidate.id}/count`
             );
@@ -252,7 +252,7 @@ const AdminDashboard = () => {
               image: candidate.image || null,
             };
           } catch (voteErr) {
-            // If individual vote fetching fails, use existing data
+         
             return {
               ...candidate,
               id: candidate._id || candidate.id,
@@ -557,7 +557,7 @@ const AdminDashboard = () => {
         totalCandidates: Math.max(0, prevStats.totalCandidates - 1),
       }));
 
-      // Refresh data to get updated counts
+
       await fetchAllData(true);
     } catch (err) {
       console.error(err);
@@ -793,7 +793,7 @@ const AdminDashboard = () => {
 
       alert("Election deleted successfully!");
 
-      // Refresh data to get updated counts
+    
       await fetchAllData(true);
 
     } catch (err) {
@@ -922,7 +922,7 @@ const AdminDashboard = () => {
       closeModal();
       alert("Candidate updated successfully!");
 
-      // Refresh data to get updated counts
+     
       await fetchAllData(true);
 
     } catch (err) {
