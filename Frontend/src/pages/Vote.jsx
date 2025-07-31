@@ -20,10 +20,34 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
-  RotateCcw
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
+
+
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('userToken') || localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.error('Authentication failed. Token may be expired.');
+      
+    }
+    return Promise.reject(error);
+  }
+);
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -313,7 +337,7 @@ const PositionNavigation = ({ positions, currentPosition, onPositionChange, vote
   );
 };
 
-const ElectionHeader = ({ election, candidatesCount, votedPositions, totalPositions, userRole, currentPosition }) => {
+const ElectionHeader = ({ election, candidatesCount, votedPositions, totalPositions, userRole, currentPosition, onRefresh, refreshing }) => {
   const isAdminUser = userRole === 'admin';
   const votingProgress = totalPositions > 0 ? (votedPositions.length / totalPositions * 100) : 0;
   
@@ -338,9 +362,18 @@ const ElectionHeader = ({ election, candidatesCount, votedPositions, totalPositi
       )}
 
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          {election.title}
-        </h1>
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {election.title}
+          </h1>
+          <button
+            onClick={onRefresh}
+            className={`p-2 text-gray-400 hover:text-gray-600 transition-colors ${refreshing ? 'animate-spin' : ''}`}
+            title="Refresh data"
+          >
+            <RefreshCw size={20} />
+          </button>
+        </div>
         <p className="text-gray-600">
           {election.description || 'Choose your preferred candidates for each position'}
         </p>
@@ -439,13 +472,14 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidates, setVotedCandidates] = useState({});
   const [votedPositions, setVotedPositions] = useState([]);
-  const [votingCandidateId, setVotingCandidateId] = useState(null); 
+  const [votingCandidateId, setVotingCandidateId] = useState(null);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const checkUserRole = () => {
-      const token = localStorage.getItem('userToken');
+      const token = localStorage.getItem('userToken') || localStorage.getItem('token');
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
@@ -460,79 +494,105 @@ const Vote = () => {
     checkUserRole();
   }, []);
 
-  const checkExistingVotes = async (electionId) => {
-  try {
-    const token = localStorage.getItem('userToken');
-    if (!token) return;
-
-    console.log('Checking existing votes for election:', electionId);
-
-    const response = await axios.get(
-      `${API_BASE_URL}/votes/${electionId}/user-vote`,
-      { 
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000
+  // ENHANCED: Better vote checking with persistence
+  const checkExistingVotes = async (electionId, silent = false) => {
+    try {
+      const token = localStorage.getItem('userToken') || localStorage.getItem('token');
+      if (!token) {
+        if (!silent) console.log('No token found for vote checking');
+        return;
       }
-    );
-    
-    const data = response.data;
-    console.log('Vote check response:', data);
 
+      if (!silent) console.log('Checking existing votes for election:', electionId);
 
-    if (data.success && data.votes && Array.isArray(data.votes)) {
-      const votedCandidatesMap = {};
-      const votedPositionsList = [];
-
-      data.votes.forEach(vote => {
-        votedCandidatesMap[vote.position] = vote.candidate;
-        if (!votedPositionsList.includes(vote.position)) {
-          votedPositionsList.push(vote.position);
+      // Use the enhanced endpoint that returns all user votes for the election
+      const response = await axios.get(
+        `${API_BASE_URL}/votes/${electionId}/check-all`,
+        { 
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000
         }
-      });
-
-      setVotedCandidates(votedCandidatesMap);
-      setVotedPositions(votedPositionsList);
-      console.log('User has voted for positions:', votedPositionsList);
-    } 
-    
-    else if (data.success && data.hasVoted && data.vote) {
-      const votedCandidatesMap = {};
-      votedCandidatesMap[data.vote.position] = data.vote.candidate;
-      setVotedCandidates(votedCandidatesMap);
-      setVotedPositions([data.vote.position]);
-      console.log('User has voted for position:', data.vote.position);
-    } 
-   
-    else if (data.success && !data.hasVoted) {
-      setVotedCandidates({});
-      setVotedPositions([]);
-      console.log('User has not voted yet');
-    }
-    
-  } catch (err) {
-    console.log('Check existing votes error:', err.response?.status, err.message);
-  
-   
-    if (err.response?.status === 404) {
-      console.log('404 error - no votes found for this user');
-      setVotedCandidates({});
-      setVotedPositions([]);
-    } else if (err.response?.status === 401) {
-      console.error('Unauthorized - please log in again');
-      setError('Session expired. Please log in again.');
+      );
       
-    } else {
-      console.error('Error checking existing votes:', err);
-  
+      const data = response.data;
+      if (!silent) console.log('Vote check response:', data);
+
+      if (data.success) {
+        if (data.hasVoted && data.votes && Array.isArray(data.votes)) {
+          const votedCandidatesMap = {};
+          const votedPositionsList = [];
+
+          data.votes.forEach(vote => {
+            votedCandidatesMap[vote.position] = vote.candidate;
+            if (!votedPositionsList.includes(vote.position)) {
+              votedPositionsList.push(vote.position);
+            }
+          });
+
+          setVotedCandidates(votedCandidatesMap);
+          setVotedPositions(votedPositionsList);
+          
+          if (!silent) console.log('User has voted for positions:', votedPositionsList);
+          
+          // Cache vote status in localStorage for offline persistence
+          localStorage.setItem(`votes_${electionId}`, JSON.stringify({
+            candidates: votedCandidatesMap,
+            positions: votedPositionsList,
+            timestamp: Date.now()
+          }));
+        } else {
+          // No votes found
+          setVotedCandidates({});
+          setVotedPositions([]);
+          if (!silent) console.log('User has not voted yet');
+          
+          // Clear cached vote status
+          localStorage.removeItem(`votes_${electionId}`);
+        }
+      }
+      
+    } catch (err) {
+      if (!silent) {
+        console.log('Check existing votes error:', err.response?.status, err.message);
+      }
+    
+      if (err.response?.status === 404) {
+        if (!silent) console.log('404 error - no votes found for this user');
+        setVotedCandidates({});
+        setVotedPositions([]);
+        localStorage.removeItem(`votes_${electionId}`);
+      } else if (err.response?.status === 401) {
+        console.error('Unauthorized - please log in again');
+        setError('Session expired. Please log in again.');
+      } else {
+        // For other errors, try to use cached data
+        if (!silent) console.error('Error checking existing votes:', err);
+        
+        const cachedVotes = localStorage.getItem(`votes_${electionId}`);
+        if (cachedVotes) {
+          try {
+            const { candidates, positions, timestamp } = JSON.parse(cachedVotes);
+            // Use cached data if it's less than 1 hour old
+            if (Date.now() - timestamp < 3600000) {
+              setVotedCandidates(candidates);
+              setVotedPositions(positions);
+              if (!silent) console.log('Using cached vote data');
+            } else {
+              localStorage.removeItem(`votes_${electionId}`);
+            }
+          } catch (cacheErr) {
+            localStorage.removeItem(`votes_${electionId}`);
+          }
+        }
+      }
     }
-  }
-};
+  };
 
   useEffect(() => {
     const fetchElections = async () => {
       try {
         setError('');
-        const token = localStorage.getItem('userToken');
+        const token = localStorage.getItem('userToken') || localStorage.getItem('token');
         if (!token) {
           setError('Please log in to view elections.');
           return;
@@ -582,7 +642,7 @@ const Vote = () => {
       setError('');
       
       try {
-        const token = localStorage.getItem('userToken');
+        const token = localStorage.getItem('userToken') || localStorage.getItem('token');
         if (!token) {
           setError('Authentication token not found. Please log in.');
           return;
@@ -632,6 +692,7 @@ const Vote = () => {
           setPositions([]);
         }
         
+        // Check for existing votes after loading candidates
         await checkExistingVotes(selectedElectionId);
         
       } catch (err) {
@@ -687,8 +748,33 @@ const Vote = () => {
     setCurrentPosition(position);
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (selectedElectionId) {
+        // Refresh candidates data
+        const token = localStorage.getItem('userToken') || localStorage.getItem('token');
+        const response = await axios.get(
+          `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (response.data.success) {
+          setCandidatesByPosition(response.data.candidatesByPosition);
+        }
+        
+        // Refresh vote status
+        await checkExistingVotes(selectedElectionId, true);
+      }
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleVote = async (candidate) => {
-    const token = localStorage.getItem('userToken');
+    const token = localStorage.getItem('userToken') || localStorage.getItem('token');
     if (!token) {
       setError('Please log in first to vote.');
       toast.error('Please log in first to vote.');
@@ -722,7 +808,7 @@ const Vote = () => {
       return;
     }
 
-    setVotingCandidateId(candidate._id); // Set the specific candidate being voted for
+    setVotingCandidateId(candidate._id);
     setError('');
 
     try {
@@ -733,6 +819,7 @@ const Vote = () => {
       );
       
       if (response.data.success) {
+        // Update local state
         setVotedCandidates(prev => ({
           ...prev,
           [candidate.position]: candidate._id
@@ -740,6 +827,7 @@ const Vote = () => {
         
         setVotedPositions(prev => [...prev, candidate.position]);
         
+        // Update candidate vote count in the UI
         setCandidatesByPosition(prev => ({
           ...prev,
           [candidate.position]: prev[candidate.position].map(c => 
@@ -747,6 +835,19 @@ const Vote = () => {
               ? { ...c, votes: (c.votes || 0) + 1 }
               : c
           )
+        }));
+
+        // Update cached vote status
+        const newVotedCandidates = {
+          ...votedCandidates,
+          [candidate.position]: candidate._id
+        };
+        const newVotedPositions = [...votedPositions, candidate.position];
+        
+        localStorage.setItem(`votes_${selectedElectionId}`, JSON.stringify({
+          candidates: newVotedCandidates,
+          positions: newVotedPositions,
+          timestamp: Date.now()
         }));
 
         setError('');
@@ -760,6 +861,7 @@ const Vote = () => {
           icon: <CheckCircle size={20} />
         });
 
+        // Auto-navigate to next position
         const nextPositionIndex = positions.indexOf(candidate.position) + 1;
         if (nextPositionIndex < positions.length) {
           setTimeout(() => {
@@ -793,6 +895,7 @@ const Vote = () => {
             }
           });
         } else if (alreadyVoted) {
+          // Update local state if server says user already voted
           setVotedPositions(prev => {
             if (!prev.includes(position || candidate.position)) {
               return [...prev, position || candidate.position];
@@ -815,7 +918,7 @@ const Vote = () => {
       
       setError(errorMessage);
     } finally {
-      setVotingCandidateId(null); // Clear the voting state
+      setVotingCandidateId(null);
     }
   };
 
@@ -875,6 +978,8 @@ const Vote = () => {
             totalPositions={positions.length}
             userRole={userRole}
             currentPosition={currentPosition}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
           />
         )}
 
