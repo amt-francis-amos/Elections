@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 const Login = ({
@@ -16,6 +16,11 @@ const Login = ({
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
+  const [isDisabled, setIsDisabled] = useState(false);
+  
+  // Prevent multiple simultaneous requests
+  const isSubmittingRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   // Show notification
   const showNotification = (message, type = "info") => {
@@ -63,9 +68,27 @@ const Login = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple simultaneous submissions
+    if (isSubmittingRef.current || loading || isDisabled) {
+      console.log('Login already in progress, ignoring duplicate request');
+      return;
+    }
+
     if (!validateForm()) return;
 
+    // Set submission flag immediately
+    isSubmittingRef.current = true;
     setLoading(true);
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
     const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
 
     try {
@@ -82,14 +105,32 @@ const Login = ({
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: abortControllerRef.current.signal // Add abort signal
       });
+
+      // Handle rate limiting specifically
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const waitTime = retryAfter ? parseInt(retryAfter) : 60; // Default to 60 seconds
+        
+        const message = `Too many login attempts. Please wait ${waitTime} seconds and try again.`;
+        showNotification(message, 'error');
+        
+        // Disable the form for the wait period
+        setIsDisabled(true);
+        setTimeout(() => {
+          setIsDisabled(false);
+          setNotification({ message: "", type: "" });
+        }, waitTime * 1000);
+        
+        return;
+      }
 
       // Debug logging
       console.log('Response status:', response.status);
       console.log('Response status text:', response.statusText);
       console.log('Content-Type:', response.headers.get('content-type'));
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       // Get response as text first to see what we're actually receiving
       const responseText = await response.text();
@@ -180,26 +221,33 @@ const Login = ({
       onClose();
       setFormData({ id: "", password: "" });
 
-      // Handle role-based redirect
+      // Handle role-based redirect with a slight delay
       setTimeout(() => {
         handleRoleBasedRedirect(user);
-      }, 1000); // Small delay to let user see success message
+      }, 1000);
 
     } catch (err) {
+      // Handle aborted requests silently
+      if (err.name === 'AbortError') {
+        console.log('Request was aborted');
+        return;
+      }
+
       console.error('Login error:', err);
       
       // Network or fetch errors
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         showNotification('Network error. Please check your internet connection.', 'error');
-      } else if (err.name === 'AbortError') {
-        showNotification('Request timed out. Please try again.', 'error');
       } else {
         // Use the error message we constructed above
         const msg = err.message || "Something went wrong during login";
         showNotification(msg, "error");
       }
     } finally {
+      // Always reset submission flag and loading state
+      isSubmittingRef.current = false;
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -244,7 +292,7 @@ const Login = ({
                 onChange={handleChange}
                 placeholder=" "
                 required
-                disabled={loading}
+                disabled={loading || isDisabled}
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -261,7 +309,7 @@ const Login = ({
                 onChange={handleChange}
                 placeholder=" "
                 required
-                disabled={loading}
+                disabled={loading || isDisabled}
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -271,7 +319,7 @@ const Login = ({
                 type="button"
                 className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
+                disabled={loading || isDisabled}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -281,8 +329,12 @@ const Login = ({
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || isDisabled}
+              className={`w-full py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ${
+                loading || isDisabled 
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -292,6 +344,8 @@ const Login = ({
                   </svg>
                   Logging in...
                 </span>
+              ) : isDisabled ? (
+                "Please wait..."
               ) : (
                 "Login"
               )}
