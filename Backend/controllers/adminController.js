@@ -252,3 +252,33 @@ export const deleteUser = async (req, res) => {
     });
   }
 };
+
+export const exportElectionResults = async (req, res, next) => {
+  const { format, election } = req.query
+  if (!election) return res.status(400).json({ message: 'Election ID is required' })
+  const votes = await Vote.find({ election })
+    .populate('voter', 'name email')
+    .populate('candidate', 'name')
+    .lean()
+  if (format === 'json') {
+    return res.json(votes)
+  }
+  if (format === 'csv') {
+    const header = ['voteId','electionId','candidateId','candidateName','voterId','voterName','voterEmail','timestamp']
+    const rows = votes.map(v => [
+      v._id,
+      v.election,
+      v.candidate._id,
+      v.candidate.name,
+      v.voter._id,
+      v.voter.name,
+      v.voter.email,
+      v.createdAt.toISOString()
+    ])
+    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n')
+    res.setHeader('Content-Type','text/csv')
+    res.setHeader('Content-Disposition','attachment; filename=results.csv')
+    return res.send(csv)
+  }
+  res.status(400).json({ message: 'Invalid format' })
+}
