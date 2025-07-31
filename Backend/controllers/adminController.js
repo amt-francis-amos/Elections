@@ -235,7 +235,6 @@ export const updateUser = async (req, res) => {
       });
     }
 
-
     if (email && email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
@@ -244,7 +243,6 @@ export const updateUser = async (req, res) => {
           message: "Please provide a valid email address"
         });
       }
-
 
       const existingEmail = await User.findOne({ 
         email: email.toLowerCase().trim(),
@@ -257,7 +255,6 @@ export const updateUser = async (req, res) => {
         });
       }
     }
-
 
     if (name && name.trim()) {
       const existingName = await User.findOne({
@@ -272,7 +269,6 @@ export const updateUser = async (req, res) => {
       }
     }
 
-  
     if (name) user.name = name.trim();
     if (email) user.email = email.toLowerCase().trim();
     if (role && ['voter', 'admin'].includes(role)) user.role = role;
@@ -340,12 +336,10 @@ export const deleteUser = async (req, res) => {
 
 export const getStats = async (req, res) => {
   try {
-  
     const totalUsers = await User.countDocuments();
     const totalVoters = await User.countDocuments({ role: 'voter' });
     const totalAdmins = await User.countDocuments({ role: 'admin' });
 
-   
     res.status(200).json({
       success: true,
       stats: {
@@ -369,48 +363,160 @@ export const getStats = async (req, res) => {
   }
 };
 
+// Fixed export function - this is the problematic one from the error
 export const exportElectionResults = async (req, res) => {
   try {
     const { format, election } = req.query;
     
-    if (!election) {
+    // Check if election parameter is provided and not empty
+    if (!election || election.trim() === '') {
       return res.status(400).json({ 
         success: false,
-        message: 'Election ID is required' 
+        message: 'Election ID is required and cannot be empty' 
+      });
+    }
+
+    // Validate format
+    if (!format || !['json', 'csv', 'txt'].includes(format.toLowerCase())) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid format. Use json, csv, or txt' 
       });
     }
 
     // For now, return empty data since Vote model doesn't exist yet
     // This will be updated when you have the Vote model
     const votes = [];
+    const electionData = {
+      electionId: election,
+      title: `Election ${election}`,
+      exportedAt: new Date().toISOString(),
+      votes: votes,
+      summary: {
+        totalVotes: votes.length,
+        message: 'No votes found - Vote model not yet implemented'
+      }
+    };
 
-    if (format === 'json') {
+    if (format.toLowerCase() === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=election_${election}_results.json`);
       return res.json({
         success: true,
-        data: votes,
-        message: 'No votes found - Vote model not yet implemented'
+        data: electionData
       });
     }
     
-    if (format === 'csv') {
+    if (format.toLowerCase() === 'csv') {
       const header = ['voteId','electionId','candidateId','candidateName','voterId','voterName','voterEmail','timestamp'];
-      const csv = header.join(',');
+      const csv = header.join(',') + '\n' + '# No votes found - Vote model not yet implemented';
       
-      res.setHeader('Content-Type','text/csv');
-      res.setHeader('Content-Disposition','attachment; filename=results.csv');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=election_${election}_results.csv`);
       return res.send(csv);
     }
-    
-    res.status(400).json({ 
-      success: false,
-      message: 'Invalid format. Use json or csv' 
-    });
+
+    if (format.toLowerCase() === 'txt') {
+      const txtContent = `Election Results Export
+Election ID: ${election}
+Exported at: ${new Date().toISOString()}
+Format: Plain Text
+
+Summary:
+- Total Votes: 0
+- Status: No votes found - Vote model not yet implemented
+
+Note: This is a placeholder export. The actual vote data will be available once the Vote model is implemented.`;
+      
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename=election_${election}_results.txt`);
+      return res.send(txtContent);
+    }
     
   } catch (error) {
     console.error("Export results error:", error);
     res.status(500).json({
       success: false,
       message: "Server error while exporting results",
+      error: error.message
+    });
+  }
+};
+
+// New function to export all data (users, elections, candidates)
+export const exportAllData = async (req, res) => {
+  try {
+    const { format } = req.query;
+    
+    // Validate format
+    if (!format || !['json', 'csv'].includes(format.toLowerCase())) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid format. Use json or csv' 
+      });
+    }
+
+    // Get all data
+    const users = await User.find({}, { password: 0 }).sort({ createdAt: -1 });
+    
+    // Note: You'll need to import and use your Election and Candidate models here
+    // const elections = await Election.find({}).sort({ createdAt: -1 });
+    // const candidates = await Candidate.find({}).sort({ createdAt: -1 });
+    
+    // For now, using empty arrays since models might not exist
+    const elections = [];
+    const candidates = [];
+
+    const allData = {
+      exportedAt: new Date().toISOString(),
+      summary: {
+        totalUsers: users.length,
+        totalElections: elections.length,
+        totalCandidates: candidates.length
+      },
+      users: users,
+      elections: elections,
+      candidates: candidates
+    };
+
+    if (format.toLowerCase() === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=all_data_export.json');
+      return res.json({
+        success: true,
+        data: allData
+      });
+    }
+    
+    if (format.toLowerCase() === 'csv') {
+      // Create CSV content
+      let csvContent = 'Export Type,Name,Email,Role,User ID,Created At\n';
+      
+      // Add users data
+      users.forEach(user => {
+        csvContent += `User,"${user.name}","${user.email}","${user.role}","${user.userId}","${user.createdAt}"\n`;
+      });
+      
+      // Add elections data (when available)
+      // elections.forEach(election => {
+      //   csvContent += `Election,"${election.title}","","","${election._id}","${election.createdAt}"\n`;
+      // });
+      
+      // Add candidates data (when available)
+      // candidates.forEach(candidate => {
+      //   csvContent += `Candidate,"${candidate.name}","${candidate.email || ''}","${candidate.position}","${candidate._id}","${candidate.createdAt}"\n`;
+      // });
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=all_data_export.csv');
+      return res.send(csvContent);
+    }
+    
+  } catch (error) {
+    console.error("Export all data error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while exporting all data",
       error: error.message
     });
   }

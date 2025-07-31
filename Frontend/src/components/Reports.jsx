@@ -53,15 +53,13 @@ const Reports = ({
     return electionId;
   };
 
-  const handleExportResults = async (electionId, format = 'json') => {
+  // Fixed export function for all data
+  const handleExportAllData = async (format = 'csv') => {
     try {
-      // Validate election ID first
-      const validElectionId = validateElectionId(electionId);
-      const key = `${validElectionId}_${format}`;
-      setExportingStates(prev => ({ ...prev, [key]: true }));
+      setExportingStates(prev => ({ ...prev, [`all_${format}`]: true }));
       
       const response = await axios.get(
-        `${API_BASE_URL}/votes/${validElectionId}/export?format=${format}`,
+        `${API_BASE_URL}/admin/export-all?format=${format}`,
         { 
           responseType: 'blob',
           headers: {
@@ -73,7 +71,95 @@ const Reports = ({
 
       let blob;
       let fileName;
-      let mimeType;
+
+      if (format === 'json') {
+        if (response.data instanceof Blob) {
+          const text = await response.data.text();
+          try {
+            const jsonData = JSON.parse(text);
+            blob = new Blob([JSON.stringify(jsonData, null, 2)], {
+              type: 'application/json'
+            });
+          } catch {
+            blob = new Blob([text], { type: 'application/json' });
+          }
+        } else {
+          blob = new Blob([JSON.stringify(response.data, null, 2)], {
+            type: 'application/json'
+          });
+        }
+        fileName = `all_data_export.json`;
+      } else {
+        blob = response.data instanceof Blob ? response.data : 
+               new Blob([response.data], { type: 'text/csv' });
+        fileName = `all_data_export.csv`;
+      }
+
+      if (blob.size === 0) {
+        throw new Error('No data received from server');
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      alert(`All data exported successfully as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export all data error:', error);
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error.response) {
+        if (error.response.status === 404) {
+          errorMessage = 'Export endpoint not found. Please check if the backend supports this feature.';
+        } else if (error.response.status === 500) {
+          errorMessage = 'Server error occurred while exporting data.';
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else {
+          errorMessage = `Server responded with status ${error.response.status}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMessage = error.message || 'Export failed';
+      }
+      
+      alert(`Error exporting all data: ${errorMessage}`);
+    } finally {
+      setExportingStates(prev => ({ ...prev, [`all_${format}`]: false }));
+    }
+  };
+
+  const handleExportResults = async (electionId, format = 'json') => {
+    try {
+      // Validate election ID first
+      const validElectionId = validateElectionId(electionId);
+      const key = `${validElectionId}_${format}`;
+      setExportingStates(prev => ({ ...prev, [key]: true }));
+      
+      const response = await axios.get(
+        `${API_BASE_URL}/admin/export?format=${format}&election=${validElectionId}`,
+        { 
+          responseType: 'blob',
+          headers: {
+            'Accept': format === 'json' ? 'application/json' : 
+                     format === 'csv' ? 'text/csv' : 'text/plain'
+          }
+        }
+      );
+
+      let blob;
+      let fileName;
 
       if (format === 'json') {
         if (response.data instanceof Blob) {
@@ -92,17 +178,14 @@ const Reports = ({
           });
         }
         fileName = `election_results_${validElectionId}.json`;
-        mimeType = 'application/json';
       } else if (format === 'csv') {
         blob = response.data instanceof Blob ? response.data : 
                new Blob([response.data], { type: 'text/csv' });
         fileName = `election_results_${validElectionId}.csv`;
-        mimeType = 'text/csv';
       } else if (format === 'txt') {
         blob = response.data instanceof Blob ? response.data : 
                new Blob([response.data], { type: 'text/plain' });
         fileName = `election_results_${validElectionId}.txt`;
-        mimeType = 'text/plain';
       }
 
       if (blob.size === 0) {
@@ -265,13 +348,24 @@ const Reports = ({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Reports & Analytics</h2>
-        <button
-          onClick={() => exportResults('csv')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <Download size={16} />
-          Export All Data
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleExportAllData('csv')}
+            disabled={exportingStates[`all_csv`]}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <Download size={16} />
+            {exportingStates[`all_csv`] ? 'Exporting...' : 'Export All CSV'}
+          </button>
+          <button
+            onClick={() => handleExportAllData('json')}
+            disabled={exportingStates[`all_json`]}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <Download size={16} />
+            {exportingStates[`all_json`] ? 'Exporting...' : 'Export All JSON'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
