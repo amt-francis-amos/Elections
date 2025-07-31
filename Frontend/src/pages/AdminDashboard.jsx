@@ -39,7 +39,16 @@ import UserAccount from "../components/UserAccount.jsx";
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
+// Rate limiting state
+let lastFetchTime = 0;
+const RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
+const AUTO_REFRESH_INTERVAL = 120000; // Increased to 2 minutes
 
+// Request queue to prevent simultaneous requests
+let requestQueue = [];
+let isProcessingQueue = false;
+
+// Enhanced axios interceptor with retry logic
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem("token") || localStorage.getItem("userToken");
   if (token) {
@@ -50,14 +59,31 @@ axios.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-
+// Enhanced response interceptor with retry logic
 axios.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    if (error.response?.status === 429) {
+      console.warn('Rate limited. Waiting before retry...');
+      // Wait before retrying (exponential backoff)
+      const retryDelay = Math.min(5000, (error.config.__retryCount || 0) * 1000 + 1000);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      
+      // Retry the request
+      if (!error.config.__retryCount) {
+        error.config.__retryCount = 0;
+      }
+      
+      if (error.config.__retryCount < 3) {
+        error.config.__retryCount++;
+        return axios.request(error.config);
+      }
+    }
+    
     if (error.response?.status === 401) {
       console.error('Authentication failed. Please log in again.');
-    
     }
+    
     return Promise.reject(error);
   }
 );
@@ -85,6 +111,7 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState({});
   const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [rateLimitWarning, setRateLimitWarning] = useState(false);
 
   const quickActions = [
     { icon: Plus, label: "Create Election", color: "bg-blue-500 hover:bg-blue-600", action: () => openModal("createElection") },
@@ -93,49 +120,105 @@ const AdminDashboard = () => {
     { icon: BarChart3, label: "View Reports", color: "bg-orange-500 hover:bg-orange-600", action: () => setActiveTab("reports") },
   ];
 
+  // Debounced API request function
+  const makeAPIRequest = async (requestFn, retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        // Ensure minimum time between requests
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTime;
+        if (timeSinceLastFetch < RATE_LIMIT_DELAY) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastFetch));
+        }
+        lastFetchTime = Date.now();
+        
+        const result = await requestFn();
+        setRateLimitWarning(false);
+        return result;
+      } catch (error) {
+        if (error.response?.status === 429) {
+          setRateLimitWarning(true);
+          const backoffDelay = delay * Math.pow(2, i); // Exponential backoff
+          console.warn(`Rate limited. Retrying in ${backoffDelay}ms... (attempt ${i + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw new Error('Max retries reached for API request');
+  };
+
   useEffect(() => {
     fetchAllData();
     
-  
+    // Reduced auto-refresh frequency to avoid rate limiting
     const intervalId = setInterval(() => {
-      fetchAllData(true); 
-    }, 30000);
+      if (!isProcessingQueue) {
+        fetchAllData(true);
+      }
+    }, AUTO_REFRESH_INTERVAL);
 
     return () => clearInterval(intervalId);
   }, []);
 
- 
+  // Manual refresh with rate limiting check
   const handleManualRefresh = async () => {
+    const now = Date.now();
+    if (now - lastFetchTime < RATE_LIMIT_DELAY) {
+      alert(`Please wait ${Math.ceil((RATE_LIMIT_DELAY - (now - lastFetchTime)) / 1000)} seconds before refreshing again.`);
+      return;
+    }
+    
     setRefreshing(true);
     await fetchAllData();
     setRefreshing(false);
   };
 
+  // Sequential data fetching to avoid overwhelming the API
   const fetchAllData = async (silent = false) => {
+    if (isProcessingQueue) {
+      console.log('Already processing requests, skipping...');
+      return;
+    }
+    
+    isProcessingQueue = true;
+    
     if (!silent) {
       setLoading(true);
     }
     
     try {
-      await Promise.all([
-        fetchElections(silent),
-        fetchCandidates(silent),
-        fetchUsers(silent),
-        fetchVoteStats(silent),
-      ]);
+      // Fetch data sequentially with delays to respect rate limits
+      await fetchElections(silent);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchCandidates(silent);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchUsers(silent);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchVoteStats(silent);
+      
     } catch (error) {
       console.error("Error fetching data:", error);
+      if (error.response?.status === 429) {
+        setRateLimitWarning(true);
+      }
     } finally {
       if (!silent) {
         setLoading(false);
       }
+      isProcessingQueue = false;
     }
   };
 
- 
   const fetchVoteStats = async (silent = false) => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/admin/stats`);
+      const { data } = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/admin/stats`)
+      );
       
       if (data.success) {
         setStats(prevStats => ({
@@ -152,7 +235,9 @@ const AdminDashboard = () => {
 
   const fetchElections = async (silent = false) => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/elections`);
+      const { data } = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/elections`)
+      );
       
       if (!silent) {
         console.log("Fetched elections:", data);
@@ -160,12 +245,18 @@ const AdminDashboard = () => {
 
       const electionsData = data.elections || data || [];
       
-
+      // Process elections with reduced concurrent requests
       const formattedElections = await Promise.all(
-        electionsData.map(async (election) => {
+        electionsData.map(async (election, index) => {
           try {
-       
-            const voteResponse = await axios.get(`${API_BASE_URL}/votes/results/${election._id}`);
+            // Add delay between vote result requests
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            const voteResponse = await makeAPIRequest(() => 
+              axios.get(`${API_BASE_URL}/votes/results/${election._id}`)
+            );
             const totalVotes = voteResponse.data?.results?.totalVotes || 0;
             
             return {
@@ -177,7 +268,6 @@ const AdminDashboard = () => {
               endDate: new Date(election.endDate).toISOString().split('T')[0],
             };
           } catch (voteErr) {
-   
             return {
               ...election,
               totalVotes: election.totalVotes || 0,
@@ -196,7 +286,6 @@ const AdminDashboard = () => {
         e.status === 'active' || e.status === 'ongoing' || e.isActive
       ).length;
 
-  
       const totalVotesAcrossElections = formattedElections.reduce(
         (sum, election) => sum + (election.totalVotes || 0), 0
       );
@@ -217,7 +306,9 @@ const AdminDashboard = () => {
 
   const fetchCandidates = async (silent = false) => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
+      const { data } = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/candidates`)
+      );
       
       if (!silent) {
         console.log("Fetched candidates:", data);
@@ -235,13 +326,17 @@ const AdminDashboard = () => {
         candidatesData = data.data;
       }
 
-    
+      // Process candidates with reduced concurrent requests
       const formattedCandidates = await Promise.all(
-        candidatesData.map(async (candidate) => {
+        candidatesData.map(async (candidate, index) => {
           try {
-       
-            const voteResponse = await axios.get(
-              `${API_BASE_URL}/votes/candidate/${candidate._id || candidate.id}/count`
+            // Add delay between vote count requests
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            const voteResponse = await makeAPIRequest(() => 
+              axios.get(`${API_BASE_URL}/votes/candidate/${candidate._id || candidate.id}/count`)
             );
             const realVotes = voteResponse.data?.voteCount || candidate.votes || 0;
             
@@ -252,7 +347,6 @@ const AdminDashboard = () => {
               image: candidate.image || null,
             };
           } catch (voteErr) {
-         
             return {
               ...candidate,
               id: candidate._id || candidate.id,
@@ -283,7 +377,9 @@ const AdminDashboard = () => {
 
   const fetchUsers = async (silent = false) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/admin/voters`);
+      const res = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/admin/voters`)
+      );
       const usersData = res.data.voters || [];
       
       setUsers(usersData);
@@ -321,9 +417,8 @@ const AdminDashboard = () => {
       const fd = new FormData();
       fd.append("image", file);
       fd.append("candidateId", candidateId);
-      const resp = await axios.put(
-        `${API_BASE_URL}/admin/candidates/${candidateId}/image`,
-        fd
+      const resp = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/admin/candidates/${candidateId}/image`, fd)
       );
       setCandidates((cs) =>
         cs.map((c) =>
@@ -339,9 +434,11 @@ const AdminDashboard = () => {
 
   const handleCreateUser = async () => {
     try {
-      const { data } = await axios.post(
-        `${API_BASE_URL}/admin/create-voter`,
-        { name: formData.name, email: formData.email }
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/admin/create-voter`, { 
+          name: formData.name, 
+          email: formData.email 
+        })
       );
       setUsers((us) => [data.voter, ...us]);
       setRecentActivity((a) => [
@@ -408,9 +505,8 @@ const AdminDashboard = () => {
 
       console.log("Updating user with payload:", payload);
 
-      const { data } = await axios.put(
-        `${API_BASE_URL}/admin/users/${userId}`,
-        payload
+      const { data } = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/admin/users/${userId}`, payload)
       );
 
       console.log("User updated successfully:", data);
@@ -461,9 +557,8 @@ const AdminDashboard = () => {
         return;
       }
 
-      const { data } = await axios.post(
-        `${API_BASE_URL}/admin/promote`,
-        { userId: user._id || user.id }
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/admin/promote`, { userId: user._id || user.id })
       );
 
       setUsers((prevUsers) =>
@@ -507,7 +602,9 @@ const AdminDashboard = () => {
 
       console.log("Deleting user with ID:", userId);
 
-      await axios.delete(`${API_BASE_URL}/admin/users/${userId}`);
+      await makeAPIRequest(() => 
+        axios.delete(`${API_BASE_URL}/admin/users/${userId}`)
+      );
 
       setUsers((prevUsers) => 
         prevUsers.filter((u) => u._id !== id && u.id !== id && u._id !== userId && u.id !== userId)
@@ -545,7 +642,9 @@ const AdminDashboard = () => {
   const handleDeleteCandidate = async (id) => {
     if (!window.confirm("Are you sure you want to delete this candidate?")) return;
     try {
-      await axios.delete(`${API_BASE_URL}/candidates/${id}`);
+      await makeAPIRequest(() => 
+        axios.delete(`${API_BASE_URL}/candidates/${id}`)
+      );
       setCandidates((cs) => cs.filter((c) => c.id !== id && c._id !== id));
       setRecentActivity((a) => [
         { id: Date.now(), type: "candidate", action: `Candidate deleted`, time: "Just now", status: "completed" },
@@ -556,7 +655,6 @@ const AdminDashboard = () => {
         ...prevStats,
         totalCandidates: Math.max(0, prevStats.totalCandidates - 1),
       }));
-
 
       await fetchAllData(true);
     } catch (err) {
@@ -596,7 +694,9 @@ const AdminDashboard = () => {
 
       console.log("Creating election with payload:", payload);
 
-      const { data } = await axios.post(`${API_BASE_URL}/admin/elections`, payload);
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/admin/elections`, payload)
+      );
 
       console.log("Election created successfully:", data);
 
@@ -699,9 +799,8 @@ const AdminDashboard = () => {
 
       console.log("Updating election with payload:", payload);
 
-      const { data } = await axios.put(
-        `${API_BASE_URL}/admin/elections/${electionId}`,
-        payload
+      const { data } = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/admin/elections/${electionId}`, payload)
       );
 
       console.log("Election updated successfully:", data);
@@ -766,7 +865,9 @@ const AdminDashboard = () => {
 
       console.log("Deleting election with ID:", electionId);
 
-      await axios.delete(`${API_BASE_URL}/admin/elections/${electionId}`);
+      await makeAPIRequest(() => 
+        axios.delete(`${API_BASE_URL}/admin/elections/${electionId}`)
+      );
 
       setElections((prevElections) => 
         prevElections.filter((e) => e.id !== id && e._id !== id && e._id !== electionId && e.id !== electionId)
@@ -793,7 +894,6 @@ const AdminDashboard = () => {
 
       alert("Election deleted successfully!");
 
-    
       await fetchAllData(true);
 
     } catch (err) {
@@ -830,7 +930,9 @@ const AdminDashboard = () => {
         year: formData.year,
       };
       
-      const { data } = await axios.post(`${API_BASE_URL}/candidates`, payload);
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/candidates`, payload)
+      );
       
       const newCandidate = {
         ...data.candidate,
@@ -853,7 +955,6 @@ const AdminDashboard = () => {
       closeModal();
       alert("Candidate added successfully!");
 
-      // Refresh data to get updated counts
       await fetchAllData(true);
       
     } catch (err) {
@@ -887,9 +988,8 @@ const AdminDashboard = () => {
 
       console.log("Updating candidate with payload:", payload);
 
-      const { data } = await axios.put(
-        `${API_BASE_URL}/candidates/${candidateId}`,
-        payload
+      const { data } = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/candidates/${candidateId}`, payload)
       );
 
       console.log("Candidate updated successfully:", data);
@@ -922,7 +1022,6 @@ const AdminDashboard = () => {
       closeModal();
       alert("Candidate updated successfully!");
 
-     
       await fetchAllData(true);
 
     } catch (err) {
@@ -938,8 +1037,8 @@ const AdminDashboard = () => {
 
   const exportResults = async (format, electionId = null) => {
     try {
-      await axios.get(
-        `${API_BASE_URL}/admin/export?format=${format}&election=${electionId || ""}`
+      await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/admin/export?format=${format}&election=${electionId || ""}`)
       );
       setRecentActivity((a) => [
         { id: Date.now(), type: "election", action: `Results exported as ${format.toUpperCase()}`, time: "Just now", status: "info" },
@@ -991,6 +1090,22 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Rate Limit Warning */}
+      {rateLimitWarning && (
+        <div className="fixed top-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded z-50">
+          <div className="flex items-center gap-2">
+            <div className="animate-pulse h-2 w-2 bg-yellow-500 rounded-full"></div>
+            <span className="text-sm">Rate limited - requests are being throttled</span>
+            <button 
+              onClick={() => setRateLimitWarning(false)}
+              className="ml-2 text-yellow-700 hover:text-yellow-900"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {imageUploadLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 flex items-center gap-3">
@@ -1010,7 +1125,8 @@ const AdminDashboard = () => {
               <button 
                 onClick={handleManualRefresh}
                 className={`p-2 text-gray-400 hover:text-gray-600 ${refreshing ? 'animate-spin' : ''}`}
-                title="Refresh data"
+                title="Refresh data (rate limited to prevent API overload)"
+                disabled={refreshing || rateLimitWarning}
               >
                 <RefreshCw size={20} />
               </button>
