@@ -3,21 +3,23 @@ import {
   castVote, 
   getResults, 
   getCandidates, 
-  getUserVote  
+  getUserVote,
+  checkUserVotesInElection,
+  getCandidateVoteCount,
+  getAdminStats
 } from '../controllers/voteController.js';
 import auth from '../middlewares/auth.js';
 
 const router = express.Router();
 
+
 router.get('/:electionId/candidates', auth, getCandidates);
-
-
 router.get('/:electionId/user-vote', auth, getUserVote);
-
-
 router.post('/', auth, castVote);
-
-
 router.get('/:electionId/results', auth, getResults);
+router.get('/:electionId/check-all', auth, checkUserVotesInElection);
+router.get('/candidate/:candidateId/count', getCandidateVoteCount);
+router.get('/admin/stats', auth, getAdminStats);
+router.get('/results/:electionId', getResults);
 
 export default router;

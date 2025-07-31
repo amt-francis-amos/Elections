@@ -10,8 +10,10 @@ export const castVote = async (req, res) => {
     // Better user ID extraction
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     
-    console.log('User object:', req.user);
+    console.log('Vote request - User:', req.user);
     console.log('Extracted userId:', userId);
+    console.log('Election ID:', electionId);
+    console.log('Candidate ID:', candidateId);
 
     // Check if userId exists
     if (!userId) {
@@ -80,15 +82,22 @@ export const castVote = async (req, res) => {
       });
     }
 
-    // ENHANCED: Check for existing vote with better error handling
+    // ENHANCED: Check for existing vote with proper ObjectId conversion
     const existingVote = await Vote.findOne({
       election: new mongoose.Types.ObjectId(electionId),
       voter: new mongoose.Types.ObjectId(userId),
       position: candidate.position
     });
 
+    console.log('Existing vote check result:', existingVote);
+
     if (existingVote) {
-      console.log('Existing vote found for user:', userId, 'position:', candidate.position);
+      console.log('User has already voted for this position:', {
+        userId,
+        position: candidate.position,
+        existingVoteId: existingVote._id
+      });
+      
       return res.status(400).json({
         success: false,
         message: `You have already voted for the ${candidate.position} position in this election`,
@@ -108,26 +117,32 @@ export const castVote = async (req, res) => {
       votedAt: new Date()
     });
 
-    console.log('Attempting to save vote:', {
+    console.log('Creating new vote:', {
       election: newVote.election,
       candidate: newVote.candidate,
       voter: newVote.voter,
       position: newVote.position
     });
 
-    await newVote.save();
-    console.log('Vote successfully saved with ID:', newVote._id);
+    // Save the vote first
+    const savedVote = await newVote.save();
+    console.log('Vote saved successfully with ID:', savedVote._id);
 
-    // Update candidate vote count
-    await Candidate.findByIdAndUpdate(
+    // Update candidate vote count atomically
+    const updatedCandidate = await Candidate.findByIdAndUpdate(
       candidateId,
       { $inc: { votes: 1 } },
       { new: true }
     );
 
-    // Populate the saved vote
-    const populatedVote = await Vote.findById(newVote._id)
-      .populate('candidate', 'name position')
+    console.log('Candidate vote count updated:', {
+      candidateId,
+      newVoteCount: updatedCandidate.votes
+    });
+
+    // Populate the saved vote for response
+    const populatedVote = await Vote.findById(savedVote._id)
+      .populate('candidate', 'name position votes')
       .populate('election', 'title');
 
     res.status(201).json({
@@ -138,7 +153,8 @@ export const castVote = async (req, res) => {
         candidate: {
           id: populatedVote.candidate._id,
           name: populatedVote.candidate.name,
-          position: populatedVote.candidate.position
+          position: populatedVote.candidate.position,
+          votes: populatedVote.candidate.votes
         },
         election: {
           id: populatedVote.election._id,
@@ -180,7 +196,12 @@ export const getUserVote = async (req, res) => {
     // Better user ID extraction
     const userId = req.user?.id || req.user?._id || req.user?.userId;
 
-    console.log('Getting user votes for userId:', userId, 'electionId:', electionId);
+    console.log('Getting user votes for:', {
+      userId,
+      electionId,
+      position,
+      userObject: req.user
+    });
 
     if (!userId) {
       return res.status(401).json({
@@ -211,6 +232,7 @@ export const getUserVote = async (req, res) => {
       });
     }
 
+    // Build query with proper ObjectId conversion
     const query = {
       election: new mongoose.Types.ObjectId(electionId),
       voter: new mongoose.Types.ObjectId(userId)
@@ -222,7 +244,9 @@ export const getUserVote = async (req, res) => {
 
     console.log('Vote query:', query);
 
-    const existingVotes = await Vote.find(query).populate('candidate', 'name position image');
+    const existingVotes = await Vote.find(query)
+      .populate('candidate', 'name position image votes')
+      .populate('election', 'title');
 
     console.log('Found votes:', existingVotes.length);
 
@@ -238,6 +262,7 @@ export const getUserVote = async (req, res) => {
             candidateName: vote.candidate.name,
             candidatePosition: vote.candidate.position,
             candidateImage: vote.candidate.image,
+            candidateVotes: vote.candidate.votes,
             position: vote.position,
             votedAt: vote.votedAt
           }
@@ -252,6 +277,7 @@ export const getUserVote = async (req, res) => {
             candidateName: vote.candidate.name,
             candidatePosition: vote.candidate.position,
             candidateImage: vote.candidate.image,
+            candidateVotes: vote.candidate.votes,
             position: vote.position,
             votedAt: vote.votedAt
           }))
@@ -283,7 +309,7 @@ export const checkUserVotesInElection = async (req, res) => {
     const { electionId } = req.params;
     const userId = req.user?.id || req.user?._id || req.user?.userId;
 
-    console.log('Checking all votes for userId:', userId, 'in election:', electionId);
+    console.log('Checking all votes for user:', userId, 'in election:', electionId);
 
     if (!userId) {
       return res.status(401).json({
@@ -302,7 +328,7 @@ export const checkUserVotesInElection = async (req, res) => {
     const votes = await Vote.find({
       election: new mongoose.Types.ObjectId(electionId),
       voter: new mongoose.Types.ObjectId(userId)
-    }).populate('candidate', 'name position image');
+    }).populate('candidate', 'name position image votes');
 
     console.log('Found total votes for user:', votes.length);
 
@@ -323,6 +349,7 @@ export const checkUserVotesInElection = async (req, res) => {
         votes: votes.map(vote => ({
           candidate: vote.candidate._id,
           candidateName: vote.candidate.name,
+          candidateVotes: vote.candidate.votes,
           position: vote.position,
           votedAt: vote.votedAt
         }))
@@ -348,6 +375,113 @@ export const checkUserVotesInElection = async (req, res) => {
   }
 };
 
+// NEW: Get candidate vote count
+export const getCandidateVoteCount = async (req, res) => {
+  try {
+    const { candidateId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(candidateId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid candidate ID format'
+      });
+    }
+
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate not found'
+      });
+    }
+
+    // Get real-time vote count from Vote collection
+    const voteCount = await Vote.countDocuments({
+      candidate: new mongoose.Types.ObjectId(candidateId)
+    });
+
+    // Update candidate's vote count if it's different
+    if (candidate.votes !== voteCount) {
+      await Candidate.findByIdAndUpdate(candidateId, { votes: voteCount });
+    }
+
+    res.status(200).json({
+      success: true,
+      candidateId,
+      voteCount,
+      candidateName: candidate.name,
+      position: candidate.position
+    });
+
+  } catch (error) {
+    console.error('Get candidate vote count error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting candidate vote count',
+      error: error.message
+    });
+  }
+};
+
+// NEW: Get admin statistics
+export const getAdminStats = async (req, res) => {
+  try {
+    // Get total votes across all elections
+    const totalVotes = await Vote.countDocuments();
+    
+    // Get votes by election
+    const votesByElection = await Vote.aggregate([
+      {
+        $group: {
+          _id: '$election',
+          totalVotes: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get votes by position
+    const votesByPosition = await Vote.aggregate([
+      {
+        $group: {
+          _id: '$position',
+          totalVotes: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get recent voting activity
+    const recentVotes = await Vote.find()
+      .populate('candidate', 'name position')
+      .populate('election', 'title')
+      .sort({ votedAt: -1 })
+      .limit(10);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalVotes,
+        votesByElection,
+        votesByPosition,
+        recentVotes: recentVotes.map(vote => ({
+          id: vote._id,
+          candidateName: vote.candidate.name,
+          position: vote.position,
+          electionTitle: vote.election.title,
+          votedAt: vote.votedAt
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get admin stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting admin statistics',
+      error: error.message
+    });
+  }
+};
+
 export const getResults = async (req, res) => {
   try {
     const { electionId } = req.params;
@@ -367,18 +501,36 @@ export const getResults = async (req, res) => {
       });
     }
 
+    // Get candidates with real-time vote counts
     const candidates = await Candidate.find({ election: electionId })
       .sort({ position: 1, votes: -1 })
       .select('name position votes image');
 
+    // Update candidates with real vote counts from Vote collection
+    const candidatesWithRealVotes = await Promise.all(
+      candidates.map(async (candidate) => {
+        const realVoteCount = await Vote.countDocuments({
+          candidate: candidate._id
+        });
+        
+        // Update candidate's vote count if different
+        if (candidate.votes !== realVoteCount) {
+          await Candidate.findByIdAndUpdate(candidate._id, { votes: realVoteCount });
+          candidate.votes = realVoteCount;
+        }
+        
+        return candidate;
+      })
+    );
+
     const totalVotes = await Vote.countDocuments({ election: electionId });
 
-    const positions = [...new Set(candidates.map(c => c.position))];
+    const positions = [...new Set(candidatesWithRealVotes.map(c => c.position))];
     
     const resultsByPosition = {};
     
     for (const position of positions) {
-      const positionCandidates = candidates.filter(c => c.position === position);
+      const positionCandidates = candidatesWithRealVotes.filter(c => c.position === position);
       const positionTotalVotes = await Vote.countDocuments({ 
         election: electionId, 
         position: position 
@@ -447,14 +599,19 @@ export const getCandidates = async (req, res) => {
       .select('name position email phone department year bio image votes')
       .sort({ position: 1, createdAt: -1 });
 
-    const positions = [...new Set(candidates.map(c => c.position))];
-    
-    const candidatesByPosition = {};
-    
-    positions.forEach(position => {
-      candidatesByPosition[position] = candidates
-        .filter(c => c.position === position)
-        .map(candidate => ({
+    // Update candidates with real-time vote counts
+    const candidatesWithRealVotes = await Promise.all(
+      candidates.map(async (candidate) => {
+        const realVoteCount = await Vote.countDocuments({
+          candidate: candidate._id
+        });
+        
+        // Update candidate's vote count if different
+        if (candidate.votes !== realVoteCount) {
+          await Candidate.findByIdAndUpdate(candidate._id, { votes: realVoteCount });
+        }
+        
+        return {
           _id: candidate._id,
           name: candidate.name,
           position: candidate.position,
@@ -464,26 +621,25 @@ export const getCandidates = async (req, res) => {
           year: candidate.year,
           bio: candidate.bio,
           image: candidate.image,
-          votes: candidate.votes || 0
-        }));
+          votes: realVoteCount
+        };
+      })
+    );
+
+    const positions = [...new Set(candidatesWithRealVotes.map(c => c.position))];
+    
+    const candidatesByPosition = {};
+    
+    positions.forEach(position => {
+      candidatesByPosition[position] = candidatesWithRealVotes
+        .filter(c => c.position === position);
     });
 
     res.status(200).json({
       success: true,
       positions: positions,
       candidatesByPosition: candidatesByPosition,
-      candidates: candidates.map(candidate => ({
-        _id: candidate._id,
-        name: candidate.name,
-        position: candidate.position,
-        email: candidate.email,
-        phone: candidate.phone,
-        department: candidate.department,
-        year: candidate.year,
-        bio: candidate.bio,
-        image: candidate.image,
-        votes: candidate.votes || 0
-      }))
+      candidates: candidatesWithRealVotes
     });
 
   } catch (error) {
