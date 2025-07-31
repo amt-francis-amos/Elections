@@ -494,7 +494,7 @@ const Vote = () => {
     checkUserRole();
   }, []);
 
-  // ENHANCED: Better vote checking with persistence
+
   const checkExistingVotes = async (electionId, silent = false) => {
     try {
       const token = localStorage.getItem('userToken') || localStorage.getItem('token');
@@ -505,7 +505,7 @@ const Vote = () => {
 
       if (!silent) console.log('Checking existing votes for election:', electionId);
 
-      // Use the enhanced endpoint that returns all user votes for the election
+     
       const response = await axios.get(
         `${API_BASE_URL}/votes/${electionId}/check-all`,
         { 
@@ -534,19 +534,19 @@ const Vote = () => {
           
           if (!silent) console.log('User has voted for positions:', votedPositionsList);
           
-          // Cache vote status in localStorage for offline persistence
+        
           localStorage.setItem(`votes_${electionId}`, JSON.stringify({
             candidates: votedCandidatesMap,
             positions: votedPositionsList,
             timestamp: Date.now()
           }));
         } else {
-          // No votes found
+        
           setVotedCandidates({});
           setVotedPositions([]);
           if (!silent) console.log('User has not voted yet');
           
-          // Clear cached vote status
+        
           localStorage.removeItem(`votes_${electionId}`);
         }
       }
@@ -565,14 +565,14 @@ const Vote = () => {
         console.error('Unauthorized - please log in again');
         setError('Session expired. Please log in again.');
       } else {
-        // For other errors, try to use cached data
+    
         if (!silent) console.error('Error checking existing votes:', err);
         
         const cachedVotes = localStorage.getItem(`votes_${electionId}`);
         if (cachedVotes) {
           try {
             const { candidates, positions, timestamp } = JSON.parse(cachedVotes);
-            // Use cached data if it's less than 1 hour old
+      
             if (Date.now() - timestamp < 3600000) {
               setVotedCandidates(candidates);
               setVotedPositions(positions);
@@ -692,7 +692,7 @@ const Vote = () => {
           setPositions([]);
         }
         
-        // Check for existing votes after loading candidates
+        
         await checkExistingVotes(selectedElectionId);
         
       } catch (err) {
@@ -752,7 +752,7 @@ const Vote = () => {
     setRefreshing(true);
     try {
       if (selectedElectionId) {
-        // Refresh candidates data
+ 
         const token = localStorage.getItem('userToken') || localStorage.getItem('token');
         const response = await axios.get(
           `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
@@ -763,7 +763,7 @@ const Vote = () => {
           setCandidatesByPosition(response.data.candidatesByPosition);
         }
         
-        // Refresh vote status
+      
         await checkExistingVotes(selectedElectionId, true);
       }
     } catch (err) {
@@ -819,7 +819,7 @@ const Vote = () => {
       );
       
       if (response.data.success) {
-        // Update local state
+   
         setVotedCandidates(prev => ({
           ...prev,
           [candidate.position]: candidate._id
@@ -827,7 +827,7 @@ const Vote = () => {
         
         setVotedPositions(prev => [...prev, candidate.position]);
         
-        // Update candidate vote count in the UI
+        
         setCandidatesByPosition(prev => ({
           ...prev,
           [candidate.position]: prev[candidate.position].map(c => 
@@ -837,7 +837,7 @@ const Vote = () => {
           )
         }));
 
-        // Update cached vote status
+       
         const newVotedCandidates = {
           ...votedCandidates,
           [candidate.position]: candidate._id
@@ -861,7 +861,7 @@ const Vote = () => {
           icon: <CheckCircle size={20} />
         });
 
-        // Auto-navigate to next position
+      
         const nextPositionIndex = positions.indexOf(candidate.position) + 1;
         if (nextPositionIndex < positions.length) {
           setTimeout(() => {
@@ -895,7 +895,7 @@ const Vote = () => {
             }
           });
         } else if (alreadyVoted) {
-          // Update local state if server says user already voted
+          
           setVotedPositions(prev => {
             if (!prev.includes(position || candidate.position)) {
               return [...prev, position || candidate.position];
