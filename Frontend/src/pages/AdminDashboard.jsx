@@ -901,18 +901,18 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fixed exportResults function
+  
   const exportResults = async (format, electionId = null) => {
     try {
       let url;
       let filename;
       
       if (electionId && electionId !== '' && electionId !== 'undefined' && electionId !== 'null') {
-        // Export specific election results
+      
         url = `${API_BASE_URL}/admin/export?format=${format}&election=${electionId}`;
         filename = `election_${electionId}_results.${format}`;
       } else {
-        // Export all data if no specific election ID
+      
         url = `${API_BASE_URL}/admin/export-all?format=${format}`;
         filename = `all_data_export.${format}`;
       }
@@ -925,7 +925,7 @@ const AdminDashboard = () => {
         }
       });
 
-      // Create download link
+  
       const blob = response.data;
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -941,7 +941,7 @@ const AdminDashboard = () => {
         window.URL.revokeObjectURL(downloadUrl);
       }, 100);
 
-      // Update recent activity
+ 
       setRecentActivity((a) => [
         { 
           id: Date.now(), 
@@ -975,7 +975,7 @@ const AdminDashboard = () => {
       
       alert(`Export Error: ${errorMessage}`);
       
-      // Log error activity
+    
       setRecentActivity((a) => [
         { 
           id: Date.now(), 
@@ -1142,7 +1142,7 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* Modal Component */}
+    
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -1157,7 +1157,7 @@ const AdminDashboard = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
             >
-              {/* Election Modal */}
+          
               {(showModal === "createElection" || showModal === "editElection") && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
@@ -1235,7 +1235,7 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {/* Candidate Modal */}
+           
               {(showModal === "addCandidate" || showModal === "editCandidate") && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
@@ -1344,7 +1344,7 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {/* User Modal */}
+             
               {showModal === "createUser" && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">

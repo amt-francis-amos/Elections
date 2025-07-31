@@ -26,7 +26,7 @@ import {
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-// Axios request interceptor
+
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem('userToken') || localStorage.getItem('token');
   if (token) {
@@ -37,7 +37,7 @@ axios.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Axios response interceptor
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -56,7 +56,7 @@ const Results = () => {
 
         console.log("📌 Fetching results for election ID:", electionId);
 
-        // Fetch both results and candidates data
+        
         const [resultsResponse, candidatesResponse] = await Promise.all([
           axios.get(
             `https://elections-backend-j8m8.onrender.com/api/votes/${electionId}/results`,

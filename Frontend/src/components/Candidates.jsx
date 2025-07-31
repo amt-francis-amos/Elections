@@ -100,7 +100,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             }
           }
           
-          // Ensure electionsData is an array
+      
           if (!Array.isArray(electionsData)) {
             electionsData = [];
           }
@@ -193,7 +193,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
       [name]: value
     }));
     
-    // Clear error when user starts typing
+   
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -312,7 +312,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Profile Picture Upload */}
+          
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 relative">
               {preview ? (
@@ -434,7 +434,7 @@ const AddCandidateModal = ({ isOpen, onClose, onCandidateAdded, elections = [] }
             )}
           </div>
 
-          {/* Contact Information */}
+        
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

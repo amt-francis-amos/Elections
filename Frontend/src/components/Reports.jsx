@@ -40,12 +40,12 @@ const Reports = ({
     return loadingStates[`${electionId}_${action}`] || false;
   };
 
-  // Helper function to get election ID consistently
+
   const getElectionId = (election) => {
     return election.id || election._id;
   };
 
-  // Helper function to validate election ID
+
   const validateElectionId = (electionId) => {
     if (!electionId || electionId === 'undefined' || electionId === 'null') {
       throw new Error('Invalid election ID');
@@ -53,7 +53,7 @@ const Reports = ({
     return electionId;
   };
 
-  // Fixed export function for all data
+ 
   const handleExportAllData = async (format = 'csv') => {
     try {
       setExportingStates(prev => ({ ...prev, [`all_${format}`]: true }));
@@ -142,7 +142,7 @@ const Reports = ({
 
   const handleExportResults = async (electionId, format = 'json') => {
     try {
-      // Validate election ID first
+      
       const validElectionId = validateElectionId(electionId);
       const key = `${validElectionId}_${format}`;
       setExportingStates(prev => ({ ...prev, [key]: true }));

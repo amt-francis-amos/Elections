@@ -440,7 +440,7 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+      
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-32 relative">
             <div className="absolute inset-0 bg-black bg-opacity-20"></div>
