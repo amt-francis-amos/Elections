@@ -16,6 +16,8 @@ const Login = ({
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
+  const [retryAfter, setRetryAfter] = useState(null);
+  const [lastAttemptTime, setLastAttemptTime] = useState(null);
 
   // Show notification
   const showNotification = (message, type = "info") => {
@@ -61,11 +63,38 @@ const Login = ({
     }
   };
 
+  // Add delay between requests to prevent rate limiting
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const checkRateLimit = () => {
+    const now = Date.now();
+    const minTimeBetweenRequests = 2000; // 2 seconds minimum between requests
+    
+    if (lastAttemptTime && (now - lastAttemptTime) < minTimeBetweenRequests) {
+      const waitTime = Math.ceil((minTimeBetweenRequests - (now - lastAttemptTime)) / 1000);
+      showNotification(`Please wait ${waitTime} seconds before trying again`, "warning");
+      return false;
+    }
+    
+    if (retryAfter && now < retryAfter) {
+      const waitTime = Math.ceil((retryAfter - now) / 1000);
+      showNotification(`Rate limited. Please wait ${waitTime} seconds`, "warning");
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    
+    // Check client-side rate limiting
+    if (!checkRateLimit()) return;
 
     setLoading(true);
+    setLastAttemptTime(Date.now());
+    
     const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
 
     try {
@@ -75,6 +104,9 @@ const Login = ({
       };
 
       console.log('Attempting login with payload:', { id: payload.id, password: '[REDACTED]' });
+
+      // Add a small delay to avoid rapid requests
+      await delay(500);
 
       const response = await fetch(loginUrl, {
         method: 'POST',
@@ -89,7 +121,13 @@ const Login = ({
       console.log('Response status:', response.status);
       console.log('Response status text:', response.statusText);
       console.log('Content-Type:', response.headers.get('content-type'));
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Check for rate limit headers
+      const retryAfterHeader = response.headers.get('retry-after');
+      if (retryAfterHeader) {
+        const retryAfterMs = parseInt(retryAfterHeader) * 1000;
+        setRetryAfter(Date.now() + retryAfterMs);
+      }
 
       // Get response as text first to see what we're actually receiving
       const responseText = await response.text();
@@ -116,7 +154,14 @@ const Login = ({
         
         // Check for common error patterns
         if (responseText.toLowerCase().includes('too many requests')) {
-          throw new Error('Too many login attempts. Please wait a moment and try again.');
+          // Set a retry time if not provided by server
+          if (!retryAfterHeader) {
+            setRetryAfter(Date.now() + 60000); // Wait 1 minute
+          }
+          throw new Error('Too many login attempts. Please wait before trying again.');
+        } else if (responseText.toLowerCase().includes('rate limit')) {
+          setRetryAfter(Date.now() + 60000); // Wait 1 minute
+          throw new Error('Rate limit exceeded. Please wait before trying again.');
         } else if (responseText.toLowerCase().includes('not found')) {
           throw new Error('Login service not available. Please try again later.');
         } else if (responseText.toLowerCase().includes('internal server error')) {
@@ -130,6 +175,12 @@ const Login = ({
 
       // Check response status
       if (!response.ok) {
+        // Handle specific HTTP status codes
+        if (response.status === 429) {
+          setRetryAfter(Date.now() + 60000); // Wait 1 minute for 429 errors
+          throw new Error('Too many requests. Please wait before trying again.');
+        }
+        
         // If we have parsed JSON data with an error message, use it
         if (data && data.message) {
           throw new Error(data.message);
@@ -171,6 +222,10 @@ const Login = ({
 
       showNotification("Login successful!", "success");
 
+      // Reset rate limiting on successful login
+      setRetryAfter(null);
+      setLastAttemptTime(null);
+
       // Call success callback if provided
       if (onLoginSuccess) {
         onLoginSuccess({ user, token });
@@ -206,6 +261,15 @@ const Login = ({
   // Don't render if modal is not open
   if (!isOpen) return null;
 
+  // Calculate remaining wait time for display
+  const getRemainingWaitTime = () => {
+    if (!retryAfter) return 0;
+    const remaining = Math.max(0, Math.ceil((retryAfter - Date.now()) / 1000));
+    return remaining;
+  };
+
+  const remainingWaitTime = getRemainingWaitTime();
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
@@ -221,6 +285,13 @@ const Login = ({
           <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
             Election System Login
           </h2>
+
+          {/* Rate Limit Warning */}
+          {remainingWaitTime > 0 && (
+            <div className="mb-4 p-3 rounded-md text-sm bg-orange-100 text-orange-700 border border-orange-300">
+              Rate limited. Please wait {remainingWaitTime} seconds before trying again.
+            </div>
+          )}
 
           {/* Notification */}
           {notification.message && (
@@ -244,7 +315,7 @@ const Login = ({
                 onChange={handleChange}
                 placeholder=" "
                 required
-                disabled={loading}
+                disabled={loading || remainingWaitTime > 0}
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -261,7 +332,7 @@ const Login = ({
                 onChange={handleChange}
                 placeholder=" "
                 required
-                disabled={loading}
+                disabled={loading || remainingWaitTime > 0}
                 className="peer w-full px-4 pt-6 pb-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label className="absolute left-4 top-2 text-xs text-gray-500 peer-focus:text-indigo-500 transition-all">
@@ -271,7 +342,7 @@ const Login = ({
                 type="button"
                 className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
+                disabled={loading || remainingWaitTime > 0}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -281,7 +352,7 @@ const Login = ({
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || remainingWaitTime > 0}
               className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -292,6 +363,8 @@ const Login = ({
                   </svg>
                   Logging in...
                 </span>
+              ) : remainingWaitTime > 0 ? (
+                `Wait ${remainingWaitTime}s`
               ) : (
                 "Login"
               )}
