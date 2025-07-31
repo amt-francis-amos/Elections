@@ -430,31 +430,16 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleCreateUser = async () => {
-    try {
-      const { data } = await makeAPIRequest(() => 
-        axios.post(`${API_BASE_URL}/admin/create-voter`, { 
-          name: formData.name, 
-          email: formData.email 
-        })
-      );
-      setUsers((us) => [data.voter, ...us]);
-      setRecentActivity((a) => [
-        { id: Date.now(), type: "user", action: `Voter ${data.voter.name} created`, time: "Just now", status: "success" },
-        ...a.slice(0, 4),
-      ]);
-      closeModal();
-      
-      setStats(prevStats => ({
-        ...prevStats,
-        totalUsers: prevStats.totalUsers + 1,
-      }));
-    } catch (err) {
-      console.error(err);
-      alert(`Error creating user: ${err.response?.data?.message || err.message}`);
-    }
+ const handleCreateUser = async () => {
+    const { data } = await axios.post(`${API_BASE_URL}/admin/create-voter`, {
+      name: formData.name,
+      email: formData.email,
+    });
+    setUsers(us => [data.voter, ...us]);
+    setRecentActivity(a => [{ id: Date.now(), type: "user", action: `Voter ${data.voter.name} created`, time: "Just now", status: "success" }, ...a.slice(0,4)]);
+    setStats(prev => ({ ...prev, totalUsers: prev.totalUsers + 1 }));
+    closeModal();
   };
-
   const handleUpdateUser = async () => {
     try {
       if (!selectedUser) {
