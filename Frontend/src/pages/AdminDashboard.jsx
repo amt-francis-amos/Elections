@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -71,6 +71,8 @@ const AdminDashboard = () => {
   const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const isFetching = useRef(false);
+
   const quickActions = [
     { icon: Plus, label: "Create Election", color: "bg-blue-500 hover:bg-blue-600", action: () => openModal("createElection") },
     { icon: Trophy, label: "Add Candidate", color: "bg-green-500 hover:bg-green-600", action: () => openModal("addCandidate") },
@@ -128,7 +130,6 @@ const AdminDashboard = () => {
     else if (data.candidates) list = data.candidates;
     else if (Array.isArray(data)) list = data;
     else if (data.data && Array.isArray(data.data)) list = data.data;
-
     const formatted = await Promise.all(list.map(async c => {
       try {
         const res = await axios.get(`${API_BASE_URL}/votes/candidate/${c._id || c.id}/count`);
@@ -149,6 +150,8 @@ const AdminDashboard = () => {
   };
 
   const fetchAllData = async () => {
+    if (isFetching.current) return;
+    isFetching.current = true;
     setLoading(true);
     try {
       await fetchElections();
@@ -159,6 +162,7 @@ const AdminDashboard = () => {
       console.error(e);
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
   };
 
@@ -224,7 +228,6 @@ const AdminDashboard = () => {
     setRecentActivity(a => [{ id: Date.now(), type: "user", action: `User "${data.user.name}" updated`, time: "Just now", status: "info" }, ...a.slice(0,4)]);
     closeModal();
   };
-
   const handlePromoteUser = async user => {
     if (user.role === 'admin') return;
     const { data } = await axios.post(`${API_BASE_URL}/admin/promote`, { userId: user._id || user.id });
