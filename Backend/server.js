@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
+
 import 'dotenv/config';
 import userRoutes from './routes/userRoutes.js';
 import connectDb from './config/mongoDB.js';
@@ -21,12 +21,6 @@ app.use(cors({credentials: true}));
 app.use(express.json());
 app.use(morgan('dev'));
 
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use('/api/', apiLimiter);
 
 app.use('/api/users', userRoutes);
 app.use('/api/elections', electionRoutes);
