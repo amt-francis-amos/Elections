@@ -39,16 +39,14 @@ import UserAccount from "../components/UserAccount.jsx";
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-// Rate limiting state
 let lastFetchTime = 0;
-const RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
-const AUTO_REFRESH_INTERVAL = 120000; // Increased to 2 minutes
+const RATE_LIMIT_DELAY = 2000;
+const AUTO_REFRESH_INTERVAL = 120000; 
 
-// Request queue to prevent simultaneous requests
+
 let requestQueue = [];
 let isProcessingQueue = false;
 
-// Enhanced axios interceptor with retry logic
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem("token") || localStorage.getItem("userToken");
   if (token) {
