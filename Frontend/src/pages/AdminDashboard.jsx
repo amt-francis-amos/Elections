@@ -5,13 +5,30 @@ import {
   Calendar,
   Users,
   Trophy,
+  TrendingUp,
   BarChart3,
   Activity,
+  ArrowRight,
+  CheckCircle,
+  Eye,
   Plus,
+  Settings,
+  Bell,
+  Edit,
+  Trash2,
+  Download,
+  UserPlus,
+  UserMinus,
+  Search,
   X,
   Save,
-  Bell,
-  Settings,
+  PieChart,
+  Users2,
+  MapPin,
+  Mail,
+  Phone,
+  Upload,
+  Camera,
   RefreshCw,
 } from "lucide-react";
 import Dashboard from "../components/Dashboard.jsx";
@@ -20,21 +37,53 @@ import Candidates from "../components/Candidates.jsx";
 import Reports from "../components/Reports.jsx";
 import UserAccount from "../components/UserAccount.jsx";
 
-const API_BASE_URL = "https://elections-backend-j8m8.onrender.com/api";
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-axios.interceptors.request.use(
-  (config) => {
-    const token =
-      localStorage.getItem("token") || localStorage.getItem("userToken");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+let lastFetchTime = 0;
+const RATE_LIMIT_DELAY = 2000;
+const AUTO_REFRESH_INTERVAL = 120000; 
 
+
+let requestQueue = [];
+let isProcessingQueue = false;
+
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token") || localStorage.getItem("userToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+// Enhanced response interceptor with retry logic
 axios.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  async (error) => {
+    if (error.response?.status === 429) {
+      console.warn('Rate limited. Waiting before retry...');
+      // Wait before retrying (exponential backoff)
+      const retryDelay = Math.min(5000, (error.config.__retryCount || 0) * 1000 + 1000);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      
+      // Retry the request
+      if (!error.config.__retryCount) {
+        error.config.__retryCount = 0;
+      }
+      
+      if (error.config.__retryCount < 3) {
+        error.config.__retryCount++;
+        return axios.request(error.config);
+      }
+    }
+    
+    if (error.response?.status === 401) {
+      console.error('Authentication failed. Please log in again.');
+    }
+    
+    return Promise.reject(error);
+  }
 );
 
 const AdminDashboard = () => {
@@ -60,121 +109,288 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState({});
   const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [rateLimitWarning, setRateLimitWarning] = useState(false);
 
   const quickActions = [
-    {
-      icon: Plus,
-      label: "Create Election",
-      color: "bg-blue-500 hover:bg-blue-600",
-      action: () => openModal("createElection"),
-    },
-    {
-      icon: Trophy,
-      label: "Add Candidate",
-      color: "bg-green-500 hover:bg-green-600",
-      action: () => openModal("addCandidate"),
-    },
-    {
-      icon: Users,
-      label: "Create Voter Account",
-      color: "bg-purple-500 hover:bg-purple-600",
-      action: () => openModal("createUser"),
-    },
-    {
-      icon: BarChart3,
-      label: "View Reports",
-      color: "bg-orange-500 hover:bg-orange-600",
-      action: () => setActiveTab("reports"),
-    },
+    { icon: Plus, label: "Create Election", color: "bg-blue-500 hover:bg-blue-600", action: () => openModal("createElection") },
+    { icon: Trophy, label: "Add Candidate", color: "bg-green-500 hover:bg-green-600", action: () => openModal("addCandidate") },
+    { icon: UserPlus, label: "Create Voter Account", color: "bg-purple-500 hover:bg-purple-600", action: () => openModal("createUser") },
+    { icon: BarChart3, label: "View Reports", color: "bg-orange-500 hover:bg-orange-600", action: () => setActiveTab("reports") },
   ];
+
+  // Debounced API request function
+  const makeAPIRequest = async (requestFn, retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        // Ensure minimum time between requests
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTime;
+        if (timeSinceLastFetch < RATE_LIMIT_DELAY) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastFetch));
+        }
+        lastFetchTime = Date.now();
+        
+        const result = await requestFn();
+        setRateLimitWarning(false);
+        return result;
+      } catch (error) {
+        if (error.response?.status === 429) {
+          setRateLimitWarning(true);
+          const backoffDelay = delay * Math.pow(2, i); // Exponential backoff
+          console.warn(`Rate limited. Retrying in ${backoffDelay}ms... (attempt ${i + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw new Error('Max retries reached for API request');
+  };
 
   useEffect(() => {
     fetchAllData();
+    
+    // Reduced auto-refresh frequency to avoid rate limiting
+    const intervalId = setInterval(() => {
+      if (!isProcessingQueue) {
+        fetchAllData(true);
+      }
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => clearInterval(intervalId);
   }, []);
 
-  const fetchAllData = async () => {
-    setLoading(true);
+  // Manual refresh with rate limiting check
+  const handleManualRefresh = async () => {
+    const now = Date.now();
+    if (now - lastFetchTime < RATE_LIMIT_DELAY) {
+      alert(`Please wait ${Math.ceil((RATE_LIMIT_DELAY - (now - lastFetchTime)) / 1000)} seconds before refreshing again.`);
+      return;
+    }
+    
+    setRefreshing(true);
+    await fetchAllData();
+    setRefreshing(false);
+  };
+
+  // Sequential data fetching to avoid overwhelming the API
+  const fetchAllData = async (silent = false) => {
+    if (isProcessingQueue) {
+      console.log('Already processing requests, skipping...');
+      return;
+    }
+    
+    isProcessingQueue = true;
+    
+    if (!silent) {
+      setLoading(true);
+    }
+    
     try {
-      await fetchElections();
-      await fetchCandidates();
-      await fetchUsers();
-      await fetchVoteStats();
+      // Fetch data sequentially with delays to respect rate limits
+      await fetchElections(silent);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchCandidates(silent);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchUsers(silent);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchVoteStats(silent);
+      
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching data:", error);
+      if (error.response?.status === 429) {
+        setRateLimitWarning(true);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
+      isProcessingQueue = false;
     }
   };
 
-  const fetchVoteStats = async () => {
+  const fetchVoteStats = async (silent = false) => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/admin/stats`);
-      setStats((prev) => ({ ...prev, totalVotes: data.stats.totalVotes || 0 }));
-    } catch {}
+      const { data } = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/admin/stats`)
+      );
+      
+      if (data.success) {
+        setStats(prevStats => ({
+          ...prevStats,
+          totalVotes: data.stats.totalVotes || 0,
+        }));
+      }
+    } catch (err) {
+      if (!silent) {
+        console.error("Error fetching vote stats:", err);
+      }
+    }
   };
 
-  const fetchElections = async () => {
+  const fetchElections = async (silent = false) => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/elections`);
+      const { data } = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/elections`)
+      );
+      
+      if (!silent) {
+        console.log("Fetched elections:", data);
+      }
+
       const electionsData = data.elections || data || [];
-      setElections(
-        electionsData.map((e) => ({
-          ...e,
-          totalVotes: e.totalVotes || 0,
-          eligibleVoters: e.eligibleVoters || 0,
-          totalCandidates: e.totalCandidates || e.candidatesCount || 0,
-          startDate: new Date(e.startDate).toISOString().split("T")[0],
-          endDate: new Date(e.endDate).toISOString().split("T")[0],
-        }))
+      
+      // Process elections with reduced concurrent requests
+      const formattedElections = await Promise.all(
+        electionsData.map(async (election, index) => {
+          try {
+            // Add delay between vote result requests
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            const voteResponse = await makeAPIRequest(() => 
+              axios.get(`${API_BASE_URL}/votes/results/${election._id}`)
+            );
+            const totalVotes = voteResponse.data?.results?.totalVotes || 0;
+            
+            return {
+              ...election,
+              totalVotes: totalVotes,
+              eligibleVoters: election.eligibleVoters || 0,
+              totalCandidates: election.totalCandidates || election.candidatesCount || 0,
+              startDate: new Date(election.startDate).toISOString().split('T')[0],
+              endDate: new Date(election.endDate).toISOString().split('T')[0],
+            };
+          } catch (voteErr) {
+            return {
+              ...election,
+              totalVotes: election.totalVotes || 0,
+              eligibleVoters: election.eligibleVoters || 0,
+              totalCandidates: election.totalCandidates || election.candidatesCount || 0,
+              startDate: new Date(election.startDate).toISOString().split('T')[0],
+              endDate: new Date(election.endDate).toISOString().split('T')[0],
+            };
+          }
+        })
       );
-      const activeCount = electionsData.filter(
-        (e) => e.status === "active" || e.status === "ongoing" || e.isActive
+
+      setElections(formattedElections);
+
+      const activeCount = formattedElections.filter(e => 
+        e.status === 'active' || e.status === 'ongoing' || e.isActive
       ).length;
-      setStats((prev) => ({
-        ...prev,
-        totalElections: electionsData.length,
+
+      const totalVotesAcrossElections = formattedElections.reduce(
+        (sum, election) => sum + (election.totalVotes || 0), 0
+      );
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalElections: formattedElections.length,
         activeElections: activeCount,
+        totalVotes: totalVotesAcrossElections,
       }));
+
     } catch (err) {
-      console.error(err);
+      if (!silent) {
+        console.error("Error fetching elections:", err);
+      }
     }
   };
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = async (silent = false) => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/candidates`);
-      const candidatesData =
-        data.candidates || Array.isArray(data) ? data : data.data || [];
-      setCandidates(
-        candidatesData.map((c) => ({
-          ...c,
-          id: c._id || c.id,
-          votes: c.votes || 0,
-          image: c.image || null,
-        }))
+      const { data } = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/candidates`)
       );
-      setStats((prev) => ({ ...prev, totalCandidates: candidatesData.length }));
+      
+      if (!silent) {
+        console.log("Fetched candidates:", data);
+      }
+
+      let candidatesData = [];
+      
+      if (data.success && data.candidates) {
+        candidatesData = data.candidates;
+      } else if (data.candidates) {
+        candidatesData = data.candidates;
+      } else if (Array.isArray(data)) {
+        candidatesData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        candidatesData = data.data;
+      }
+
+      // Process candidates with reduced concurrent requests
+      const formattedCandidates = await Promise.all(
+        candidatesData.map(async (candidate, index) => {
+          try {
+            // Add delay between vote count requests
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            const voteResponse = await makeAPIRequest(() => 
+              axios.get(`${API_BASE_URL}/votes/candidate/${candidate._id || candidate.id}/count`)
+            );
+            const realVotes = voteResponse.data?.voteCount || candidate.votes || 0;
+            
+            return {
+              ...candidate,
+              id: candidate._id || candidate.id,
+              votes: realVotes,
+              image: candidate.image || null,
+            };
+          } catch (voteErr) {
+            return {
+              ...candidate,
+              id: candidate._id || candidate.id,
+              votes: candidate.votes || 0,
+              image: candidate.image || null,
+            };
+          }
+        })
+      );
+
+      setCandidates(formattedCandidates);
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalCandidates: formattedCandidates.length,
+      }));
+
     } catch (err) {
-      console.error(err);
+      if (!silent) {
+        console.error("Error fetching candidates:", err);
+        if (err.response?.status === 404) {
+          console.error("Candidates endpoint not found. Make sure backend route exists.");
+        }
+      }
       setCandidates([]);
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (silent = false) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/admin/voters`);
+      const res = await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/admin/voters`)
+      );
       const usersData = res.data.voters || [];
+      
       setUsers(usersData);
-      setStats((prev) => ({ ...prev, totalUsers: usersData.length }));
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        totalUsers: usersData.length,
+      }));
     } catch (err) {
-      console.error(err);
+      if (!silent) {
+        console.error("Error fetching users:", err);
+      }
     }
-  };
-
-  const handleManualRefresh = async () => {
-    setRefreshing(true);
-    await fetchAllData();
-    setRefreshing(false);
   };
 
   const openModal = (type, data = null) => {
@@ -198,298 +414,510 @@ const AdminDashboard = () => {
     try {
       const fd = new FormData();
       fd.append("image", file);
-      const resp = await axios.put(
-        `${API_BASE_URL}/admin/candidates/${candidateId}/image`,
-        fd
+      fd.append("candidateId", candidateId);
+      const resp = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/admin/candidates/${candidateId}/image`, fd)
       );
       setCandidates((cs) =>
         cs.map((c) =>
-          c.id === candidateId ? { ...c, image: resp.data.imageUrl } : c
+          (c.id === candidateId || c._id === candidateId) ? { ...c, image: resp.data.imageUrl } : c
         )
       );
     } catch (err) {
       console.error(err);
+    } finally {
+      setImageUploadLoading(false);
     }
-    setImageUploadLoading(false);
   };
 
   const handleCreateUser = async () => {
     try {
-      const { data } = await axios.post(`${API_BASE_URL}/admin/create-voter`, {
-        name: formData.name,
-        email: formData.email,
-      });
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/admin/create-voter`, { 
+          name: formData.name, 
+          email: formData.email 
+        })
+      );
       setUsers((us) => [data.voter, ...us]);
       setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "user",
-          action: `Voter ${data.voter.name} created`,
-          time: "Just now",
-          status: "success",
-        },
+        { id: Date.now(), type: "user", action: `Voter ${data.voter.name} created`, time: "Just now", status: "success" },
         ...a.slice(0, 4),
       ]);
-      setStats((prev) => ({ ...prev, totalUsers: prev.totalUsers + 1 }));
       closeModal();
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        totalUsers: prevStats.totalUsers + 1,
+      }));
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error(err);
+      alert(`Error creating user: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleUpdateUser = async () => {
-    if (!selectedUser) return;
     try {
+      if (!selectedUser) {
+        alert("No user selected for update");
+        return;
+      }
+
+      if (!formData.name || formData.name.trim().length < 2) {
+        alert("Name must be at least 2 characters long");
+        return;
+      }
+
+      if (formData.email && formData.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+          alert("Please provide a valid email address");
+          return;
+        }
+
+        const existingUser = users.find(u => 
+          u.email.toLowerCase() === formData.email.toLowerCase().trim() && 
+          (u._id !== selectedUser._id && u.id !== selectedUser._id)
+        );
+        if (existingUser) {
+          alert("Email is already taken by another user");
+          return;
+        }
+      }
+
+      const existingName = users.find(u => 
+        u.name.toLowerCase() === formData.name.toLowerCase().trim() && 
+        (u._id !== selectedUser._id && u.id !== selectedUser._id)
+      );
+      if (existingName) {
+        alert("Name is already taken by another user");
+        return;
+      }
+
       const userId = selectedUser._id || selectedUser.id;
+      
       const payload = {
         name: formData.name.trim(),
-        email: formData.email?.toLowerCase().trim(),
-        role: formData.role || selectedUser.role,
+        email: formData.email ? formData.email.toLowerCase().trim() : selectedUser.email,
+        role: formData.role || selectedUser.role
       };
-      const { data } = await axios.put(
-        `${API_BASE_URL}/admin/users/${userId}`,
-        payload
+
+      console.log("Updating user with payload:", payload);
+
+      const { data } = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/admin/users/${userId}`, payload)
       );
-      setUsers((prev) =>
-        prev.map((u) =>
-          (u._id || u.id) === userId ? { ...u, ...data.user } : u
-        )
+
+      console.log("User updated successfully:", data);
+
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => {
+          const currentId = user._id || user.id;
+          if (currentId === userId) {
+            return {
+              ...user,
+              ...data.user,
+              id: user.id || user._id, 
+            };
+          }
+          return user;
+        })
       );
-      setRecentActivity((prev) => [
-        {
-          id: Date.now(),
-          type: "user",
-          action: `User "${data.user.name}" updated`,
-          time: "Just now",
-          status: "info",
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "user", 
+          action: `User "${data.user.name}" updated`, 
+          time: "Just now", 
+          status: "info" 
         },
-        ...prev.slice(0, 4),
+        ...prevActivity.slice(0, 4),
       ]);
+
       closeModal();
       alert("User updated successfully!");
+
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error updating user:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error updating user: ${err.message}`);
+      }
+    }
+  };
+
+  const handlePromoteUser = async (user) => {
+    try {
+      if (user.role === 'admin') {
+        alert("User is already an admin");
+        return;
+      }
+
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/admin/promote`, { userId: user._id || user.id })
+      );
+
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => {
+          const currentId = u._id || u.id;
+          const updatedId = data.user._id || data.user.id;
+          if (currentId === updatedId) {
+            return { ...u, ...data.user };
+          }
+          return u;
+        })
+      );
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "user", 
+          action: `User ${data.user.name} promoted to admin`, 
+          time: "Just now", 
+          status: "success" 
+        },
+        ...prevActivity.slice(0, 4),
+      ]);
+
+      alert(`${data.user.name} has been promoted to admin!`);
+
+    } catch (err) {
+      console.error("Error promoting user:", err);
+      alert(`Error promoting user: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
+    if (!window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+      return;
+    }
+
     try {
       const user = users.find((u) => u._id === id || u.id === id);
       const userId = user?._id || user?.id || id;
-      await axios.delete(`${API_BASE_URL}/admin/users/${userId}`);
-      setUsers((prev) => prev.filter((u) => (u._id || u.id) !== userId));
-      setStats((prev) => ({
-        ...prev,
-        totalUsers: Math.max(0, prev.totalUsers - 1),
+
+      console.log("Deleting user with ID:", userId);
+
+      await makeAPIRequest(() => 
+        axios.delete(`${API_BASE_URL}/admin/users/${userId}`)
+      );
+
+      setUsers((prevUsers) => 
+        prevUsers.filter((u) => u._id !== id && u.id !== id && u._id !== userId && u.id !== userId)
+      );
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalUsers: Math.max(0, prevStats.totalUsers - 1),
       }));
-      setRecentActivity((prev) => [
-        {
-          id: Date.now(),
-          type: "user",
-          action: `User "${user?.name}" deleted`,
-          time: "Just now",
-          status: "completed",
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "user", 
+          action: `User "${user?.name || 'Unknown'}" deleted`, 
+          time: "Just now", 
+          status: "completed" 
         },
-        ...prev.slice(0, 4),
+        ...prevActivity.slice(0, 4),
       ]);
+
       alert("User deleted successfully!");
+
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error deleting user:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error deleting user: ${err.message}`);
+      }
     }
   };
 
   const handleDeleteCandidate = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
+    if (!window.confirm("Are you sure you want to delete this candidate?")) return;
     try {
-      await axios.delete(`${API_BASE_URL}/candidates/${id}`);
-      setCandidates((cs) => cs.filter((c) => c.id !== id));
+      await makeAPIRequest(() => 
+        axios.delete(`${API_BASE_URL}/candidates/${id}`)
+      );
+      setCandidates((cs) => cs.filter((c) => c.id !== id && c._id !== id));
       setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "candidate",
-          action: `Candidate deleted`,
-          time: "Just now",
-          status: "completed",
-        },
+        { id: Date.now(), type: "candidate", action: `Candidate deleted`, time: "Just now", status: "completed" },
         ...a.slice(0, 4),
       ]);
-      setStats((prev) => ({
-        ...prev,
-        totalCandidates: Math.max(0, prev.totalCandidates - 1),
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        totalCandidates: Math.max(0, prevStats.totalCandidates - 1),
       }));
-      await fetchAllData();
+
+      await fetchAllData(true);
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error(err);
+      alert(`Error deleting candidate: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleCreateElection = async () => {
     try {
+      if (!formData.title || !formData.startDate || !formData.endDate) {
+        alert("Please fill in all required fields: Title, Start Date, and End Date");
+        return;
+      }
+
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+      const now = new Date();
+
+      if (startDate <= now) {
+        alert("Start date must be in the future");
+        return;
+      }
+
+      if (endDate <= startDate) {
+        alert("End date must be after start date");
+        return;
+      }
+
       const payload = {
         title: formData.title.trim(),
-        description: formData.description?.trim() || "",
+        description: formData.description?.trim() || '',
         startDate: formData.startDate,
         endDate: formData.endDate,
-        eligibleVoters: formData.eligibleVoters
-          ? parseInt(formData.eligibleVoters)
-          : undefined,
+        eligibleVoters: formData.eligibleVoters ? parseInt(formData.eligibleVoters) : undefined,
       };
-      const { data } = await axios.post(
-        `${API_BASE_URL}/admin/elections`,
-        payload
+
+      console.log("Creating election with payload:", payload);
+
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/admin/elections`, payload)
       );
+
+      console.log("Election created successfully:", data);
+
       const newElection = data.election;
-      setElections((prev) => [
+      
+      setElections((prevElections) => [
         {
           ...newElection,
           totalVotes: newElection.totalVotes || 0,
           eligibleVoters: newElection.eligibleVoters || 0,
-          totalCandidates:
-            newElection.totalCandidates || newElection.candidatesCount || 0,
-          startDate: new Date(newElection.startDate)
-            .toISOString()
-            .split("T")[0],
-          endDate: new Date(newElection.endDate).toISOString().split("T")[0],
+          totalCandidates: newElection.totalCandidates || newElection.candidatesCount || 0,
+          startDate: new Date(newElection.startDate).toISOString().split('T')[0],
+          endDate: new Date(newElection.endDate).toISOString().split('T')[0],
         },
-        ...prev,
+        ...prevElections
       ]);
-      setStats((prev) => ({
-        ...prev,
-        totalElections: prev.totalElections + 1,
-        activeElections:
-          newElection.isActive ||
-          newElection.status === "active" ||
-          newElection.status === "ongoing"
-            ? prev.activeElections + 1
-            : prev.activeElections,
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "election", 
+          action: `New election "${newElection.title}" created`, 
+          time: "Just now", 
+          status: "success" 
+        },
+        ...prevActivity.slice(0, 4),
+      ]);
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalElections: prevStats.totalElections + 1,
+        activeElections: newElection.status === 'active' || newElection.status === 'ongoing' || newElection.isActive
+          ? prevStats.activeElections + 1 
+          : prevStats.activeElections
       }));
-      setRecentActivity((prev) => [
-        {
-          id: Date.now(),
-          type: "election",
-          action: `New election "${newElection.title}" created`,
-          time: "Just now",
-          status: "success",
-        },
-        ...prev.slice(0, 4),
-      ]);
+
       closeModal();
       alert("Election created successfully!");
+
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error creating election:", err);
+      
+      if (err.response?.data?.errors) {
+        const errorMessages = err.response.data.errors.join('\n');
+        alert(`Validation Error:\n${errorMessages}`);
+      } else if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error creating election: ${err.message}`);
+      }
     }
   };
 
   const handleUpdateElection = async () => {
-    if (!selectedElection) return;
     try {
+      if (!selectedElection) {
+        alert("No election selected for update");
+        return;
+      }
+
+      if (!formData.title) {
+        alert("Election title is required");
+        return;
+      }
+      
+      if (formData.startDate && formData.endDate) {
+        const startDate = new Date(formData.startDate);
+        const endDate = new Date(formData.endDate);
+        const now = new Date();
+
+        if (startDate <= now) {
+          alert("Start date must be in the future");
+          return;
+        }
+
+        if (endDate <= startDate) {
+          alert("End date must be after start date");
+          return;
+        }
+      }
+
       const electionId = selectedElection._id || selectedElection.id;
+      
       const payload = {};
-      if (formData.title && formData.title !== selectedElection.title)
+      if (formData.title && formData.title !== selectedElection.title) {
         payload.title = formData.title.trim();
-      if (
-        formData.description !== undefined &&
-        formData.description !== selectedElection.description
-      )
+      }
+      if (formData.description !== undefined && formData.description !== selectedElection.description) {
         payload.description = formData.description.trim();
-      if (
-        formData.startDate &&
-        formData.startDate !== selectedElection.startDate
-      )
+      }
+      if (formData.startDate && formData.startDate !== selectedElection.startDate) {
         payload.startDate = formData.startDate;
-      if (formData.endDate && formData.endDate !== selectedElection.endDate)
+      }
+      if (formData.endDate && formData.endDate !== selectedElection.endDate) {
         payload.endDate = formData.endDate;
-      if (
-        formData.eligibleVoters &&
-        parseInt(formData.eligibleVoters) !== selectedElection.eligibleVoters
-      )
+      }
+      if (formData.eligibleVoters && parseInt(formData.eligibleVoters) !== selectedElection.eligibleVoters) {
         payload.eligibleVoters = parseInt(formData.eligibleVoters);
-      const { data } = await axios.put(
-        `${API_BASE_URL}/admin/elections/${electionId}`,
-        payload
+      }
+
+      console.log("Updating election with payload:", payload);
+
+      const { data } = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/admin/elections/${electionId}`, payload)
       );
+
+      console.log("Election updated successfully:", data);
+
       const updatedElection = data.election;
-      setElections((prev) =>
-        prev.map((e) =>
-          (e._id || e.id) === electionId
-            ? {
-                ...updatedElection,
-                startDate: new Date(updatedElection.startDate)
-                  .toISOString()
-                  .split("T")[0],
-                endDate: new Date(updatedElection.endDate)
-                  .toISOString()
-                  .split("T")[0],
-                totalVotes: updatedElection.totalVotes || e.totalVotes || 0,
-                eligibleVoters:
-                  updatedElection.eligibleVoters || e.eligibleVoters || 0,
-                totalCandidates:
-                  updatedElection.totalCandidates ||
-                  updatedElection.candidatesCount ||
-                  e.totalCandidates ||
-                  0,
-              }
-            : e
-        )
+
+      setElections((prevElections) =>
+        prevElections.map((election) => {
+          const currentId = election._id || election.id;
+          const updatedId = updatedElection._id || updatedElection.id;
+          
+          if (currentId === updatedId || currentId === electionId) {
+            return {
+              ...updatedElection,
+              startDate: new Date(updatedElection.startDate).toISOString().split('T')[0],
+              endDate: new Date(updatedElection.endDate).toISOString().split('T')[0],
+              totalVotes: updatedElection.totalVotes || election.totalVotes || 0,
+              eligibleVoters: updatedElection.eligibleVoters || election.eligibleVoters || 0,
+              totalCandidates: updatedElection.totalCandidates || updatedElection.candidatesCount || election.totalCandidates || 0,
+            };
+          }
+          return election;
+        })
       );
-      setRecentActivity((prev) => [
-        {
-          id: Date.now(),
-          type: "election",
-          action: `Election "${updatedElection.title}" updated`,
-          time: "Just now",
-          status: "info",
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "election", 
+          action: `Election "${updatedElection.title}" updated`, 
+          time: "Just now", 
+          status: "info" 
         },
-        ...prev.slice(0, 4),
+        ...prevActivity.slice(0, 4),
       ]);
+
       closeModal();
       alert("Election updated successfully!");
+
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error updating election:", err);
+      
+      if (err.response?.data?.errors) {
+        const errorMessages = err.response.data.errors.join('\n');
+        alert(`Validation Error:\n${errorMessages}`);
+      } else if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error updating election: ${err.message}`);
+      }
     }
   };
 
   const handleDeleteElection = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
+    if (!window.confirm("Are you sure you want to delete this election? This action cannot be undone.")) {
+      return;
+    }
+
     try {
-      const election = elections.find((e) => (e._id || e.id) === id);
-      const electionId = election?._id || election.id || id;
-      await axios.delete(`${API_BASE_URL}/admin/elections/${electionId}`);
-      setElections((prev) =>
-        prev.filter((e) => (e._id || e.id) !== electionId)
+      const election = elections.find((e) => e.id === id || e._id === id);
+      const electionId = election?._id || election?.id || id;
+
+      console.log("Deleting election with ID:", electionId);
+
+      await makeAPIRequest(() => 
+        axios.delete(`${API_BASE_URL}/admin/elections/${electionId}`)
       );
-      setStats((prev) => ({
-        ...prev,
-        totalElections: Math.max(0, prev.totalElections - 1),
-        activeElections:
-          election &&
-          (election.isActive ||
-            election.status === "active" ||
-            election.status === "ongoing")
-            ? Math.max(0, prev.activeElections - 1)
-            : prev.activeElections,
+
+      setElections((prevElections) => 
+        prevElections.filter((e) => e.id !== id && e._id !== id && e._id !== electionId && e.id !== electionId)
+      );
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalElections: Math.max(0, prevStats.totalElections - 1),
+        activeElections: election?.status === 'active' || election?.status === 'ongoing' || election?.isActive
+          ? Math.max(0, prevStats.activeElections - 1)
+          : prevStats.activeElections
       }));
-      setRecentActivity((prev) => [
-        {
-          id: Date.now(),
-          type: "election",
-          action: `Election "${election?.title}" deleted`,
-          time: "Just now",
-          status: "completed",
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "election", 
+          action: `Election "${election?.title || 'Unknown'}" deleted`, 
+          time: "Just now", 
+          status: "completed" 
         },
-        ...prev.slice(0, 4),
+        ...prevActivity.slice(0, 4),
       ]);
+
       alert("Election deleted successfully!");
-      await fetchAllData();
+
+      await fetchAllData(true);
+
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error deleting election:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error deleting election: ${err.message}`);
+      }
     }
   };
 
   const handleAddCandidate = async () => {
     try {
+      if (!formData.name || !formData.position || !formData.electionId) {
+        alert("Please fill in all required fields (Name, Position, Election)");
+        return;
+      }
+      
       const selected = elections.find((e) => e._id === formData.electionId);
+      if (!selected) {
+        alert("Please select a valid election");
+        return;
+      }
+      
       const payload = {
         name: formData.name,
         position: formData.position,
@@ -499,84 +927,121 @@ const AdminDashboard = () => {
         department: formData.department,
         year: formData.year,
       };
-      const { data } = await axios.post(`${API_BASE_URL}/candidates`, payload);
+      
+      const { data } = await makeAPIRequest(() => 
+        axios.post(`${API_BASE_URL}/candidates`, payload)
+      );
+      
       const newCandidate = {
         ...data.candidate,
         id: data.candidate._id || data.candidate.id,
         electionTitle: selected.title,
         votes: 0,
       };
+      
       setCandidates((cs) => [newCandidate, ...cs]);
-      setStats((prev) => ({
-        ...prev,
-        totalCandidates: prev.totalCandidates + 1,
-      }));
       setRecentActivity((a) => [
-        {
-          id: Date.now(),
-          type: "candidate",
-          action: `${newCandidate.name} registered`,
-          time: "Just now",
-          status: "success",
-        },
+        { id: Date.now(), type: "candidate", action: `${newCandidate.name} registered`, time: "Just now", status: "success" },
         ...a.slice(0, 4),
       ]);
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        totalCandidates: prevStats.totalCandidates + 1,
+      }));
+      
       closeModal();
       alert("Candidate added successfully!");
-      await fetchAllData();
+
+      await fetchAllData(true);
+      
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error adding candidate:", err);
+      alert(`Error adding candidate: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleUpdateCandidate = async () => {
-    if (!selectedCandidate) return;
     try {
+      if (!selectedCandidate) {
+        alert("No candidate selected for update");
+        return;
+      }
+
+      if (!formData.name || !formData.position) {
+        alert("Name and position are required");
+        return;
+      }
+
       const candidateId = selectedCandidate._id || selectedCandidate.id;
+      
       const payload = {
         name: formData.name.trim(),
         position: formData.position.trim(),
-        email: formData.email?.trim(),
-        phone: formData.phone?.trim(),
-        department: formData.department?.trim(),
-        year: formData.year?.trim(),
+        email: formData.email?.trim() || '',
+        phone: formData.phone?.trim() || '',
+        department: formData.department?.trim() || '',
+        year: formData.year?.trim() || '',
       };
-      const { data } = await axios.put(
-        `${API_BASE_URL}/candidates/${candidateId}`,
-        payload
+
+      console.log("Updating candidate with payload:", payload);
+
+      const { data } = await makeAPIRequest(() => 
+        axios.put(`${API_BASE_URL}/candidates/${candidateId}`, payload)
       );
-      setCandidates((prev) =>
-        prev.map((c) =>
-          (c._id || c.id) === candidateId
-            ? { ...c, ...data.candidate, id: c.id || c._id }
-            : c
-        )
+
+      console.log("Candidate updated successfully:", data);
+
+      setCandidates((prevCandidates) =>
+        prevCandidates.map((candidate) => {
+          const currentId = candidate._id || candidate.id;
+          if (currentId === candidateId) {
+            return {
+              ...candidate,
+              ...data.candidate,
+              id: candidate.id || candidate._id,
+            };
+          }
+          return candidate;
+        })
       );
-      setRecentActivity((prev) => [
-        {
-          id: Date.now(),
-          type: "candidate",
-          action: `Candidate "${data.candidate.name}" updated`,
-          time: "Just now",
-          status: "info",
+
+      setRecentActivity((prevActivity) => [
+        { 
+          id: Date.now(), 
+          type: "candidate", 
+          action: `Candidate "${data.candidate.name}" updated`, 
+          time: "Just now", 
+          status: "info" 
         },
-        ...prev.slice(0, 4),
+        ...prevActivity.slice(0, 4),
       ]);
+
       closeModal();
       alert("Candidate updated successfully!");
-      await fetchAllData();
+
+      await fetchAllData(true);
+
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      console.error("Error updating candidate:", err);
+      
+      if (err.response?.data?.message) {
+        alert(`Error: ${err.response.data.message}`);
+      } else {
+        alert(`Error updating candidate: ${err.message}`);
+      }
     }
   };
 
   const exportResults = async (format, electionId = null) => {
     try {
-      await axios.get(
-        `${API_BASE_URL}/admin/export?format=${format}&election=${
-          electionId || ""
-        }`
+      await makeAPIRequest(() => 
+        axios.get(`${API_BASE_URL}/admin/export?format=${format}&election=${electionId || ""}`)
       );
+      setRecentActivity((a) => [
+        { id: Date.now(), type: "election", action: `Results exported as ${format.toUpperCase()}`, time: "Just now", status: "info" },
+        ...a.slice(0, 4),
+      ]);
     } catch (err) {
       console.error(err);
     }
@@ -584,102 +1049,112 @@ const AdminDashboard = () => {
 
   const getActivityIcon = (type) => {
     switch (type) {
-      case "election":
-        return <Calendar size={16} />;
-      case "candidate":
-        return <Trophy size={16} />;
-      case "vote":
-        return <BarChart3 size={16} />;
-      case "user":
-        return <Users size={16} />;
+      case "election": return <Calendar size={16} />;
+      case "candidate": return <Trophy size={16} />;
+      case "vote":      return <BarChart3 size={16} />;
+      case "user":      return <Users size={16} />;
+      default:          return <Activity size={16} />;
     }
-    return <Activity size={16} />;
   };
 
-  const getActivityColor = (status) =>
-    status === "success"
-      ? "bg-green-100 text-green-800"
-      : status === "info"
-      ? "bg-blue-100 text-blue-800"
-      : status === "completed"
-      ? "bg-purple-100 text-purple-800"
-      : "bg-gray-100 text-gray-800";
-  const getStatusColor = (status) =>
-    status === "active"
-      ? "bg-green-100 text-green-800"
-      : status === "upcoming"
-      ? "bg-blue-100 text-blue-800"
-      : "bg-gray-100 text-gray-800";
+  const getActivityColor = (status) => {
+    switch (status) {
+      case "success":   return "bg-green-100 text-green-800";
+      case "info":      return "bg-blue-100 text-blue-800";
+      case "completed": return "bg-purple-100 text-purple-800";
+      default:          return "bg-gray-100 text-gray-800";
+    }
+  };
 
-  if (loading)
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "active":    return "bg-green-100 text-green-800";
+      case "upcoming":  return "bg-blue-100 text-blue-800";
+      case "completed": return "bg-gray-100 text-gray-800";
+      default:          return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Rate Limit Warning */}
+      {rateLimitWarning && (
+        <div className="fixed top-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded z-50">
+          <div className="flex items-center gap-2">
+            <div className="animate-pulse h-2 w-2 bg-yellow-500 rounded-full"></div>
+            <span className="text-sm">Rate limited - requests are being throttled</span>
+            <button 
+              onClick={() => setRateLimitWarning(false)}
+              className="ml-2 text-yellow-700 hover:text-yellow-900"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {imageUploadLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 flex items-center gap-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             <span className="text-gray-700">Uploading image...</span>
           </div>
         </div>
       )}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Admin Dashboard
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage elections, candidates, and users.
-            </p>
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-gray-600 mt-1">Manage elections, candidates, and users.</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={handleManualRefresh}
+                className={`p-2 text-gray-400 hover:text-gray-600 ${refreshing ? 'animate-spin' : ''}`}
+                title="Refresh data (rate limited to prevent API overload)"
+                disabled={refreshing || rateLimitWarning}
+              >
+                <RefreshCw size={20} />
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-600 relative">
+                <Bell size={20} />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-600">
+                <Settings size={20} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleManualRefresh}
-              className={`p-2 text-gray-400 hover:text-gray-600 ${
-                refreshing ? "animate-spin" : ""
-              }`}
-            >
-              <RefreshCw size={20} />
-            </button>
-            <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
-            </button>
-            <button className="p-2 text-gray-400 hover:text-gray-600">
-              <Settings size={20} />
-            </button>
+          <div className="mt-6 border-t pt-4">
+            <nav className="flex space-x-8">
+              {["dashboard","elections","candidates","users","reports"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-2 text-sm font-medium capitalize ${
+                    activeTab === tab
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
-        <nav className="max-w-7xl mx-auto px-6 py-4 flex space-x-8">
-          {
-            ("dashboard",
-            "elections",
-            "candidates",
-            "users",
-            "reports".split(",").map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 text-sm font-medium capitalize ${
-                  activeTab === tab
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {tab}
-              </button>
-            )))
-          }
-        </nav>
       </div>
       <div className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === "dashboard" && (
@@ -724,7 +1199,7 @@ const AdminDashboard = () => {
             setSearchTerm={setSearchTerm}
             openModal={openModal}
             onDelete={handleDeleteUser}
-            onPromote={() => {}}
+            onPromote={handlePromoteUser}
           />
         )}
         {activeTab === "reports" && (
@@ -751,7 +1226,283 @@ const AdminDashboard = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
             >
-              {/* modal content similar to original, adjusted as needed */}
+              {(showModal === "createElection" || showModal === "editElection") && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {showModal === "createElection" ? "Create New Election" : "Edit Election"}
+                    </h3>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Election Title</label>
+                      <input
+                        type="text"
+                        value={formData.title || ""}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter election title"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={formData.description || ""}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                        placeholder="Enter election description"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={formData.startDate || ""}
+                          onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input
+                          type="date"
+                          value={formData.endDate || ""}
+                          onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Eligible Voters</label>
+                      <input
+                        type="number"
+                        value={formData.eligibleVoters || ""}
+                        onChange={(e) => setFormData({ ...formData, eligibleVoters: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter number of eligible voters"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button
+                      onClick={showModal === "createElection" ? handleCreateElection : handleUpdateElection}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      {showModal === "createElection" ? "Create Election" : "Update Election"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {(showModal === "addCandidate" || showModal === "editCandidate") && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {showModal === "addCandidate" ? "Add New Candidate" : "Edit Candidate"}
+                    </h3>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={formData.name || ""}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter candidate's full name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                        <input
+                          type="text"
+                          value={formData.position || ""}
+                          onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="President, Vice President, etc."
+                        />
+                      </div>
+                    </div>
+                    {showModal === "addCandidate" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Election</label>
+                        <select
+                          value={formData.electionId || ""}
+                          onChange={(e) => setFormData({ ...formData, electionId: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">Select an election</option>
+                          {elections.map((e) => (
+                            <option key={e._id} value={e._id}>{e.title}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={formData.email || ""}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="candidate@university.edu"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                        <input
+                          type="text"
+                          value={formData.department || ""}
+                          onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Computer Science"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input
+                          type="tel"
+                          value={formData.phone || ""}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="+233 24 123 4567"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                        <input
+                          type="text"
+                          value={formData.year || ""}
+                          onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="1st Year, 2nd Year, etc."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button
+                      onClick={showModal === "addCandidate" ? handleAddCandidate : handleUpdateCandidate}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      {showModal === "addCandidate" ? "Add Candidate" : "Update Candidate"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showModal === "createUser" && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">Create Voter Account</h3>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={formData.name || ""}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Enter voter's full name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
+                      <input
+                        type="email"
+                        value={formData.email || ""}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Enter email (optional)"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={handleCreateUser} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                      <Save size={16} /> Create Voter
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showModal === "editUser" && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                      <X size={24} />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={formData.name || ""}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter user's full name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={formData.email || ""}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <select
+                        value={formData.role || ""}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="voter">Voter</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <strong>User ID:</strong> {selectedUser?.userId || 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Created:</strong> {selectedUser?.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button 
+                      onClick={closeModal} 
+                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateUser}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      Update User
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
