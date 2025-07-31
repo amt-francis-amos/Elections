@@ -47,36 +47,89 @@ const Reports = ({
     try {
       const response = await axios.get(
         `${API_BASE_URL}/votes/${electionId}/export?format=${format}`,
-        { responseType: format === 'json' ? 'json' : 'blob' }
+        { 
+          responseType: 'blob',
+          headers: {
+            'Accept': format === 'json' ? 'application/json' : 
+                     format === 'csv' ? 'text/csv' : 'text/plain'
+          }
+        }
       );
 
+      let blob;
+      let fileName;
+      let mimeType;
+
       if (format === 'json') {
-        const blob = new Blob([JSON.stringify(response.data, null, 2)], {
-          type: 'application/json'
-        });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `election_results_${electionId}.json`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        const url = window.URL.createObjectURL(response.data);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `election_results_${electionId}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        if (response.data instanceof Blob) {
+          const text = await response.data.text();
+          try {
+            const jsonData = JSON.parse(text);
+            blob = new Blob([JSON.stringify(jsonData, null, 2)], {
+              type: 'application/json'
+            });
+          } catch {
+            blob = new Blob([text], { type: 'application/json' });
+          }
+        } else {
+          blob = new Blob([JSON.stringify(response.data, null, 2)], {
+            type: 'application/json'
+          });
+        }
+        fileName = `election_results_${electionId}.json`;
+        mimeType = 'application/json';
+      } else if (format === 'csv') {
+        blob = response.data instanceof Blob ? response.data : 
+               new Blob([response.data], { type: 'text/csv' });
+        fileName = `election_results_${electionId}.csv`;
+        mimeType = 'text/csv';
+      } else if (format === 'txt') {
+        blob = response.data instanceof Blob ? response.data : 
+               new Blob([response.data], { type: 'text/plain' });
+        fileName = `election_results_${electionId}.txt`;
+        mimeType = 'text/plain';
       }
+
+      if (blob.size === 0) {
+        throw new Error('No data received from server');
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
       alert(`Results exported successfully as ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Export error:', error);
-      alert(`Error exporting results: ${error.response?.data?.message || error.message}`);
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error.response) {
+        if (error.response.status === 404) {
+          errorMessage = 'Export endpoint not found. Please check if the backend supports this feature.';
+        } else if (error.response.status === 500) {
+          errorMessage = 'Server error occurred while exporting results.';
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else {
+          errorMessage = `Server responded with status ${error.response.status}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMessage = error.message || 'Export failed';
+      }
+      
+      alert(`Error exporting results: ${errorMessage}`);
     } finally {
       setExportingStates(prev => ({ ...prev, [key]: false }));
     }
@@ -255,7 +308,7 @@ const Reports = ({
                     <button
                       onClick={() => handleExportResults(election.id || election._id, 'json')}
                       disabled={exportingStates[`${election.id || election._id}_json`]}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50"
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <Download size={14} />
                       {exportingStates[`${election.id || election._id}_json`] ? 'Exporting...' : 'JSON'}
@@ -263,7 +316,7 @@ const Reports = ({
                     <button
                       onClick={() => handleExportResults(election.id || election._id, 'csv')}
                       disabled={exportingStates[`${election.id || election._id}_csv`]}
-                      className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50"
+                      className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <FileText size={14} />
                       {exportingStates[`${election.id || election._id}_csv`] ? 'Exporting...' : 'CSV'}
@@ -271,7 +324,7 @@ const Reports = ({
                     <button
                       onClick={() => handleExportResults(election.id || election._id, 'txt')}
                       disabled={exportingStates[`${election.id || election._id}_txt`]}
-                      className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50"
+                      className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <FileText size={14} />
                       {exportingStates[`${election.id || election._id}_txt`] ? 'Exporting...' : 'TXT'}
