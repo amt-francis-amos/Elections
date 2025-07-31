@@ -20,14 +20,12 @@ import { authorizeRoles } from '../middlewares/authorizeRoles.js'
 
 const router = express.Router()
 
-// User management routes
+
 router.post('/promote', auth, authorizeRoles('admin'), promoteToAdmin)
 router.put('/users/:id', auth, authorizeRoles('admin'), updateUser)
 router.delete('/users/:id', auth, authorizeRoles('admin'), deleteUser)
 router.post('/create-voter', auth, authorizeRoles('admin'), createVoter)
 router.get('/voters', auth, authorizeRoles('admin'), getAllVoters)
-
-// Stats route
 router.get('/stats', auth, authorizeRoles('admin'), getStats)
 router.get('/export', auth, authorizeRoles('admin'), exportElectionResults)
 router.post('/elections', auth, authorizeRoles('admin'), createElection)
