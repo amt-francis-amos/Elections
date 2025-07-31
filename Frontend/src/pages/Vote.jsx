@@ -26,7 +26,7 @@ import {
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-
+// Axios request interceptor
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem('userToken') || localStorage.getItem('token');
   if (token) {
@@ -37,13 +37,12 @@ axios.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-
+// Axios response interceptor
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       console.error('Authentication failed. Token may be expired.');
-      
     }
     return Promise.reject(error);
   }
@@ -494,7 +493,6 @@ const Vote = () => {
     checkUserRole();
   }, []);
 
-
   const checkExistingVotes = async (electionId, silent = false) => {
     try {
       const token = localStorage.getItem('userToken') || localStorage.getItem('token');
@@ -505,7 +503,6 @@ const Vote = () => {
 
       if (!silent) console.log('Checking existing votes for election:', electionId);
 
-     
       const response = await axios.get(
         `${API_BASE_URL}/votes/${electionId}/check-all`,
         { 
@@ -534,19 +531,16 @@ const Vote = () => {
           
           if (!silent) console.log('User has voted for positions:', votedPositionsList);
           
-        
           localStorage.setItem(`votes_${electionId}`, JSON.stringify({
             candidates: votedCandidatesMap,
             positions: votedPositionsList,
             timestamp: Date.now()
           }));
         } else {
-        
           setVotedCandidates({});
           setVotedPositions([]);
           if (!silent) console.log('User has not voted yet');
           
-        
           localStorage.removeItem(`votes_${electionId}`);
         }
       }
@@ -565,7 +559,6 @@ const Vote = () => {
         console.error('Unauthorized - please log in again');
         setError('Session expired. Please log in again.');
       } else {
-    
         if (!silent) console.error('Error checking existing votes:', err);
         
         const cachedVotes = localStorage.getItem(`votes_${electionId}`);
@@ -692,7 +685,6 @@ const Vote = () => {
           setPositions([]);
         }
         
-        
         await checkExistingVotes(selectedElectionId);
         
       } catch (err) {
@@ -752,7 +744,6 @@ const Vote = () => {
     setRefreshing(true);
     try {
       if (selectedElectionId) {
- 
         const token = localStorage.getItem('userToken') || localStorage.getItem('token');
         const response = await axios.get(
           `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
@@ -763,7 +754,6 @@ const Vote = () => {
           setCandidatesByPosition(response.data.candidatesByPosition);
         }
         
-      
         await checkExistingVotes(selectedElectionId, true);
       }
     } catch (err) {
@@ -819,14 +809,12 @@ const Vote = () => {
       );
       
       if (response.data.success) {
-   
         setVotedCandidates(prev => ({
           ...prev,
           [candidate.position]: candidate._id
         }));
         
         setVotedPositions(prev => [...prev, candidate.position]);
-        
         
         setCandidatesByPosition(prev => ({
           ...prev,
@@ -837,7 +825,6 @@ const Vote = () => {
           )
         }));
 
-       
         const newVotedCandidates = {
           ...votedCandidates,
           [candidate.position]: candidate._id
@@ -861,7 +848,6 @@ const Vote = () => {
           icon: <CheckCircle size={20} />
         });
 
-      
         const nextPositionIndex = positions.indexOf(candidate.position) + 1;
         if (nextPositionIndex < positions.length) {
           setTimeout(() => {
@@ -895,7 +881,6 @@ const Vote = () => {
             }
           });
         } else if (alreadyVoted) {
-          
           setVotedPositions(prev => {
             if (!prev.includes(position || candidate.position)) {
               return [...prev, position || candidate.position];
