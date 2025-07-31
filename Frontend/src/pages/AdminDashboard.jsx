@@ -29,6 +29,7 @@ import {
   Phone,
   Upload,
   Camera,
+  RefreshCw,
 } from "lucide-react";
 import Dashboard from "../components/Dashboard.jsx";
 import Elections from "../components/Elections.jsx";
@@ -36,29 +37,41 @@ import Candidates from "../components/Candidates.jsx";
 import Reports from "../components/Reports.jsx";
 import UserAccount from "../components/UserAccount.jsx";
 
-
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
+// Enhanced axios interceptor with better error handling
 axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = localStorage.getItem("token") || localStorage.getItem("userToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
+
+// Add response interceptor for better error handling
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.error('Authentication failed. Please log in again.');
+      // Optionally redirect to login page
+    }
+    return Promise.reject(error);
+  }
+);
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState({
-    totalElections: 12,
-    activeElections: 3,
-    totalCandidates: 45,
-    totalVotes: 1250,
-    totalUsers: 2100,
+    totalElections: 0,
+    activeElections: 0,
+    totalCandidates: 0,
+    totalVotes: 0,
+    totalUsers: 0,
   });
-  const [recentActivity, setRecentActivity] = useState([
-    { id: 1, type: "election", action: 'New election "Student Council 2025" created', time: "2 hours ago", status: "success" },
-    { id: 2, type: "candidate", action: "John Doe registered for President position", time: "3 hours ago", status: "info" },
-    { id: 3, type: "vote", action: 'Election "Class Representative" completed', time: "1 day ago", status: "completed" },
-  ]);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [elections, setElections] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [users, setUsers] = useState([]);
@@ -71,6 +84,7 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({});
   const [imageUploadLoading, setImageUploadLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const quickActions = [
     { icon: Plus, label: "Create Election", color: "bg-blue-500 hover:bg-blue-600", action: () => openModal("createElection") },
@@ -81,60 +95,133 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchAllData();
+    
+    // Set up periodic refresh every 30 seconds for real-time updates
+    const intervalId = setInterval(() => {
+      fetchAllData(true); // Silent refresh
+    }, 30000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
-  const fetchAllData = async () => {
-    setLoading(true);
+  // Enhanced refresh function
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchAllData();
+    setRefreshing(false);
+  };
+
+  const fetchAllData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
+    
     try {
       await Promise.all([
-        fetchElections(),
-        fetchCandidates(),
-        fetchUsers(),
+        fetchElections(silent),
+        fetchCandidates(silent),
+        fetchUsers(silent),
+        fetchVoteStats(silent), // Add vote stats fetching
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
-  const fetchElections = async () => {
+  // New function to fetch real-time vote statistics
+  const fetchVoteStats = async (silent = false) => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/admin/stats`);
+      
+      if (data.success) {
+        setStats(prevStats => ({
+          ...prevStats,
+          totalVotes: data.stats.totalVotes || 0,
+        }));
+      }
+    } catch (err) {
+      if (!silent) {
+        console.error("Error fetching vote stats:", err);
+      }
+    }
+  };
+
+  const fetchElections = async (silent = false) => {
     try {
       const { data } = await axios.get(`${API_BASE_URL}/elections`);
-      console.log("Fetched elections:", data);
+      
+      if (!silent) {
+        console.log("Fetched elections:", data);
+      }
 
       const electionsData = data.elections || data || [];
       
-      const formattedElections = electionsData.map(election => ({
-        ...election,
-        totalVotes: election.totalVotes || 0,
-        eligibleVoters: election.eligibleVoters || 0,
-        totalCandidates: election.totalCandidates || election.candidatesCount || 0,
-        startDate: new Date(election.startDate).toISOString().split('T')[0],
-        endDate: new Date(election.endDate).toISOString().split('T')[0],
-      }));
+      // Enhanced election data formatting with real vote counts
+      const formattedElections = await Promise.all(
+        electionsData.map(async (election) => {
+          try {
+            // Fetch real-time vote count for this election
+            const voteResponse = await axios.get(`${API_BASE_URL}/votes/results/${election._id}`);
+            const totalVotes = voteResponse.data?.results?.totalVotes || 0;
+            
+            return {
+              ...election,
+              totalVotes: totalVotes,
+              eligibleVoters: election.eligibleVoters || 0,
+              totalCandidates: election.totalCandidates || election.candidatesCount || 0,
+              startDate: new Date(election.startDate).toISOString().split('T')[0],
+              endDate: new Date(election.endDate).toISOString().split('T')[0],
+            };
+          } catch (voteErr) {
+            // If vote fetching fails, use existing data
+            return {
+              ...election,
+              totalVotes: election.totalVotes || 0,
+              eligibleVoters: election.eligibleVoters || 0,
+              totalCandidates: election.totalCandidates || election.candidatesCount || 0,
+              startDate: new Date(election.startDate).toISOString().split('T')[0],
+              endDate: new Date(election.endDate).toISOString().split('T')[0],
+            };
+          }
+        })
+      );
 
       setElections(formattedElections);
 
       const activeCount = formattedElections.filter(e => 
-        e.status === 'active' || e.status === 'ongoing'
+        e.status === 'active' || e.status === 'ongoing' || e.isActive
       ).length;
+
+      // Calculate total votes across all elections
+      const totalVotesAcrossElections = formattedElections.reduce(
+        (sum, election) => sum + (election.totalVotes || 0), 0
+      );
 
       setStats(prevStats => ({
         ...prevStats,
         totalElections: formattedElections.length,
         activeElections: activeCount,
+        totalVotes: totalVotesAcrossElections,
       }));
 
     } catch (err) {
-      console.error("Error fetching elections:", err);
+      if (!silent) {
+        console.error("Error fetching elections:", err);
+      }
     }
   };
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = async (silent = false) => {
     try {
       const { data } = await axios.get(`${API_BASE_URL}/candidates`);
-      console.log("Fetched candidates:", data);
+      
+      if (!silent) {
+        console.log("Fetched candidates:", data);
+      }
 
       let candidatesData = [];
       
@@ -148,12 +235,33 @@ const AdminDashboard = () => {
         candidatesData = data.data;
       }
 
-      const formattedCandidates = candidatesData.map(candidate => ({
-        ...candidate,
-        id: candidate._id || candidate.id,
-        votes: candidate.votes || 0,
-        image: candidate.image || null,
-      }));
+      // Enhanced candidate data with real-time vote counts
+      const formattedCandidates = await Promise.all(
+        candidatesData.map(async (candidate) => {
+          try {
+            // Fetch real-time vote count for this candidate
+            const voteResponse = await axios.get(
+              `${API_BASE_URL}/votes/candidate/${candidate._id || candidate.id}/count`
+            );
+            const realVotes = voteResponse.data?.voteCount || candidate.votes || 0;
+            
+            return {
+              ...candidate,
+              id: candidate._id || candidate.id,
+              votes: realVotes,
+              image: candidate.image || null,
+            };
+          } catch (voteErr) {
+            // If individual vote fetching fails, use existing data
+            return {
+              ...candidate,
+              id: candidate._id || candidate.id,
+              votes: candidate.votes || 0,
+              image: candidate.image || null,
+            };
+          }
+        })
+      );
 
       setCandidates(formattedCandidates);
 
@@ -163,25 +271,31 @@ const AdminDashboard = () => {
       }));
 
     } catch (err) {
-      console.error("Error fetching candidates:", err);
-      if (err.response?.status === 404) {
-        console.error("Candidates endpoint not found. Make sure backend route exists.");
+      if (!silent) {
+        console.error("Error fetching candidates:", err);
+        if (err.response?.status === 404) {
+          console.error("Candidates endpoint not found. Make sure backend route exists.");
+        }
       }
       setCandidates([]);
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (silent = false) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/admin/voters`);
-      setUsers(res.data.voters || []);
+      const usersData = res.data.voters || [];
+      
+      setUsers(usersData);
       
       setStats(prevStats => ({
         ...prevStats,
-        totalUsers: (res.data.voters || []).length,
+        totalUsers: usersData.length,
       }));
     } catch (err) {
-      console.error("Error fetching users:", err);
+      if (!silent) {
+        console.error("Error fetching users:", err);
+      }
     }
   };
 
@@ -442,6 +556,9 @@ const AdminDashboard = () => {
         ...prevStats,
         totalCandidates: Math.max(0, prevStats.totalCandidates - 1),
       }));
+
+      // Refresh data to get updated counts
+      await fetchAllData(true);
     } catch (err) {
       console.error(err);
       alert(`Error deleting candidate: ${err.response?.data?.message || err.message}`);
@@ -511,7 +628,7 @@ const AdminDashboard = () => {
       setStats(prevStats => ({
         ...prevStats,
         totalElections: prevStats.totalElections + 1,
-        activeElections: newElection.status === 'active' || newElection.status === 'ongoing' 
+        activeElections: newElection.status === 'active' || newElection.status === 'ongoing' || newElection.isActive
           ? prevStats.activeElections + 1 
           : prevStats.activeElections
       }));
@@ -658,7 +775,7 @@ const AdminDashboard = () => {
       setStats(prevStats => ({
         ...prevStats,
         totalElections: Math.max(0, prevStats.totalElections - 1),
-        activeElections: election?.status === 'active' || election?.status === 'ongoing'
+        activeElections: election?.status === 'active' || election?.status === 'ongoing' || election?.isActive
           ? Math.max(0, prevStats.activeElections - 1)
           : prevStats.activeElections
       }));
@@ -675,6 +792,9 @@ const AdminDashboard = () => {
       ]);
 
       alert("Election deleted successfully!");
+
+      // Refresh data to get updated counts
+      await fetchAllData(true);
 
     } catch (err) {
       console.error("Error deleting election:", err);
@@ -732,6 +852,9 @@ const AdminDashboard = () => {
       
       closeModal();
       alert("Candidate added successfully!");
+
+      // Refresh data to get updated counts
+      await fetchAllData(true);
       
     } catch (err) {
       console.error("Error adding candidate:", err);
@@ -798,6 +921,9 @@ const AdminDashboard = () => {
 
       closeModal();
       alert("Candidate updated successfully!");
+
+      // Refresh data to get updated counts
+      await fetchAllData(true);
 
     } catch (err) {
       console.error("Error updating candidate:", err);
@@ -881,10 +1007,20 @@ const AdminDashboard = () => {
               <p className="text-gray-600 mt-1">Manage elections, candidates, and users.</p>
             </div>
             <div className="flex items-center gap-4">
-              <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-                <Bell size={20} /><span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              <button 
+                onClick={handleManualRefresh}
+                className={`p-2 text-gray-400 hover:text-gray-600 ${refreshing ? 'animate-spin' : ''}`}
+                title="Refresh data"
+              >
+                <RefreshCw size={20} />
               </button>
-              <button className="p-2 text-gray-400 hover:text-gray-600"><Settings size={20} /></button>
+              <button className="p-2 text-gray-400 hover:text-gray-600 relative">
+                <Bell size={20} />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-600">
+                <Settings size={20} />
+              </button>
             </div>
           </div>
           <div className="mt-6 border-t pt-4">
@@ -1079,19 +1215,21 @@ const AdminDashboard = () => {
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Election</label>
-                      <select
-                        value={formData.electionId || ""}
-                        onChange={(e) => setFormData({ ...formData, electionId: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select an election</option>
-                        {elections.map((e) => (
-                          <option key={e._id} value={e._id}>{e.title}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {showModal === "addCandidate" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Election</label>
+                        <select
+                          value={formData.electionId || ""}
+                          onChange={(e) => setFormData({ ...formData, electionId: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">Select an election</option>
+                          {elections.map((e) => (
+                            <option key={e._id} value={e._id}>{e.title}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
