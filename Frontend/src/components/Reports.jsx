@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   PieChart,
   BarChart3,
   Download,
   Users2,
-  Users
+  Users,
+  Trophy,
+  AlertTriangle,
+  CheckCircle,
+  FileText,
+  Crown,
+  Award,
+  Target,
+  Calendar
 } from 'lucide-react';
+import axios from 'axios';
+
+const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
 const Reports = ({ 
   elections = [], 
@@ -14,6 +25,153 @@ const Reports = ({
   exportResults, 
   getStatusColor 
 }) => {
+  const [loadingStates, setLoadingStates] = useState({});
+  const [winners, setWinners] = useState({});
+  const [exportingStates, setExportingStates] = useState({});
+
+  const setLoading = (electionId, action, state) => {
+    setLoadingStates(prev => ({
+      ...prev,
+      [`${electionId}_${action}`]: state
+    }));
+  };
+
+  const isLoading = (electionId, action) => {
+    return loadingStates[`${electionId}_${action}`] || false;
+  };
+
+  const handleExportResults = async (electionId, format = 'json') => {
+    const key = `${electionId}_${format}`;
+    setExportingStates(prev => ({ ...prev, [key]: true }));
+    
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/votes/${electionId}/export?format=${format}`,
+        { responseType: format === 'json' ? 'json' : 'blob' }
+      );
+
+      if (format === 'json') {
+        const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+          type: 'application/json'
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `election_results_${electionId}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const url = window.URL.createObjectURL(response.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `election_results_${electionId}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+
+      alert(`Results exported successfully as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert(`Error exporting results: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setExportingStates(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleGetFinalResults = async (electionId) => {
+    setLoading(electionId, 'final', true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/votes/${electionId}/final-results`);
+      
+      if (response.data.success) {
+        setWinners(prev => ({
+          ...prev,
+          [electionId]: response.data
+        }));
+        alert('Final results loaded successfully!');
+      }
+    } catch (error) {
+      console.error('Get final results error:', error);
+      alert(`Error loading final results: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoading(electionId, 'final', false);
+    }
+  };
+
+  const handleDeclareWinners = async (electionId, confirmDeclaration = false) => {
+    setLoading(electionId, 'declare', true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/votes/${electionId}/declare-winners`,
+        { confirmDeclaration }
+      );
+      
+      if (response.data.success) {
+        if (response.data.requiresConfirmation) {
+          const confirmMessage = `
+            WARNING: Issues detected before declaring winners:
+            
+            Clear Winners: ${response.data.summary.clearWinners}
+            Tied Positions: ${response.data.summary.tiedPositions}
+            Warnings: ${response.data.summary.warningsCount}
+            
+            Issues:
+            ${response.data.warnings.join('\n')}
+            
+            Do you want to proceed with declaration anyway?
+          `;
+          
+          if (window.confirm(confirmMessage)) {
+            await handleDeclareWinners(electionId, true);
+          }
+        } else {
+          setWinners(prev => ({
+            ...prev,
+            [electionId]: response.data
+          }));
+          alert(`Winners declared successfully! ${response.data.summary.clearWinners} position(s) declared.`);
+        }
+      }
+    } catch (error) {
+      console.error('Declare winners error:', error);
+      alert(`Error declaring winners: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoading(electionId, 'declare', false);
+    }
+  };
+
+  const handleCheckWinnersDeclaration = async (electionId) => {
+    setLoading(electionId, 'check', true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/votes/${electionId}/winners-declaration`);
+      
+      if (response.data.success) {
+        if (response.data.declared) {
+          setWinners(prev => ({
+            ...prev,
+            [electionId]: response.data
+          }));
+          alert('Winners declaration loaded successfully!');
+        } else {
+          alert('Winners have not been declared for this election yet.');
+        }
+      }
+    } catch (error) {
+      console.error('Check declaration error:', error);
+      alert(`Error checking declaration: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoading(electionId, 'check', false);
+    }
+  };
+
+  const getElectionWinners = (electionId) => {
+    return winners[electionId];
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -93,13 +251,30 @@ const Reports = ({
                     </div>
                   </div>
                   
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
-                      onClick={() => exportResults('csv', election.id)}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                      onClick={() => handleExportResults(election.id || election._id, 'json')}
+                      disabled={exportingStates[`${election.id || election._id}_json`]}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50"
                     >
                       <Download size={14} />
-                      Export Results
+                      {exportingStates[`${election.id || election._id}_json`] ? 'Exporting...' : 'JSON'}
+                    </button>
+                    <button
+                      onClick={() => handleExportResults(election.id || election._id, 'csv')}
+                      disabled={exportingStates[`${election.id || election._id}_csv`]}
+                      className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <FileText size={14} />
+                      {exportingStates[`${election.id || election._id}_csv`] ? 'Exporting...' : 'CSV'}
+                    </button>
+                    <button
+                      onClick={() => handleExportResults(election.id || election._id, 'txt')}
+                      disabled={exportingStates[`${election.id || election._id}_txt`]}
+                      className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <FileText size={14} />
+                      {exportingStates[`${election.id || election._id}_txt`] ? 'Exporting...' : 'TXT'}
                     </button>
                   </div>
                 </div>
@@ -109,7 +284,202 @@ const Reports = ({
         </div>
       </div>
 
-      {/* Summary Statistics */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Crown size={20} />
+          Winner Declaration & Final Results
+        </h3>
+        <div className="space-y-6">
+          {elections.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No elections available for winner declaration</p>
+          ) : (
+            elections.map((election) => {
+              const electionId = election.id || election._id;
+              const electionWinners = getElectionWinners(electionId);
+              
+              return (
+                <div key={electionId} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{election.title}</h4>
+                      <p className="text-sm text-gray-600">
+                        Status: <span className={`px-2 py-1 rounded text-xs ${getStatusColor(election.status)}`}>
+                          {election.status}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Total Votes: {election.totalVotes || 0} | Candidates: {election.totalCandidates || 0}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleGetFinalResults(electionId)}
+                        disabled={isLoading(electionId, 'final')}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Target size={14} />
+                        {isLoading(electionId, 'final') ? 'Loading...' : 'Final Results'}
+                      </button>
+                      <button
+                        onClick={() => handleDeclareWinners(electionId)}
+                        disabled={isLoading(electionId, 'declare')}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Crown size={14} />
+                        {isLoading(electionId, 'declare') ? 'Declaring...' : 'Declare Winners'}
+                      </button>
+                      <button
+                        onClick={() => handleCheckWinnersDeclaration(electionId)}
+                        disabled={isLoading(electionId, 'check')}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <CheckCircle size={14} />
+                        {isLoading(electionId, 'check') ? 'Checking...' : 'Check Declaration'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {electionWinners && (
+                    <div className="mt-4 border-t pt-4">
+                      {electionWinners.declared ? (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle size={16} className="text-green-600" />
+                            <span className="font-medium text-green-800">Winners Officially Declared</span>
+                            <span className="text-xs text-gray-500">
+                              on {new Date(electionWinners.declaration?.declaredAt).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          {Object.keys(electionWinners.winners || {}).length > 0 && (
+                            <div className="mb-4">
+                              <h5 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                                <Award size={16} className="text-yellow-600" />
+                                Declared Winners
+                              </h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {Object.entries(electionWinners.winners).map(([position, winner]) => (
+                                  <div key={position} className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Trophy size={14} className="text-green-600" />
+                                      <span className="font-medium text-green-800">{position}</span>
+                                    </div>
+                                    <p className="text-sm font-semibold text-gray-900">{winner.name}</p>
+                                    <p className="text-xs text-gray-600">
+                                      {winner.votes} votes ({winner.percentage}%)
+                                    </p>
+                                    {winner.email && (
+                                      <p className="text-xs text-gray-600">{winner.email}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {Object.keys(electionWinners.ties || {}).length > 0 && (
+                            <div className="mb-4">
+                              <h5 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                                <AlertTriangle size={16} className="text-yellow-600" />
+                                Tied Positions (Requiring Runoff)
+                              </h5>
+                              <div className="space-y-3">
+                                {Object.entries(electionWinners.ties).map(([position, tie]) => (
+                                  <div key={position} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                    <p className="font-medium text-yellow-800 mb-2">{position}</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                      {tie.candidates.map((candidate, index) => (
+                                        <div key={index} className="flex justify-between items-center">
+                                          <span className="text-sm text-gray-900">{candidate.name}</span>
+                                          <span className="text-xs text-gray-600">
+                                            {candidate.votes} votes ({candidate.percentage}%)
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {electionWinners.warnings && electionWinners.warnings.length > 0 && (
+                            <div className="mb-4">
+                              <h5 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                                <AlertTriangle size={16} className="text-orange-600" />
+                                Warnings
+                              </h5>
+                              <ul className="space-y-1">
+                                {electionWinners.warnings.map((warning, index) => (
+                                  <li key={index} className="text-sm text-orange-700 bg-orange-50 px-3 py-1 rounded">
+                                    {warning}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Calendar size={16} className="text-blue-600" />
+                            <span className="font-medium text-blue-800">Final Results Preview</span>
+                          </div>
+
+                          {electionWinners.summary && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                              <h5 className="font-medium text-blue-900 mb-2">Election Summary</h5>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <span className="text-blue-700">Total Votes:</span>
+                                  <span className="ml-1 font-medium">{electionWinners.summary.totalVotes}</span>
+                                </div>
+                                <div>
+                                  <span className="text-blue-700">Unique Voters:</span>
+                                  <span className="ml-1 font-medium">{electionWinners.summary.uniqueVoters}</span>
+                                </div>
+                                <div>
+                                  <span className="text-blue-700">Turnout:</span>
+                                  <span className="ml-1 font-medium">{electionWinners.summary.turnoutRate}%</span>
+                                </div>
+                                <div>
+                                  <span className="text-blue-700">Positions:</span>
+                                  <span className="ml-1 font-medium">{electionWinners.summary.positionsCount}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {electionWinners.winners && Object.keys(electionWinners.winners).length > 0 && (
+                            <div className="mb-4">
+                              <h5 className="font-medium text-gray-900 mb-2">Potential Winners</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {Object.entries(electionWinners.winners).map(([position, winner]) => (
+                                  <div key={position} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Trophy size={14} className="text-gray-600" />
+                                      <span className="font-medium text-gray-800">{position}</span>
+                                    </div>
+                                    <p className="text-sm font-semibold text-gray-900">{winner.name}</p>
+                                    <p className="text-xs text-gray-600">
+                                      {winner.votes} votes ({winner.percentage}%)
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-4">
