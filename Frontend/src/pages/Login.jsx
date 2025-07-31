@@ -17,7 +17,7 @@ const Login = ({
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  // Show notification
+ 
   const showNotification = (message, type = "info") => {
     setNotification({ message, type });
     setTimeout(() => setNotification({ message: "", type: "" }), 5000);
