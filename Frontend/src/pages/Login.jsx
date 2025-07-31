@@ -86,7 +86,6 @@ const Login = ({
       
       if (!token || !user) throw new Error("Invalid login response");
 
-      // Store auth data
       window.authData = { token, user };
 
       showNotification("Login successful!", "success");
@@ -99,13 +98,13 @@ const Login = ({
       let msg = "Something went wrong";
       
       if (err.response) {
-        // Server responded with error status
+       
         msg = err.response.data?.message || `Error: ${err.response.status}`;
       } else if (err.request) {
-        // Network error
+      
         msg = "Network error. Please check your connection.";
       } else if (err.code === 'ECONNABORTED') {
-        // Timeout error
+    
         msg = "Request timeout. Please try again.";
       } else {
         msg = err.message || "Something went wrong";
@@ -134,7 +133,7 @@ const Login = ({
             Election System Login
           </h2>
 
-          {/* Notification */}
+     
           {notification.message && (
             <div className={`mb-4 p-3 rounded-md text-sm ${
               notification.type === "error" ? "bg-red-100 text-red-700 border border-red-300" :
