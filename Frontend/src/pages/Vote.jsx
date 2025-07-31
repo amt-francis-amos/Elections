@@ -21,33 +21,157 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  RefreshCw
+  RefreshCw,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
+// Enhanced axios configuration with retry logic and rate limiting handling
+const createAxiosInstance = () => {
+  const instance = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 15000, // Increased timeout
+  });
 
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('userToken') || localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
-
-
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      console.error('Authentication failed. Token may be expired.');
-      
+  // Request interceptor with rate limiting awareness
+  instance.interceptors.request.use((config) => {
+    const token = localStorage.getItem('userToken') || localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add request timestamp for rate limiting tracking
+    config.metadata = { startTime: new Date() };
+    
+    return config;
+  }, (error) => {
     return Promise.reject(error);
+  });
+
+  // Response interceptor with retry logic for rate limiting
+  instance.interceptors.response.use(
+    (response) => {
+      // Calculate request duration
+      const duration = new Date() - response.config.metadata.startTime;
+      console.log(`Request to ${response.config.url} took ${duration}ms`);
+      return response;
+    },
+    async (error) => {
+      const originalRequest = error.config;
+      
+      // Handle 429 Too Many Requests with exponential backoff
+      if (error.response?.status === 429 && !originalRequest._retry) {
+        originalRequest._retry = true;
+        originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+        
+        // Don't retry more than 3 times
+        if (originalRequest._retryCount > 3) {
+          console.error('Max retry attempts reached for rate limited request');
+          return Promise.reject(error);
+        }
+        
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, originalRequest._retryCount) * 1000;
+        
+        console.log(`Rate limited. Retrying in ${delay}ms... (attempt ${originalRequest._retryCount})`);
+        
+        // Show user-friendly message
+        toast.warning(`Server is busy. Retrying in ${delay/1000} seconds...`, {
+          toastId: 'rate-limit-retry',
+          autoClose: delay - 200
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return instance(originalRequest);
+      }
+      
+      // Handle 401 Unauthorized
+      if (error.response?.status === 401) {
+        console.error('Authentication failed. Token may be expired.');
+      }
+      
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
+};
+
+// Create axios instance with enhanced configuration
+const apiClient = createAxiosInstance();
+
+// Utility function to handle API calls with built-in error handling
+const makeApiCall = async (apiCall, errorMessage = 'API call failed') => {
+  try {
+    const response = await apiCall();
+    return { success: true, data: response.data, error: null };
+  } catch (error) {
+    console.error(errorMessage, error);
+    
+    let userMessage = errorMessage;
+    
+    if (error.response) {
+      const status = error.response.status;
+      switch (status) {
+        case 429:
+          userMessage = 'Server is currently busy. Please wait a moment and try again.';
+          break;
+        case 401:
+          userMessage = 'Authentication failed. Please log in again.';
+          break;
+        case 403:
+          userMessage = 'Access denied. Please check your permissions.';
+          break;
+        case 404:
+          userMessage = 'Requested resource not found.';
+          break;
+        case 500:
+          userMessage = 'Server error. Please try again later.';
+          break;
+        default:
+          userMessage = `Server error (${status}): ${error.response.data?.message || 'Unknown error'}`;
+      }
+    } else if (error.request) {
+      userMessage = 'Network error. Please check your internet connection.';
+    } else if (error.code === 'ECONNABORTED') {
+      userMessage = 'Request timeout. The server took too long to respond.';
+    }
+    
+    return { success: false, data: null, error: userMessage };
   }
-);
+};
+
+// Cache management for reducing API calls
+const CacheManager = {
+  cache: new Map(),
+  
+  set(key, data, ttl = 300000) { // 5 minutes default TTL
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
+    });
+  },
+  
+  get(key) {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    if (Date.now() - item.timestamp > item.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return item.data;
+  },
+  
+  clear() {
+    this.cache.clear();
+  }
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -462,6 +586,27 @@ const ElectionHeader = ({ election, candidatesCount, votedPositions, totalPositi
   );
 };
 
+// Rate limit status component
+const RateLimitStatus = ({ isRateLimited, retryAfter }) => {
+  if (!isRateLimited) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-4 bg-yellow-100 border border-yellow-300 rounded-xl p-4 flex items-center gap-3"
+    >
+      <WifiOff className="text-yellow-600 flex-shrink-0" size={18} />
+      <div>
+        <p className="font-medium text-yellow-800">Server is currently busy</p>
+        <p className="text-sm text-yellow-700">
+          Too many requests are being processed. Please wait {retryAfter} seconds before trying again.
+        </p>
+      </div>
+    </motion.div>
+  );
+};
+
 const Vote = () => {
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState('');
@@ -476,6 +621,8 @@ const Vote = () => {
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [retryAfter, setRetryAfter] = useState(0);
 
   useEffect(() => {
     const checkUserRole = () => {
@@ -494,7 +641,7 @@ const Vote = () => {
     checkUserRole();
   }, []);
 
-
+  // Enhanced check existing votes with caching and error handling
   const checkExistingVotes = async (electionId, silent = false) => {
     try {
       const token = localStorage.getItem('userToken') || localStorage.getItem('token');
@@ -503,87 +650,66 @@ const Vote = () => {
         return;
       }
 
+      const cacheKey = `votes_${electionId}`;
+      
+      // Check cache first to reduce API calls
+      const cachedVotes = CacheManager.get(cacheKey);
+      if (cachedVotes && silent) {
+        setVotedCandidates(cachedVotes.candidates);
+        setVotedPositions(cachedVotes.positions);
+        return;
+      }
+
       if (!silent) console.log('Checking existing votes for election:', electionId);
 
-     
-      const response = await axios.get(
-        `${API_BASE_URL}/votes/${electionId}/check-all`,
-        { 
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000
-        }
+      const result = await makeApiCall(
+        () => apiClient.get(`/votes/${electionId}/check-all`),
+        'Error checking existing votes'
       );
       
-      const data = response.data;
-      if (!silent) console.log('Vote check response:', data);
+      if (result.success && result.data.hasVoted && result.data.votes && Array.isArray(result.data.votes)) {
+        const votedCandidatesMap = {};
+        const votedPositionsList = [];
 
-      if (data.success) {
-        if (data.hasVoted && data.votes && Array.isArray(data.votes)) {
-          const votedCandidatesMap = {};
-          const votedPositionsList = [];
+        result.data.votes.forEach(vote => {
+          votedCandidatesMap[vote.position] = vote.candidate;
+          if (!votedPositionsList.includes(vote.position)) {
+            votedPositionsList.push(vote.position);
+          }
+        });
 
-          data.votes.forEach(vote => {
-            votedCandidatesMap[vote.position] = vote.candidate;
-            if (!votedPositionsList.includes(vote.position)) {
-              votedPositionsList.push(vote.position);
-            }
-          });
-
-          setVotedCandidates(votedCandidatesMap);
-          setVotedPositions(votedPositionsList);
-          
-          if (!silent) console.log('User has voted for positions:', votedPositionsList);
-          
+        setVotedCandidates(votedCandidatesMap);
+        setVotedPositions(votedPositionsList);
         
-          localStorage.setItem(`votes_${electionId}`, JSON.stringify({
-            candidates: votedCandidatesMap,
-            positions: votedPositionsList,
-            timestamp: Date.now()
-          }));
-        } else {
+        // Cache the results
+        CacheManager.set(cacheKey, {
+          candidates: votedCandidatesMap,
+          positions: votedPositionsList
+        });
         
-          setVotedCandidates({});
-          setVotedPositions([]);
-          if (!silent) console.log('User has not voted yet');
-          
-        
-          localStorage.removeItem(`votes_${electionId}`);
-        }
+        if (!silent) console.log('User has voted for positions:', votedPositionsList);
+      } else {
+        setVotedCandidates({});
+        setVotedPositions([]);
+        CacheManager.set(cacheKey, { candidates: {}, positions: [] });
+        if (!silent) console.log('User has not voted yet');
       }
       
     } catch (err) {
       if (!silent) {
-        console.log('Check existing votes error:', err.response?.status, err.message);
+        console.log('Check existing votes error:', err);
       }
-    
-      if (err.response?.status === 404) {
-        if (!silent) console.log('404 error - no votes found for this user');
-        setVotedCandidates({});
-        setVotedPositions([]);
-        localStorage.removeItem(`votes_${electionId}`);
-      } else if (err.response?.status === 401) {
-        console.error('Unauthorized - please log in again');
-        setError('Session expired. Please log in again.');
-      } else {
-    
-        if (!silent) console.error('Error checking existing votes:', err);
-        
-        const cachedVotes = localStorage.getItem(`votes_${electionId}`);
-        if (cachedVotes) {
-          try {
-            const { candidates, positions, timestamp } = JSON.parse(cachedVotes);
       
-            if (Date.now() - timestamp < 3600000) {
-              setVotedCandidates(candidates);
-              setVotedPositions(positions);
-              if (!silent) console.log('Using cached vote data');
-            } else {
-              localStorage.removeItem(`votes_${electionId}`);
-            }
-          } catch (cacheErr) {
-            localStorage.removeItem(`votes_${electionId}`);
-          }
-        }
+      // Handle rate limiting
+      if (err.response?.status === 429) {
+        setIsRateLimited(true);
+        const retryAfterSeconds = err.response.headers['retry-after'] || 60;
+        setRetryAfter(retryAfterSeconds);
+        
+        setTimeout(() => {
+          setIsRateLimited(false);
+          setRetryAfter(0);
+        }, retryAfterSeconds * 1000);
       }
     }
   };
@@ -598,28 +724,48 @@ const Vote = () => {
           return;
         }
 
-        const { data } = await axios.get(
-          `${API_BASE_URL}/elections`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        // Check cache first
+        const cachedElections = CacheManager.get('elections');
+        if (cachedElections) {
+          console.log('Using cached elections data');
+          setElections(cachedElections);
+          if (cachedElections.length) {
+            setSelectedElectionId(cachedElections[0]._id);
+            setSelectedElection(cachedElections[0]);
+          }
+          return;
+        }
+
+        const result = await makeApiCall(
+          () => apiClient.get('/elections'),
+          'Failed to load elections'
         );
 
-        console.log('Elections API Response:', data);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+
+        console.log('Elections API Response:', result.data);
         
         let electionsArray = [];
-        if (data && Array.isArray(data.elections)) {
-          electionsArray = data.elections;
-        } else if (data && data.success && Array.isArray(data.elections)) {
-          electionsArray = data.elections;
-        } else if (Array.isArray(data)) {
-          electionsArray = data;
+        if (result.data && Array.isArray(result.data.elections)) {
+          electionsArray = result.data.elections;
+        } else if (result.data && result.data.success && Array.isArray(result.data.elections)) {
+          electionsArray = result.data.elections;
+        } else if (Array.isArray(result.data)) {
+          electionsArray = result.data;
         } else {
-          console.error('Unexpected response format:', data);
+          console.error('Unexpected response format:', result.data);
           setError('Unexpected response format from server.');
           return;
         }
 
         const active = electionsArray.filter(e => e.isActive === true || e.status === 'active');
         setElections(active);
+        
+        // Cache the results
+        CacheManager.set('elections', active);
         
         if (active.length) {
           setSelectedElectionId(active[0]._id);
@@ -648,32 +794,57 @@ const Vote = () => {
           return;
         }
 
+        // Check cache first
+        const cacheKey = `candidates_${selectedElectionId}`;
+        const cachedCandidates = CacheManager.get(cacheKey);
+        if (cachedCandidates) {
+          console.log('Using cached candidates data');
+          setCandidatesByPosition(cachedCandidates.candidatesByPosition);
+          setPositions(cachedCandidates.positions);
+          if (cachedCandidates.positions.length > 0 && !currentPosition) {
+            setCurrentPosition(cachedCandidates.positions[0]);
+          }
+          
+          // Still check votes but silently
+          await checkExistingVotes(selectedElectionId, true);
+          setLoading(false);
+          return;
+        }
+
         console.log('Fetching candidates for election ID:', selectedElectionId);
         
-        const response = await axios.get(
-          `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
-          { 
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 10000
-          }
+        const result = await makeApiCall(
+          () => apiClient.get(`/candidates/public/election/${selectedElectionId}`),
+          'Failed to load candidates'
         );
         
-        const data = response.data;
+        if (!result.success) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
         
-        console.log('Candidates API Response:', data);
+        console.log('Candidates API Response:', result.data);
         
-        if (data && data.success && data.candidatesByPosition) {
-          setCandidatesByPosition(data.candidatesByPosition);
-          const positionsList = data.positions || Object.keys(data.candidatesByPosition);
+        if (result.data && result.data.success && result.data.candidatesByPosition) {
+          setCandidatesByPosition(result.data.candidatesByPosition);
+          const positionsList = result.data.positions || Object.keys(result.data.candidatesByPosition);
           setPositions(positionsList);
+          
+          // Cache the results
+          CacheManager.set(cacheKey, {
+            candidatesByPosition: result.data.candidatesByPosition,
+            positions: positionsList
+          });
+          
           if (positionsList.length > 0 && !currentPosition) {
             setCurrentPosition(positionsList[0]);
           }
-        } else if (data && Array.isArray(data.candidates)) {
+        } else if (result.data && Array.isArray(result.data.candidates)) {
           const groupedByPosition = {};
           const positionsList = [];
           
-          data.candidates.forEach(candidate => {
+          result.data.candidates.forEach(candidate => {
             if (!groupedByPosition[candidate.position]) {
               groupedByPosition[candidate.position] = [];
               positionsList.push(candidate.position);
@@ -683,48 +854,28 @@ const Vote = () => {
           
           setCandidatesByPosition(groupedByPosition);
           setPositions(positionsList);
+          
+          // Cache the results
+          CacheManager.set(cacheKey, {
+            candidatesByPosition: groupedByPosition,
+            positions: positionsList
+          });
+          
           if (positionsList.length > 0 && !currentPosition) {
             setCurrentPosition(positionsList[0]);
           }
         } else {
-          console.error('Unexpected candidates response format:', data);
+          console.error('Unexpected candidates response format:', result.data);
           setCandidatesByPosition({});
           setPositions([]);
         }
         
-        
+        // Check existing votes
         await checkExistingVotes(selectedElectionId);
         
       } catch (err) {
         console.error('Error loading candidates:', err);
-        
-        let errorMessage = 'Failed to load candidates.';
-        
-        if (err.response) {
-          const status = err.response.status;
-          switch (status) {
-            case 404:
-              errorMessage = 'No candidates found for this election or election not found.';
-              break;
-            case 401:
-              errorMessage = 'Authentication failed. Please log in again.';
-              break;
-            case 403:
-              errorMessage = 'Access denied. Please check your permissions.';
-              break;
-            case 500:
-              errorMessage = 'Server error. Please try again later.';
-              break;
-            default:
-              errorMessage = `Server returned ${status} error: ${err.response.data?.message || 'Unknown error'}`;
-          }
-        } else if (err.request) {
-          errorMessage = 'Network error. Please check your internet connection.';
-        } else if (err.code === 'ECONNABORTED') {
-          errorMessage = 'Request timeout. Please try again.';
-        }
-        
-        setError(errorMessage);
+        setError('Failed to load candidates. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -742,6 +893,10 @@ const Vote = () => {
     setCandidatesByPosition({});
     setPositions([]);
     setCurrentPosition('');
+    
+    // Clear related caches
+    CacheManager.cache.delete(`candidates_${electionId}`);
+    CacheManager.cache.delete(`votes_${electionId}`);
   };
 
   const handlePositionChange = (position) => {
@@ -752,22 +907,25 @@ const Vote = () => {
     setRefreshing(true);
     try {
       if (selectedElectionId) {
- 
-        const token = localStorage.getItem('userToken') || localStorage.getItem('token');
-        const response = await axios.get(
-          `${API_BASE_URL}/candidates/public/election/${selectedElectionId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        // Clear caches for fresh data
+        CacheManager.cache.delete(`candidates_${selectedElectionId}`);
+        CacheManager.cache.delete(`votes_${selectedElectionId}`);
+        
+        const result = await makeApiCall(
+          () => apiClient.get(`/candidates/public/election/${selectedElectionId}`),
+          'Error refreshing data'
         );
         
-        if (response.data.success) {
-          setCandidatesByPosition(response.data.candidatesByPosition);
+        if (result.success && result.data.success) {
+          setCandidatesByPosition(result.data.candidatesByPosition);
         }
         
-      
+        // Check existing votes
         await checkExistingVotes(selectedElectionId, true);
       }
     } catch (err) {
       console.error('Error refreshing data:', err);
+      toast.error('Failed to refresh data. Please try again.');
     } finally {
       setRefreshing(false);
     }
@@ -812,14 +970,16 @@ const Vote = () => {
     setError('');
 
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/votes`,
-        { electionId: selectedElectionId, candidateId: candidate._id },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const result = await makeApiCall(
+        () => apiClient.post('/votes', { 
+          electionId: selectedElectionId, 
+          candidateId: candidate._id 
+        }),
+        'Error casting vote'
       );
       
-      if (response.data.success) {
-   
+      if (result.success && result.data.success) {
+        // Update local state
         setVotedCandidates(prev => ({
           ...prev,
           [candidate.position]: candidate._id
@@ -827,7 +987,7 @@ const Vote = () => {
         
         setVotedPositions(prev => [...prev, candidate.position]);
         
-        
+        // Update candidate vote count
         setCandidatesByPosition(prev => ({
           ...prev,
           [candidate.position]: prev[candidate.position].map(c => 
@@ -837,18 +997,17 @@ const Vote = () => {
           )
         }));
 
-       
+        // Update cache
         const newVotedCandidates = {
           ...votedCandidates,
           [candidate.position]: candidate._id
         };
         const newVotedPositions = [...votedPositions, candidate.position];
         
-        localStorage.setItem(`votes_${selectedElectionId}`, JSON.stringify({
+        CacheManager.set(`votes_${selectedElectionId}`, {
           candidates: newVotedCandidates,
-          positions: newVotedPositions,
-          timestamp: Date.now()
-        }));
+          positions: newVotedPositions
+        });
 
         setError('');
         toast.success(`Vote cast successfully for ${candidate.name} (${candidate.position})!`, {
@@ -861,13 +1020,16 @@ const Vote = () => {
           icon: <CheckCircle size={20} />
         });
 
-      
+        // Auto-navigate to next position
         const nextPositionIndex = positions.indexOf(candidate.position) + 1;
         if (nextPositionIndex < positions.length) {
           setTimeout(() => {
             setCurrentPosition(positions[nextPositionIndex]);
           }, 1500);
         }
+      } else {
+        setError(result.error);
+        toast.error(result.error);
       }
 
     } catch (err) {
@@ -895,7 +1057,7 @@ const Vote = () => {
             }
           });
         } else if (alreadyVoted) {
-          
+          // Update local state with server response
           setVotedPositions(prev => {
             if (!prev.includes(position || candidate.position)) {
               return [...prev, position || candidate.position];
@@ -929,6 +1091,7 @@ const Vote = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-6">
         <div className="max-w-4xl mx-auto">
+          <RateLimitStatus isRateLimited={isRateLimited} retryAfter={retryAfter} />
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -936,7 +1099,18 @@ const Vote = () => {
           >
             <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
-            <p className="text-red-700">{error}</p>
+            <p className="text-red-700 mb-4">{error}</p>
+            
+            {error.includes('Server is currently busy') && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Retry Now
+              </motion.button>
+            )}
           </motion.div>
         </div>
         <ToastContainer />
@@ -947,6 +1121,8 @@ const Vote = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
+        <RateLimitStatus isRateLimited={isRateLimited} retryAfter={retryAfter} />
+        
         {elections.length > 1 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
