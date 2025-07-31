@@ -439,7 +439,7 @@ const Vote = () => {
   const [loading, setLoading] = useState(false);
   const [votedCandidates, setVotedCandidates] = useState({});
   const [votedPositions, setVotedPositions] = useState([]);
-  const [votingCandidateId, setVotingCandidateId] = useState(null); // Changed from isVoting to votingCandidateId
+  const [votingCandidateId, setVotingCandidateId] = useState(null); 
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState(null);
 
@@ -461,104 +461,72 @@ const Vote = () => {
   }, []);
 
   const checkExistingVotes = async (electionId) => {
-    try {
-      const token = localStorage.getItem('userToken');
-      if (!token) return;
+  try {
+    const token = localStorage.getItem('userToken');
+    if (!token) return;
 
-      console.log('Checking existing votes for election:', electionId);
+    console.log('Checking existing votes for election:', electionId);
 
-      let response;
-      try {
-        response = await axios.get(
-          `${API_BASE_URL}/votes/${electionId}/user-vote`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-      } catch (firstError) {
-        if (firstError.response?.status === 404) {
-          try {
-            response = await axios.get(
-              `${API_BASE_URL}/votes/user/${electionId}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-          } catch (secondError) {
-            if (secondError.response?.status === 404) {
-              try {
-                response = await axios.get(
-                  `${API_BASE_URL}/votes/check/${electionId}`,
-                  { headers: { Authorization: `Bearer ${token}` } }
-                );
-              } catch (thirdError) {
-                if (thirdError.response?.status === 404) {
-                  try {
-                    response = await axios.get(
-                      `${API_BASE_URL}/elections/${electionId}/user-vote`,
-                      { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                  } catch (fourthError) {
-                    console.log('All vote check endpoints returned 404 - assuming user has not voted');
-                    setVotedCandidates({});
-                    setVotedPositions([]);
-                    return;
-                  }
-                } else {
-                  throw thirdError;
-                }
-              }
-            } else {
-              throw secondError;
-            }
-          }
-        } else {
-          throw firstError;
-        }
+    const response = await axios.get(
+      `${API_BASE_URL}/votes/${electionId}/user-vote`,
+      { 
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
       }
-      
-      const data = response.data;
-      console.log('Vote check response:', data);
-
-      if (data.success && data.votes && Array.isArray(data.votes)) {
-        const votedCandidatesMap = {};
-        const votedPositionsList = [];
-
-        data.votes.forEach(vote => {
-          votedCandidatesMap[vote.position] = vote.candidate;
-          if (!votedPositionsList.includes(vote.position)) {
-            votedPositionsList.push(vote.position);
-          }
-        });
-
-        setVotedCandidates(votedCandidatesMap);
-        setVotedPositions(votedPositionsList);
-        console.log('User has voted for positions:', votedPositionsList);
-      } else if (data.success && data.hasVoted && data.vote) {
-        const votedCandidatesMap = {};
-        votedCandidatesMap[data.vote.position] = data.vote.candidate;
-        setVotedCandidates(votedCandidatesMap);
-        setVotedPositions([data.vote.position]);
-        console.log('User has voted for position:', data.vote.position);
-      } else {
-        setVotedCandidates({});
-        setVotedPositions([]);
-        console.log('User has not voted yet');
-      }
-      
-    } catch (err) {
-      console.log('Check existing votes error:', err.response?.status, err.message);
+    );
     
-      if (err.response?.status === 404) {
-        console.log('404 error - assuming user has not voted');
-        setVotedCandidates({});
-        setVotedPositions([]);
-      } else if (err.response?.status === 401) {
-        console.error('Unauthorized - please log in again');
-        setError('Session expired. Please log in again.');
-      } else {
-        console.error('Error checking existing votes:', err);
-        setVotedCandidates({});
-        setVotedPositions([]);
-      }
+    const data = response.data;
+    console.log('Vote check response:', data);
+
+
+    if (data.success && data.votes && Array.isArray(data.votes)) {
+      const votedCandidatesMap = {};
+      const votedPositionsList = [];
+
+      data.votes.forEach(vote => {
+        votedCandidatesMap[vote.position] = vote.candidate;
+        if (!votedPositionsList.includes(vote.position)) {
+          votedPositionsList.push(vote.position);
+        }
+      });
+
+      setVotedCandidates(votedCandidatesMap);
+      setVotedPositions(votedPositionsList);
+      console.log('User has voted for positions:', votedPositionsList);
+    } 
+    
+    else if (data.success && data.hasVoted && data.vote) {
+      const votedCandidatesMap = {};
+      votedCandidatesMap[data.vote.position] = data.vote.candidate;
+      setVotedCandidates(votedCandidatesMap);
+      setVotedPositions([data.vote.position]);
+      console.log('User has voted for position:', data.vote.position);
+    } 
+   
+    else if (data.success && !data.hasVoted) {
+      setVotedCandidates({});
+      setVotedPositions([]);
+      console.log('User has not voted yet');
     }
-  };
+    
+  } catch (err) {
+    console.log('Check existing votes error:', err.response?.status, err.message);
+  
+   
+    if (err.response?.status === 404) {
+      console.log('404 error - no votes found for this user');
+      setVotedCandidates({});
+      setVotedPositions([]);
+    } else if (err.response?.status === 401) {
+      console.error('Unauthorized - please log in again');
+      setError('Session expired. Please log in again.');
+      
+    } else {
+      console.error('Error checking existing votes:', err);
+  
+    }
+  }
+};
 
   useEffect(() => {
     const fetchElections = async () => {

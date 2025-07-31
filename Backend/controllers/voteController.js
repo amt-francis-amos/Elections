@@ -80,7 +80,7 @@ export const castVote = async (req, res) => {
       });
     }
 
-    // Check for existing vote with proper userId
+    // ENHANCED: Check for existing vote with better error handling
     const existingVote = await Vote.findOne({
       election: new mongoose.Types.ObjectId(electionId),
       voter: new mongoose.Types.ObjectId(userId),
@@ -88,12 +88,14 @@ export const castVote = async (req, res) => {
     });
 
     if (existingVote) {
+      console.log('Existing vote found for user:', userId, 'position:', candidate.position);
       return res.status(400).json({
         success: false,
         message: `You have already voted for the ${candidate.position} position in this election`,
         alreadyVoted: true,
         votedFor: existingVote.candidate,
-        position: candidate.position
+        position: candidate.position,
+        votedAt: existingVote.votedAt
       });
     }
 
@@ -114,6 +116,7 @@ export const castVote = async (req, res) => {
     });
 
     await newVote.save();
+    console.log('Vote successfully saved with ID:', newVote._id);
 
     // Update candidate vote count
     await Candidate.findByIdAndUpdate(
@@ -151,10 +154,13 @@ export const castVote = async (req, res) => {
     
     // Handle specific duplicate key error
     if (error.code === 11000) {
+      // Extract position from error if possible
+      const position = error.keyValue?.position || 'this position';
       return res.status(400).json({
         success: false,
-        message: 'You have already voted for this position in this election',
-        alreadyVoted: true
+        message: `You have already voted for ${position} in this election`,
+        alreadyVoted: true,
+        position: position
       });
     }
     
@@ -173,6 +179,8 @@ export const getUserVote = async (req, res) => {
     
     // Better user ID extraction
     const userId = req.user?.id || req.user?._id || req.user?.userId;
+
+    console.log('Getting user votes for userId:', userId, 'electionId:', electionId);
 
     if (!userId) {
       return res.status(401).json({
@@ -212,10 +220,15 @@ export const getUserVote = async (req, res) => {
       query.position = position;
     }
 
+    console.log('Vote query:', query);
+
     const existingVotes = await Vote.find(query).populate('candidate', 'name position image');
+
+    console.log('Found votes:', existingVotes.length);
 
     if (existingVotes.length > 0) {
       if (position) {
+        // Single position query
         const vote = existingVotes[0];
         return res.status(200).json({
           success: true,
@@ -230,6 +243,7 @@ export const getUserVote = async (req, res) => {
           }
         });
       } else {
+        // Multiple positions query
         return res.status(200).json({
           success: true,
           hasVoted: true,
@@ -244,10 +258,12 @@ export const getUserVote = async (req, res) => {
         });
       }
     } else {
-      return res.status(404).json({
-        success: false,
+      // No votes found - return structured response
+      return res.status(200).json({
+        success: true,
         hasVoted: false,
-        message: 'No vote found for this user in this election'
+        votes: [],
+        message: 'No votes found for this user in this election'
       });
     }
 
@@ -256,6 +272,77 @@ export const getUserVote = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error checking user vote',
+      error: error.message
+    });
+  }
+};
+
+// ENHANCED: Add a dedicated endpoint for checking all user votes in an election
+export const checkUserVotesInElection = async (req, res) => {
+  try {
+    const { electionId } = req.params;
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+
+    console.log('Checking all votes for userId:', userId, 'in election:', electionId);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User ID not found. Please log in again.'
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(electionId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ID format'
+      });
+    }
+
+    const votes = await Vote.find({
+      election: new mongoose.Types.ObjectId(electionId),
+      voter: new mongoose.Types.ObjectId(userId)
+    }).populate('candidate', 'name position image');
+
+    console.log('Found total votes for user:', votes.length);
+
+    if (votes.length > 0) {
+      const votedPositions = votes.map(vote => vote.position);
+      const votedCandidates = {};
+      
+      votes.forEach(vote => {
+        votedCandidates[vote.position] = vote.candidate._id;
+      });
+
+      return res.status(200).json({
+        success: true,
+        hasVoted: true,
+        totalVotes: votes.length,
+        votedPositions,
+        votedCandidates,
+        votes: votes.map(vote => ({
+          candidate: vote.candidate._id,
+          candidateName: vote.candidate.name,
+          position: vote.position,
+          votedAt: vote.votedAt
+        }))
+      });
+    } else {
+      return res.status(200).json({
+        success: true,
+        hasVoted: false,
+        totalVotes: 0,
+        votedPositions: [],
+        votedCandidates: {},
+        votes: []
+      });
+    }
+
+  } catch (error) {
+    console.error('Check user votes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking user votes',
       error: error.message
     });
   }
