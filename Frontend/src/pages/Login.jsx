@@ -86,7 +86,9 @@ const Login = ({
       
       if (!token || !user) throw new Error("Invalid login response");
 
-      window.authData = { token, user };
+      // Store in localStorage instead of window.authData
+      localStorage.setItem('token', token);
+      localStorage.setItem('userData', JSON.stringify(user));
 
       showNotification("Login successful!", "success");
       if (onLoginSuccess) onLoginSuccess({ user, token });
