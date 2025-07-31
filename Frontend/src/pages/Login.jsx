@@ -16,8 +16,25 @@ const Login = ({
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
+  const [lastAttempt, setLastAttempt] = useState(0);
+  const [cooldownTime, setCooldownTime] = useState(0);
 
-  // Show notification
+  useState(() => {
+    if (cooldownTime > 0) {
+      const timer = setInterval(() => {
+        setCooldownTime(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [cooldownTime]);
+
+ 
   const showNotification = (message, type = "info") => {
     setNotification({ message, type });
     setTimeout(() => setNotification({ message: "", type: "" }), 5000);
@@ -61,11 +78,57 @@ const Login = ({
     }
   };
 
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const makeRequestWithRetry = async (url, options, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+        const responseText = await response.text();
+        
+       
+        if (responseText.toLowerCase().includes('too many requests')) {
+          if (attempt < maxRetries) {
+            const waitTime = Math.pow(2, attempt) * 1000; 
+            console.log(`Rate limited. Retrying in ${waitTime/1000} seconds... (Attempt ${attempt}/${maxRetries})`);
+            showNotification(`Rate limited. Retrying in ${waitTime/1000} seconds...`, 'warning');
+            await sleep(waitTime);
+            continue;
+          } else {
+            throw new Error('Rate limit exceeded. Please wait 10-15 minutes before trying again.');
+          }
+        }
+        
+        return { response, responseText };
+      } catch (error) {
+        if (attempt === maxRetries) throw error;
+        
+    
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`Request failed. Retrying in ${waitTime/1000} seconds... (Attempt ${attempt}/${maxRetries})`);
+        await sleep(waitTime);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
+   
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastAttempt;
+    const minInterval = 5000; 
+
+    if (timeSinceLastAttempt < minInterval) {
+      const remainingCooldown = Math.ceil((minInterval - timeSinceLastAttempt) / 1000);
+      setCooldownTime(remainingCooldown);
+      showNotification(`Please wait ${remainingCooldown} seconds before trying again`, 'warning');
+      return;
+    }
+
     setLoading(true);
+    setLastAttempt(now);
     const loginUrl = "https://elections-backend-j8m8.onrender.com/api/users/login";
 
     try {
@@ -76,7 +139,8 @@ const Login = ({
 
       console.log('Attempting login with payload:', { id: payload.id, password: '[REDACTED]' });
 
-      const response = await fetch(loginUrl, {
+   
+      const { response, responseText } = await makeRequestWithRetry(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,22 +149,18 @@ const Login = ({
         body: JSON.stringify(payload)
       });
 
-      // Debug logging
+     
       console.log('Response status:', response.status);
       console.log('Response status text:', response.statusText);
       console.log('Content-Type:', response.headers.get('content-type'));
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      // Get response as text first to see what we're actually receiving
-      const responseText = await response.text();
       console.log('Raw response:', responseText);
 
-      // Check if the response is empty
+      
       if (!responseText) {
         throw new Error('Server returned empty response');
       }
 
-      // Check if response looks like JSON
+   
       let data;
       if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
         try {
@@ -111,12 +171,12 @@ const Login = ({
           throw new Error('Server returned malformed JSON response');
         }
       } else {
-        // Response is not JSON - likely an HTML error page or plain text error
+      
         console.error('Non-JSON response received:', responseText);
         
-        // Check for common error patterns
+        
         if (responseText.toLowerCase().includes('too many requests')) {
-          throw new Error('Too many login attempts. Please wait a moment and try again.');
+          throw new Error('Rate limit exceeded. Please wait 10-15 minutes before trying again.');
         } else if (responseText.toLowerCase().includes('not found')) {
           throw new Error('Login service not available. Please try again later.');
         } else if (responseText.toLowerCase().includes('internal server error')) {
@@ -128,9 +188,9 @@ const Login = ({
         }
       }
 
-      // Check response status
+     
       if (!response.ok) {
-        // If we have parsed JSON data with an error message, use it
+     
         if (data && data.message) {
           throw new Error(data.message);
         } else {
@@ -138,7 +198,7 @@ const Login = ({
         }
       }
 
-      // Validate response structure
+    
       if (!data) {
         throw new Error('No data received from server');
       }
@@ -152,7 +212,7 @@ const Login = ({
         throw new Error("Invalid login response - missing token or user data");
       }
 
-      // Validate user object
+      
       if (!user._id || !user.name || !user.email || !user.userId || !user.role) {
         console.error('Incomplete user data:', user);
         throw new Error("Invalid user data received from server");
@@ -165,36 +225,36 @@ const Login = ({
         userId: user.userId 
       });
 
-      // Store authentication data
+     
       localStorage.setItem('token', token);
       localStorage.setItem('userData', JSON.stringify(user));
 
       showNotification("Login successful!", "success");
 
-      // Call success callback if provided
+     
       if (onLoginSuccess) {
         onLoginSuccess({ user, token });
       }
 
-      // Close modal and reset form
+  
       onClose();
       setFormData({ id: "", password: "" });
 
-      // Handle role-based redirect
+      
       setTimeout(() => {
         handleRoleBasedRedirect(user);
-      }, 1000); // Small delay to let user see success message
+      }, 1000); 
 
     } catch (err) {
       console.error('Login error:', err);
       
-      // Network or fetch errors
+    
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         showNotification('Network error. Please check your internet connection.', 'error');
       } else if (err.name === 'AbortError') {
         showNotification('Request timed out. Please try again.', 'error');
       } else {
-        // Use the error message we constructed above
+    
         const msg = err.message || "Something went wrong during login";
         showNotification(msg, "error");
       }
@@ -203,7 +263,7 @@ const Login = ({
     }
   };
 
-  // Don't render if modal is not open
+ 
   if (!isOpen) return null;
 
   return (
@@ -222,7 +282,7 @@ const Login = ({
             Election System Login
           </h2>
 
-          {/* Notification */}
+       
           {notification.message && (
             <div className={`mb-4 p-3 rounded-md text-sm ${
               notification.type === "error" ? "bg-red-100 text-red-700 border border-red-300" :
@@ -235,7 +295,7 @@ const Login = ({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* User ID Input */}
+          
             <div className="relative">
               <input
                 type="text"
@@ -252,7 +312,7 @@ const Login = ({
               </label>
             </div>
 
-            {/* Password Input */}
+          
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -278,10 +338,10 @@ const Login = ({
               </button>
             </div>
 
-            {/* Submit Button */}
+        
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || cooldownTime > 0}
               className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -292,13 +352,15 @@ const Login = ({
                   </svg>
                   Logging in...
                 </span>
+              ) : cooldownTime > 0 ? (
+                `Wait ${cooldownTime}s`
               ) : (
                 "Login"
               )}
             </button>
           </form>
 
-          {/* Note */}
+       
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 text-center">
               <strong>Note:</strong> Only registered users can login.
