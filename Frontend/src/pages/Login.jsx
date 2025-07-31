@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import axios from "axios";
 
 const Login = ({
   isOpen,
@@ -74,25 +75,18 @@ const Login = ({
         password: formData.password 
       };
 
-      const response = await fetch(loginUrl, {
-        method: 'POST',
+      const response = await axios.post(loginUrl, payload, {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        timeout: 10000, // 10 second timeout
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      const { token, user } = data;
+      const { token, user } = response.data;
       
       if (!token || !user) throw new Error("Invalid login response");
 
-      
+      // Store auth data
       window.authData = { token, user };
 
       showNotification("Login successful!", "success");
@@ -102,7 +96,21 @@ const Login = ({
       handleRoleBasedRedirect(user);
       
     } catch (err) {
-      const msg = err.message || "Something went wrong";
+      let msg = "Something went wrong";
+      
+      if (err.response) {
+        // Server responded with error status
+        msg = err.response.data?.message || `Error: ${err.response.status}`;
+      } else if (err.request) {
+        // Network error
+        msg = "Network error. Please check your connection.";
+      } else if (err.code === 'ECONNABORTED') {
+        // Timeout error
+        msg = "Request timeout. Please try again.";
+      } else {
+        msg = err.message || "Something went wrong";
+      }
+      
       showNotification(msg, "error");
     } finally {
       setLoading(false);
@@ -126,7 +134,7 @@ const Login = ({
             Election System Login
           </h2>
 
-         
+          {/* Notification */}
           {notification.message && (
             <div className={`mb-4 p-3 rounded-md text-sm ${
               notification.type === "error" ? "bg-red-100 text-red-700 border border-red-300" :
