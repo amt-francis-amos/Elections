@@ -17,6 +17,7 @@ const Login = ({
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
 
+ 
   const showNotification = (message, type = "info") => {
     setNotification({ message, type });
     setTimeout(() => setNotification({ message: "", type: "" }), 5000);
@@ -91,6 +92,7 @@ const Login = ({
       
       if (!token || !user) throw new Error("Invalid login response");
 
+      
       window.authData = { token, user };
 
       showNotification("Login successful!", "success");
@@ -124,6 +126,7 @@ const Login = ({
             Election System Login
           </h2>
 
+         
           {notification.message && (
             <div className={`mb-4 p-3 rounded-md text-sm ${
               notification.type === "error" ? "bg-red-100 text-red-700 border border-red-300" :
@@ -135,7 +138,7 @@ const Login = ({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
               <input
                 type="text"
@@ -173,13 +176,14 @@ const Login = ({
             </div>
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={loading}
               className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
-          </form>
+          </div>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 text-center">
