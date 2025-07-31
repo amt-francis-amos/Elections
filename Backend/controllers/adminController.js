@@ -73,7 +73,6 @@ export const createVoter = async (req, res) => {
 
     const voter = await User.create(voterData);
 
-  
     if (email && email.trim()) {
       const mailOptions = {
         from: `"Voting App" <${process.env.EMAIL_USER}>`,
@@ -100,7 +99,6 @@ export const createVoter = async (req, res) => {
         console.log("✅ Email sent successfully to:", normalizedEmail);
       } catch (emailError) {
         console.error("❌ Error sending email:", emailError.message);
-    
       }
     }
 
@@ -217,6 +215,93 @@ export const promoteToAdmin = async (req, res) => {
   }
 };
 
+export const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, role } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    if (name && name.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must be at least 2 characters long"
+      });
+    }
+
+
+    if (email && email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please provide a valid email address"
+        });
+      }
+
+
+      const existingEmail = await User.findOne({ 
+        email: email.toLowerCase().trim(),
+        _id: { $ne: id }
+      });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is already taken by another user"
+        });
+      }
+    }
+
+
+    if (name && name.trim()) {
+      const existingName = await User.findOne({
+        name: name.trim(),
+        _id: { $ne: id }
+      });
+      if (existingName) {
+        return res.status(400).json({
+          success: false,
+          message: "Name is already taken by another user"
+        });
+      }
+    }
+
+  
+    if (name) user.name = name.trim();
+    if (email) user.email = email.toLowerCase().trim();
+    if (role && ['voter', 'admin'].includes(role)) user.role = role;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        userId: user.userId,
+        role: user.role,
+        createdAt: user.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error("Update user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating user",
+      error: error.message
+    });
+  }
+};
+
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -253,3 +338,80 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+export const getStats = async (req, res) => {
+  try {
+  
+    const totalUsers = await User.countDocuments();
+    const totalVoters = await User.countDocuments({ role: 'voter' });
+    const totalAdmins = await User.countDocuments({ role: 'admin' });
+
+   
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalVotes: 0, 
+        totalUsers,
+        totalVoters,
+        totalAdmins,
+        totalElections: 0, 
+        activeElections: 0, 
+        totalCandidates: 0 
+      }
+    });
+
+  } catch (error) {
+    console.error("Get stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching stats",
+      error: error.message
+    });
+  }
+};
+
+export const exportElectionResults = async (req, res) => {
+  try {
+    const { format, election } = req.query;
+    
+    if (!election) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Election ID is required' 
+      });
+    }
+
+    // For now, return empty data since Vote model doesn't exist yet
+    // This will be updated when you have the Vote model
+    const votes = [];
+
+    if (format === 'json') {
+      return res.json({
+        success: true,
+        data: votes,
+        message: 'No votes found - Vote model not yet implemented'
+      });
+    }
+    
+    if (format === 'csv') {
+      const header = ['voteId','electionId','candidateId','candidateName','voterId','voterName','voterEmail','timestamp'];
+      const csv = header.join(',');
+      
+      res.setHeader('Content-Type','text/csv');
+      res.setHeader('Content-Disposition','attachment; filename=results.csv');
+      return res.send(csv);
+    }
+    
+    res.status(400).json({ 
+      success: false,
+      message: 'Invalid format. Use json or csv' 
+    });
+    
+  } catch (error) {
+    console.error("Export results error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while exporting results",
+      error: error.message
+    });
+  }
+};
