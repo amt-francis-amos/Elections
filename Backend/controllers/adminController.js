@@ -256,7 +256,7 @@ export const deleteUser = async (req, res) => {
 export const exportElectionResults = async (req, res, next) => {
   const { format, election } = req.query
   if (!election) return res.status(400).json({ message: 'Election ID is required' })
-  const votes = await Vote.find({ election })
+  const votes = await vote.find({ election })
     .populate('voter', 'name email')
     .populate('candidate', 'name')
     .lean()
