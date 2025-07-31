@@ -39,7 +39,6 @@ import UserAccount from "../components/UserAccount.jsx";
 
 const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
-
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem("token") || localStorage.getItem("userToken");
   if (token) {
@@ -50,13 +49,11 @@ axios.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       console.error('Authentication failed. Please log in again.');
-    
     }
     return Promise.reject(error);
   }
@@ -96,7 +93,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchAllData();
     
-  
     const intervalId = setInterval(() => {
       fetchAllData(true); 
     }, 30000);
@@ -104,7 +100,6 @@ const AdminDashboard = () => {
     return () => clearInterval(intervalId);
   }, []);
 
- 
   const handleManualRefresh = async () => {
     setRefreshing(true);
     await fetchAllData();
@@ -121,31 +116,12 @@ const AdminDashboard = () => {
         fetchElections(silent),
         fetchCandidates(silent),
         fetchUsers(silent),
-        fetchVoteStats(silent),
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       if (!silent) {
         setLoading(false);
-      }
-    }
-  };
-
- 
-  const fetchVoteStats = async (silent = false) => {
-    try {
-      const { data } = await axios.get(`${API_BASE_URL}/admin/stats`);
-      
-      if (data.success) {
-        setStats(prevStats => ({
-          ...prevStats,
-          totalVotes: data.stats.totalVotes || 0,
-        }));
-      }
-    } catch (err) {
-      if (!silent) {
-        console.error("Error fetching vote stats:", err);
       }
     }
   };
@@ -159,12 +135,10 @@ const AdminDashboard = () => {
       }
 
       const electionsData = data.elections || data || [];
-      
 
       const formattedElections = await Promise.all(
         electionsData.map(async (election) => {
           try {
-       
             const voteResponse = await axios.get(`${API_BASE_URL}/votes/results/${election._id}`);
             const totalVotes = voteResponse.data?.results?.totalVotes || 0;
             
@@ -177,7 +151,6 @@ const AdminDashboard = () => {
               endDate: new Date(election.endDate).toISOString().split('T')[0],
             };
           } catch (voteErr) {
-   
             return {
               ...election,
               totalVotes: election.totalVotes || 0,
@@ -196,7 +169,6 @@ const AdminDashboard = () => {
         e.status === 'active' || e.status === 'ongoing' || e.isActive
       ).length;
 
-  
       const totalVotesAcrossElections = formattedElections.reduce(
         (sum, election) => sum + (election.totalVotes || 0), 0
       );
@@ -235,11 +207,9 @@ const AdminDashboard = () => {
         candidatesData = data.data;
       }
 
-    
       const formattedCandidates = await Promise.all(
         candidatesData.map(async (candidate) => {
           try {
-       
             const voteResponse = await axios.get(
               `${API_BASE_URL}/votes/candidate/${candidate._id || candidate.id}/count`
             );
@@ -252,7 +222,6 @@ const AdminDashboard = () => {
               image: candidate.image || null,
             };
           } catch (voteErr) {
-         
             return {
               ...candidate,
               id: candidate._id || candidate.id,
@@ -557,7 +526,6 @@ const AdminDashboard = () => {
         totalCandidates: Math.max(0, prevStats.totalCandidates - 1),
       }));
 
-
       await fetchAllData(true);
     } catch (err) {
       console.error(err);
@@ -793,7 +761,6 @@ const AdminDashboard = () => {
 
       alert("Election deleted successfully!");
 
-    
       await fetchAllData(true);
 
     } catch (err) {
@@ -853,7 +820,6 @@ const AdminDashboard = () => {
       closeModal();
       alert("Candidate added successfully!");
 
-      // Refresh data to get updated counts
       await fetchAllData(true);
       
     } catch (err) {
@@ -922,7 +888,6 @@ const AdminDashboard = () => {
       closeModal();
       alert("Candidate updated successfully!");
 
-     
       await fetchAllData(true);
 
     } catch (err) {
