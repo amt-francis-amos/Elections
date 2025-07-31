@@ -32,7 +32,7 @@ const ProfilePage = () => {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Fixed API URL structure
+
   const API_BASE_URL = 'https://elections-backend-j8m8.onrender.com/api';
 
   useEffect(() => {
@@ -50,7 +50,7 @@ const ProfilePage = () => {
     }
     
     try {
-      // First try to use cached data for immediate display
+    
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       setEditForm({
@@ -58,7 +58,7 @@ const ProfilePage = () => {
         email: parsedUser.email || ''
       });
       
-      // Then fetch fresh data from server
+  
       const response = await axios.get(`${API_BASE_URL}/users/profile`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -74,7 +74,7 @@ const ProfilePage = () => {
           email: freshUserData.email || ''
         });
         
-        // Update localStorage with fresh data
+      
         localStorage.setItem("userData", JSON.stringify(freshUserData));
       }
       
@@ -88,7 +88,7 @@ const ProfilePage = () => {
         navigate('/');
         return;
       } else {
-        // Use cached data if server request fails
+       
         try {
           const parsedUser = JSON.parse(userData);
           if (parsedUser && parsedUser._id) {
@@ -139,7 +139,7 @@ const ProfilePage = () => {
 
   const handleEditToggle = () => {
     if (isEditing) {
-      // Reset form if canceling
+     
       setEditForm({
         name: user.name || '',
         email: user.email || ''
@@ -163,7 +163,7 @@ const ProfilePage = () => {
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
+    
       if (!file.type.startsWith('image/')) {
         toast.error('Please select an image file');
         if (fileInputRef.current) {
@@ -172,7 +172,7 @@ const ProfilePage = () => {
         return;
       }
       
-      // Validate file size (5MB limit)
+   
       if (file.size > 5 * 1024 * 1024) {
         toast.error('Image size should be less than 5MB');
         if (fileInputRef.current) {
@@ -181,7 +181,7 @@ const ProfilePage = () => {
         return;
       }
       
-      // Create preview
+    
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target.result);
@@ -235,8 +235,7 @@ const ProfilePage = () => {
         localStorage.setItem("userData", JSON.stringify(updatedUser));
         setImagePreview(null);
         toast.success('Profile picture updated successfully!');
-        
-        // Clear file input
+     
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -468,7 +467,7 @@ const ProfilePage = () => {
                   </div>
                 )}
                 
-                {/* Profile Picture Actions */}
+          
                 <div className="absolute bottom-0 right-0 flex flex-col space-y-1">
                   <button
                     onClick={() => fileInputRef.current?.click()}
@@ -510,7 +509,7 @@ const ProfilePage = () => {
                   </div>
                   
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                    {/* Image Upload Actions */}
+                    
                     {imagePreview && (
                       <button
                         onClick={handleImageUpload}
@@ -566,7 +565,7 @@ const ProfilePage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Information */}
+       
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Profile Information</h2>
@@ -655,7 +654,7 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Quick Actions */}
+         
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
@@ -695,7 +694,7 @@ const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Account Actions */}
+        
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Account</h3>
               
