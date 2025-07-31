@@ -40,13 +40,28 @@ const Reports = ({
     return loadingStates[`${electionId}_${action}`] || false;
   };
 
+  // Helper function to get election ID consistently
+  const getElectionId = (election) => {
+    return election.id || election._id;
+  };
+
+  // Helper function to validate election ID
+  const validateElectionId = (electionId) => {
+    if (!electionId || electionId === 'undefined' || electionId === 'null') {
+      throw new Error('Invalid election ID');
+    }
+    return electionId;
+  };
+
   const handleExportResults = async (electionId, format = 'json') => {
-    const key = `${electionId}_${format}`;
-    setExportingStates(prev => ({ ...prev, [key]: true }));
-    
     try {
+      // Validate election ID first
+      const validElectionId = validateElectionId(electionId);
+      const key = `${validElectionId}_${format}`;
+      setExportingStates(prev => ({ ...prev, [key]: true }));
+      
       const response = await axios.get(
-        `${API_BASE_URL}/votes/${electionId}/export?format=${format}`,
+        `${API_BASE_URL}/votes/${validElectionId}/export?format=${format}`,
         { 
           responseType: 'blob',
           headers: {
@@ -76,17 +91,17 @@ const Reports = ({
             type: 'application/json'
           });
         }
-        fileName = `election_results_${electionId}.json`;
+        fileName = `election_results_${validElectionId}.json`;
         mimeType = 'application/json';
       } else if (format === 'csv') {
         blob = response.data instanceof Blob ? response.data : 
                new Blob([response.data], { type: 'text/csv' });
-        fileName = `election_results_${electionId}.csv`;
+        fileName = `election_results_${validElectionId}.csv`;
         mimeType = 'text/csv';
       } else if (format === 'txt') {
         blob = response.data instanceof Blob ? response.data : 
                new Blob([response.data], { type: 'text/plain' });
-        fileName = `election_results_${electionId}.txt`;
+        fileName = `election_results_${validElectionId}.txt`;
         mimeType = 'text/plain';
       }
 
@@ -113,7 +128,9 @@ const Reports = ({
       console.error('Export error:', error);
       let errorMessage = 'Unknown error occurred';
       
-      if (error.response) {
+      if (error.message === 'Invalid election ID') {
+        errorMessage = 'Invalid election ID. Please try refreshing the page.';
+      } else if (error.response) {
         if (error.response.status === 404) {
           errorMessage = 'Export endpoint not found. Please check if the backend supports this feature.';
         } else if (error.response.status === 500) {
@@ -131,35 +148,44 @@ const Reports = ({
       
       alert(`Error exporting results: ${errorMessage}`);
     } finally {
+      const key = `${electionId}_${format}`;
       setExportingStates(prev => ({ ...prev, [key]: false }));
     }
   };
 
   const handleGetFinalResults = async (electionId) => {
-    setLoading(electionId, 'final', true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/votes/${electionId}/final-results`);
+      const validElectionId = validateElectionId(electionId);
+      setLoading(validElectionId, 'final', true);
+      
+      const response = await axios.get(`${API_BASE_URL}/votes/${validElectionId}/final-results`);
       
       if (response.data.success) {
         setWinners(prev => ({
           ...prev,
-          [electionId]: response.data
+          [validElectionId]: response.data
         }));
         alert('Final results loaded successfully!');
       }
     } catch (error) {
       console.error('Get final results error:', error);
-      alert(`Error loading final results: ${error.response?.data?.message || error.message}`);
+      let errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      alert(`Error loading final results: ${errorMessage}`);
     } finally {
       setLoading(electionId, 'final', false);
     }
   };
 
   const handleDeclareWinners = async (electionId, confirmDeclaration = false) => {
-    setLoading(electionId, 'declare', true);
     try {
+      const validElectionId = validateElectionId(electionId);
+      setLoading(validElectionId, 'declare', true);
+      
       const response = await axios.post(
-        `${API_BASE_URL}/votes/${electionId}/declare-winners`,
+        `${API_BASE_URL}/votes/${validElectionId}/declare-winners`,
         { confirmDeclaration }
       );
       
@@ -179,34 +205,40 @@ const Reports = ({
           `;
           
           if (window.confirm(confirmMessage)) {
-            await handleDeclareWinners(electionId, true);
+            await handleDeclareWinners(validElectionId, true);
           }
         } else {
           setWinners(prev => ({
             ...prev,
-            [electionId]: response.data
+            [validElectionId]: response.data
           }));
           alert(`Winners declared successfully! ${response.data.summary.clearWinners} position(s) declared.`);
         }
       }
     } catch (error) {
       console.error('Declare winners error:', error);
-      alert(`Error declaring winners: ${error.response?.data?.message || error.message}`);
+      let errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      alert(`Error declaring winners: ${errorMessage}`);
     } finally {
       setLoading(electionId, 'declare', false);
     }
   };
 
   const handleCheckWinnersDeclaration = async (electionId) => {
-    setLoading(electionId, 'check', true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/votes/${electionId}/winners-declaration`);
+      const validElectionId = validateElectionId(electionId);
+      setLoading(validElectionId, 'check', true);
+      
+      const response = await axios.get(`${API_BASE_URL}/votes/${validElectionId}/winners-declaration`);
       
       if (response.data.success) {
         if (response.data.declared) {
           setWinners(prev => ({
             ...prev,
-            [electionId]: response.data
+            [validElectionId]: response.data
           }));
           alert('Winners declaration loaded successfully!');
         } else {
@@ -215,7 +247,11 @@ const Reports = ({
       }
     } catch (error) {
       console.error('Check declaration error:', error);
-      alert(`Error checking declaration: ${error.response?.data?.message || error.message}`);
+      let errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      alert(`Error checking declaration: ${errorMessage}`);
     } finally {
       setLoading(electionId, 'check', false);
     }
@@ -248,25 +284,33 @@ const Reports = ({
             {elections.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No elections data available</p>
             ) : (
-              elections.map((election) => (
-                <div key={election.id}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">{election.title}</span>
-                    <span className="text-sm text-gray-500">
-                      {election.eligibleVoters > 0 ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1) : 0}%
-                    </span>
+              elections.map((election) => {
+                const electionId = getElectionId(election);
+                if (!electionId) {
+                  console.warn('Election missing ID:', election);
+                  return null;
+                }
+                
+                return (
+                  <div key={electionId}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">{election.title}</span>
+                      <span className="text-sm text-gray-500">
+                        {election.eligibleVoters > 0 ? ((election.totalVotes / election.eligibleVoters) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${election.eligibleVoters > 0 ? (election.totalVotes / election.eligibleVoters) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {election.totalVotes} of {election.eligibleVoters} eligible voters
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full" 
-                      style={{ width: `${election.eligibleVoters > 0 ? (election.totalVotes / election.eligibleVoters) * 100 : 0}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {election.totalVotes} of {election.eligibleVoters} eligible voters
-                  </div>
-                </div>
-              ))
+                );
+              }).filter(Boolean)
             )}
           </div>
         </div>
@@ -280,58 +324,66 @@ const Reports = ({
             {elections.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No elections data available</p>
             ) : (
-              elections.map((election) => (
-                <div key={election.id} className="border-l-4 border-blue-500 pl-4">
-                  <h4 className="font-medium text-gray-900">{election.title}</h4>
-                  <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
-                    <div>
-                      <span className="text-gray-500">Status:</span>
-                      <span className={`ml-2 px-2 py-1 rounded text-xs ${getStatusColor(election.status)}`}>
-                        {election.status}
-                      </span>
+              elections.map((election) => {
+                const electionId = getElectionId(election);
+                if (!electionId) {
+                  console.warn('Election missing ID:', election);
+                  return null;
+                }
+
+                return (
+                  <div key={electionId} className="border-l-4 border-blue-500 pl-4">
+                    <h4 className="font-medium text-gray-900">{election.title}</h4>
+                    <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Status:</span>
+                        <span className={`ml-2 px-2 py-1 rounded text-xs ${getStatusColor(election.status)}`}>
+                          {election.status}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Candidates:</span>
+                        <span className="ml-2 font-medium">{election.totalCandidates || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Total Votes:</span>
+                        <span className="ml-2 font-medium">{election.totalVotes || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Eligible Voters:</span>
+                        <span className="ml-2 font-medium">{election.eligibleVoters || 0}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Candidates:</span>
-                      <span className="ml-2 font-medium">{election.totalCandidates || 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Total Votes:</span>
-                      <span className="ml-2 font-medium">{election.totalVotes || 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Eligible Voters:</span>
-                      <span className="ml-2 font-medium">{election.eligibleVoters || 0}</span>
+                    
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleExportResults(electionId, 'json')}
+                        disabled={exportingStates[`${electionId}_json`] || !electionId}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Download size={14} />
+                        {exportingStates[`${electionId}_json`] ? 'Exporting...' : 'JSON'}
+                      </button>
+                      <button
+                        onClick={() => handleExportResults(electionId, 'csv')}
+                        disabled={exportingStates[`${electionId}_csv`] || !electionId}
+                        className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FileText size={14} />
+                        {exportingStates[`${electionId}_csv`] ? 'Exporting...' : 'CSV'}
+                      </button>
+                      <button
+                        onClick={() => handleExportResults(electionId, 'txt')}
+                        disabled={exportingStates[`${electionId}_txt`] || !electionId}
+                        className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FileText size={14} />
+                        {exportingStates[`${electionId}_txt`] ? 'Exporting...' : 'TXT'}
+                      </button>
                     </div>
                   </div>
-                  
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleExportResults(election.id || election._id, 'json')}
-                      disabled={exportingStates[`${election.id || election._id}_json`]}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <Download size={14} />
-                      {exportingStates[`${election.id || election._id}_json`] ? 'Exporting...' : 'JSON'}
-                    </button>
-                    <button
-                      onClick={() => handleExportResults(election.id || election._id, 'csv')}
-                      disabled={exportingStates[`${election.id || election._id}_csv`]}
-                      className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <FileText size={14} />
-                      {exportingStates[`${election.id || election._id}_csv`] ? 'Exporting...' : 'CSV'}
-                    </button>
-                    <button
-                      onClick={() => handleExportResults(election.id || election._id, 'txt')}
-                      disabled={exportingStates[`${election.id || election._id}_txt`]}
-                      className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <FileText size={14} />
-                      {exportingStates[`${election.id || election._id}_txt`] ? 'Exporting...' : 'TXT'}
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              }).filter(Boolean)
             )}
           </div>
         </div>
@@ -347,7 +399,12 @@ const Reports = ({
             <p className="text-gray-500 text-center py-8">No elections available for winner declaration</p>
           ) : (
             elections.map((election) => {
-              const electionId = election.id || election._id;
+              const electionId = getElectionId(election);
+              if (!electionId) {
+                console.warn('Election missing ID:', election);
+                return null;
+              }
+
               const electionWinners = getElectionWinners(electionId);
               
               return (
@@ -363,11 +420,14 @@ const Reports = ({
                       <p className="text-sm text-gray-600 mt-1">
                         Total Votes: {election.totalVotes || 0} | Candidates: {election.totalCandidates || 0}
                       </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Election ID: {electionId}
+                      </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => handleGetFinalResults(electionId)}
-                        disabled={isLoading(electionId, 'final')}
+                        disabled={isLoading(electionId, 'final') || !electionId}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 disabled:opacity-50"
                       >
                         <Target size={14} />
@@ -375,7 +435,7 @@ const Reports = ({
                       </button>
                       <button
                         onClick={() => handleDeclareWinners(electionId)}
-                        disabled={isLoading(electionId, 'declare')}
+                        disabled={isLoading(electionId, 'declare') || !electionId}
                         className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 disabled:opacity-50"
                       >
                         <Crown size={14} />
@@ -383,7 +443,7 @@ const Reports = ({
                       </button>
                       <button
                         onClick={() => handleCheckWinnersDeclaration(electionId)}
-                        disabled={isLoading(electionId, 'check')}
+                        disabled={isLoading(electionId, 'check') || !electionId}
                         className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 disabled:opacity-50"
                       >
                         <CheckCircle size={14} />
@@ -528,7 +588,7 @@ const Reports = ({
                   )}
                 </div>
               );
-            })
+            }).filter(Boolean)
           )}
         </div>
       </div>
@@ -646,7 +706,7 @@ const Reports = ({
                   .sort((a, b) => (b.votes || 0) - (a.votes || 0))
                   .slice(0, 10)
                   .map((candidate, index) => (
-                    <tr key={candidate.id} className="hover:bg-gray-50">
+                    <tr key={candidate.id || candidate._id || index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">#{index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center">
